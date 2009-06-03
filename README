@@ -1,0 +1,10 @@
+IPv6 stack for embedded systems
+
+..... a lot still needs to be done ....
+
+src/
+	esix source code
+doc/
+	esix documentation (including doxygen)
+platform/
+	platform specific code
