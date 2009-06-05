@@ -128,7 +128,7 @@ void reset_handler(void)
 	dst = &_bss;
 	while(dst < &_ebss)
 		*dst++ = 0;
-	
+		
 	main();
 }
 

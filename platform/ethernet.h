@@ -29,6 +29,14 @@
 #ifndef _ETHERNET_H
 #define _ETHERNET_H
 
+/**
+ * Ethernet interrupt handler
+ */
 void ethernet_handler(void);
+
+/**
+ * Initialize Ethernet hardware.
+ */
+void ethernet_init(void);
 
 #endif

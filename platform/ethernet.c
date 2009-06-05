@@ -32,3 +32,8 @@ void ethernet_handler(void)
 {
 	
 }
+
+void ethernet_init(void)
+{
+	
+}

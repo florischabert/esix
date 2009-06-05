@@ -1,6 +1,6 @@
 /**
  * @file
- * Main code.
+ * LM3S6965 Memory map.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,64 +26,23 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <FreeRTOS.h>
-#include <task.h>
-#include "mmap.h"
+#ifndef _MEMORY_MAP
+#define _MEMORY_MAP
 
-// Prototypes
-void hardware_init(void);
-void led_task(void *param);
+#define SYSCTR_BASE			0x400FE000
+#define RIS						*((volatile unsigned*) (SYSCTR_BASE + 0x050))
+#define RCC						*((volatile unsigned*) (SYSCTR_BASE + 0x060))
+#define RCGC2					*((volatile unsigned*) (SYSCTR_BASE + 0x108))
 
-/**
- * Main function.
- *
- * Start the tasks.
- */
-void main(void)
-{
-	hardware_init();
-	
-	// FreeRTOS tasks scheduling
-	xTaskCreate(led_task, (signed char *) "main", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
-	vTaskStartScheduler();
-}
+#define GPIOA_BASE			0x40004000
+#define GPIOB_BASE			0x40005000
+#define GPIOC_BASE			0x40006000 
+#define GPIOD_BASE			0x40007000 
+#define GPIOE_BASE			0x40024000 
+#define GPIOF_BASE			0x40025000 
+#define GPIOG_BASE			0x40026000
 
-/**
- * Toggle the LED
- */
-void led_task(void *param)
-{	
-	while(1)
-	{
-		*((volatile unsigned*) (GPIOF_BASE + 0x004)) ^= 1;
-		vTaskDelay(250);
-	}
-}
+#define GPIOF_DEN				*((volatile unsigned*) (GPIOF_BASE + 0x51c))
+#define GPIOF_DIR				*((volatile unsigned*) (GPIOF_BASE + 0x400))
 
-/**
- * Setup the hardware.
- */
-void hardware_init(void)
-{
-	// Main oscillator configuration
-	RCC = (RCC  & ~(0xf << 6)
-			& ~(0x1 << 11)			// PLL is the syclk source
-			& ~(0x3 << 4))			// MOSC is the oscillator source
-			| (0xe << 6) 			// External crystal is at 8MHz
-			| (0x1 << 1); 			// Enable the main oscillator
-			
-	while(!(RIS & (1 << 6)));	// Wait for the PLL to be stable
-	
-	RCC = (RCC & ~(0xf << 23))
-			| (0x3 << 23)			// Sysclk at 50MHz
-	      | (0x1 << 22)			// Enable sysclk divider
-			| (0x1 << 1);			// Disable the internal oscillator
-	
-	// Peripheral clocks
-	RCGC2 |= 0x1 << 5;			// Enable GPIOF
-	asm("nop"); // FIXME
-	
-	// Status LED
-	GPIOF_DEN |= 0x1;				// GF0 is digital 
-	GPIOF_DIR |= 0x1;				// GF0 as output
-}
+#endif

@@ -41,8 +41,8 @@ SECTIONS
 		*(.text*)
 		*(.rodata*)
 		_etext = .;
-	} > RAM /* or FLASH */
-
+	} > FLASH
+	
 	.data : AT (ADDR(.text) + SIZEOF(.text))
 	{
 		_data = .;
@@ -57,5 +57,5 @@ SECTIONS
 		*(.bss*)
 		*(COMMON)
 		_ebss = .;
-	}
+	} > RAM
 }
