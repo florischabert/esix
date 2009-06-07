@@ -1,6 +1,6 @@
 /**
  * @file
- * Ethernet driver.
+ * Common types.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,21 +26,11 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <FreeRTOS.h>
-#include "ethernet.h"
+#ifndef _TYPES_H
+#define _TYPES_H
 
-/**
- * Ethernet interrupt handler.
- */
-void ethernet_handler(void)
-{
-	
-}
+typedef unsigned int u32_t;
+typedef unsigned short u16_t;
+typedef unsigned char u8_t;
 
-/**
- * Initialize Ethernet hardware.
- */
-void ethernet_init(void)
-{
-	
-}
+#endif

@@ -29,6 +29,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include "mmap.h"
+#include "uart.h"
 
 // Prototypes
 void hardware_init(void);
@@ -42,10 +43,12 @@ void led_task(void *param);
 void main(void)
 {
 	hardware_init();
+	uart_init();
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(led_task, (signed char *) "main", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
+	while(1);
 }
 
 /**
@@ -55,7 +58,8 @@ void led_task(void *param)
 {	
 	while(1)
 	{
-		*((volatile unsigned*) (GPIOF_BASE + 0x004)) ^= 1;
+		//uart_send_byte('!');
+		GPIOF->DATA[1] ^= 1;
 		vTaskDelay(250);
 	}
 }
@@ -65,25 +69,30 @@ void led_task(void *param)
  */
 void hardware_init(void)
 {
+	u32_t reg;
+	
 	// Main oscillator configuration
-	RCC = (RCC  & ~(0xf << 6)
-			& ~(0x1 << 11)			// PLL is the syclk source
-			& ~(0x3 << 4))			// MOSC is the oscillator source
-			| (0xe << 6) 			// External crystal is at 8MHz
-			| (0x1 << 1); 			// Enable the main oscillator
-			
-	while(!(RIS & (1 << 6)));	// Wait for the PLL to be stable
+	reg = SYSCTR->RCC;
+	reg &= ~(0xf << 6);
+	reg |= (0xe << 6);      // External crystal is at 8MHz
+	reg &= ~(1 << 11);      // PLL is the syclk source
+	reg &= ~(0x3 << 4);     // MOSC is the oscillator source
+	reg |= (1 << 1);        // Enable the main oscillator
+	SYSCTR->RCC = reg;
 	
-	RCC = (RCC & ~(0xf << 23))
-			| (0x3 << 23)			// Sysclk at 50MHz
-	      | (0x1 << 22)			// Enable sysclk divider
-			| (0x1 << 1);			// Disable the internal oscillator
+	while(!(SYSCTR->RIS & (1 << 6))); // Wait for the PLL to be stable
 	
-	// Peripheral clocks
-	RCGC2 |= 0x1 << 5;			// Enable GPIOF
+	reg = SYSCTR->RCC;
+	reg &= ~(0xf << 23);
+	reg |= (0x3 << 23);     // Sysclk at 50MHz
+	reg |= (1 << 22);       // Enable sysclk divider
+	reg |= (1 << 1);        // Disable the internal oscillator
+	SYSCTR->RCC = reg;
+	
+	// Status LED configuration
+	SYSCTR->RCGC2 |= (1 << 5); // Enable GPIOF clock
 	asm("nop"); // FIXME
-	
-	// Status LED
-	GPIOF_DEN |= 0x1;				// GF0 is digital 
-	GPIOF_DIR |= 0x1;				// GF0 as output
+
+	GPIOF->DIR = (1 << 0); // PF0 as output
+	GPIOF->DEN = (1 << 0); // PF0 is digital 
 }

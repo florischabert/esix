@@ -30,7 +30,7 @@
 #define _ETHERNET_H
 
 /**
- * Ethernet interrupt handler
+ * Ethernet interrupt handler.
  */
 void ethernet_handler(void);
 

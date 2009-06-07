@@ -1,6 +1,6 @@
 /**
  * @file
- * Ethernet driver.
+ * UART driver.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,21 +26,24 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <FreeRTOS.h>
-#include "ethernet.h"
+#ifndef _UART_H
+#define _UART_H
 
 /**
- * Ethernet interrupt handler.
+ * UART0 initialization.
  */
-void ethernet_handler(void)
-{
-	
-}
+void uart_init(void);
 
 /**
- * Initialize Ethernet hardware.
+ * UART0 interrupt handler.
  */
-void ethernet_init(void)
-{
-	
-}
+void uart_handler(void);
+
+/**
+ * Send a byte through UART0.
+ *
+ * @param byte the byte to send
+ */
+void uart_send_byte(u8_t byte);
+
+#endif

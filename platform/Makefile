@@ -30,7 +30,7 @@ LDFLAGS = -mcpu=cortex-m3 --gc-sections -mthumb -nostartfiles \
 	-Xlinker -T  -Xlinker link.ld 
 
 main: $(PROGRAM).o boot.o \
-	ethernet.o \
+	uart.o ethernet.o \
 	FreeRTOS/tasks.o FreeRTOS/list.o FreeRTOS/queue.o \
 	FreeRTOS/portable/port.o FreeRTOS/portable/heap_1.o
 

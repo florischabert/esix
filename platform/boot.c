@@ -27,7 +27,10 @@
  */
 
 #include <FreeRTOS.h>
+#include "types.h"
+
 #include "ethernet.h"
+#include "uart.h"
 
 // Prototypes
 extern void main(void);
@@ -38,11 +41,11 @@ void reset_handler(void);
 void default_handler(void);
 
 // LD script symbols
-extern unsigned long _etext, _data, _edata, _bss, _ebss;
+extern u32_t _etext, _data, _edata, _bss, _ebss;
 
 // System stack
 __attribute__((section(".stack")))
-static unsigned long system_stack[configMINIMAL_STACK_SIZE];
+static u32_t system_stack[configMINIMAL_STACK_SIZE];
 
 // Interrupt vector table
 __attribute__((section(".isr_table"), used))
@@ -52,61 +55,61 @@ static void (*isr_handler[])() =
 	(void *) (system_stack + sizeof(system_stack)),
 	// Processor exceptions
 	reset_handler,
-	default_handler,			// NMI
-	default_handler,			// Hard Falut
-	default_handler,			// MPU mismatch
-	default_handler,			// Bus Fault
-	default_handler,			// Usage Fault
-	0, 0, 0, 0,					// Reserved
-	vPortSVCHandler,			// SVCall
-	default_handler,			// Debug Monitor
-	0,								// Reserved
-	xPortPendSVHandler,		// PendSV
-	xPortSysTickHandler,		// SysTick
+	default_handler,      // NMI
+	default_handler,      // Hard Falut
+	default_handler,      // MPU mismatch
+	default_handler,      // Bus Fault
+	default_handler,      // Usage Fault
+	0, 0, 0, 0,           // Reserved
+	vPortSVCHandler,      // SVCall
+	default_handler,      // Debug Monitor
+	0,                    // Reserved
+	xPortPendSVHandler,   // PendSV
+	xPortSysTickHandler,  // SysTick
 	// Interrupts
-	default_handler,			// GPIO A
-	default_handler,			// GPIO B
-	default_handler,			// GPIO C
-	default_handler,			// GPIO D
-	default_handler,			// GPIO E
-	default_handler,			// UART 0
-	default_handler,			// UART 1
-	default_handler,			// SSI 0
-	default_handler,			// I2C 0
-	default_handler,			// PWM Fault
-	default_handler,			// PWM 0
-	default_handler,			// PWM 1
-	default_handler,			// PWM 2
-	default_handler,			// PWM 3
-	default_handler,			// QEI 0
-	default_handler,			// ADC 0
-	default_handler,			// ADC 1
-	default_handler,			// ADC 2
-	default_handler,			// ADC 3
-	default_handler,			// Watchdog
-	default_handler,			// Timer 0 A
-	default_handler,			// TImer 0 B
-	default_handler,			// Timer 1 A
-	default_handler,			// TImer 1 B
-	default_handler,			// Timer 2 A
-	default_handler,			// TImer 2 B
-	default_handler,			// Analog Comp 0
-	default_handler,			// Analog Comp 1
-	0,								// Reserved
-	default_handler,			// System Control
-	default_handler,			// Flash Control
-	default_handler,			// GPIO F
-	default_handler,			// GPIO G
-	0,								// Reserved
-	default_handler,			// UART 2
-	0,								// Reserved
-	default_handler,			// Timer 3 A
-	default_handler,			// Timer 3 B
-	default_handler,			// I2C 1
-	default_handler,			// QEI 1
-	0, 0, 0,						// Reserved
-	ethernet_handler,			// Ethernet
-	default_handler,			// Hibernation
+	default_handler,        // GPIO A
+	default_handler,        // GPIO B
+	default_handler,        // GPIO C
+	default_handler,        // GPIO D
+	default_handler,        // GPIO E
+	uart_handler,           // UART 0
+	default_handler,        // UART 1
+	default_handler,        // SSI 0
+	default_handler,        // I2C 0
+	default_handler,        // PWM Fault
+	default_handler,        // PWM 0
+	default_handler,        // PWM 1
+	default_handler,        // PWM 2
+	default_handler,        // PWM 3
+	default_handler,        // QEI 0
+	default_handler,        // ADC 0
+	default_handler,        // ADC 1
+	default_handler,        // ADC 2
+	default_handler,        // ADC 3
+	default_handler,        // Watchdog
+	default_handler,        // Timer 0 A
+	default_handler,        // TImer 0 B
+	default_handler,        // Timer 1 A
+	default_handler,        // TImer 1 B
+	default_handler,        // Timer 2 A
+	default_handler,        // TImer 2 B
+	default_handler,        // Analog Comp 0
+	default_handler,        // Analog Comp 1
+	0,                      // Reserved
+	default_handler,        // System Control
+	default_handler,        // Flash Control
+	default_handler,        // GPIO F
+	default_handler,        // GPIO G
+	0,                      // Reserved
+	default_handler,        // UART 2
+	0,                      // Reserved
+	default_handler,        // Timer 3 A
+	default_handler,        // Timer 3 B
+	default_handler,        // I2C 1
+	default_handler,        // QEI 1
+	0, 0, 0,                // Reserved
+	ethernet_handler,       // Ethernet
+	default_handler,        // Hibernation
 };
 
 /**
@@ -116,7 +119,8 @@ static void (*isr_handler[])() =
  */
 void reset_handler(void)
 {
-	unsigned long *src, *dst;
+	//*((volatile unsigned int *) 0xe000ed08) = 0x20000000; // for ram boot
+	u32_t *src, *dst;
 	
 	// Copy the data segment to SRAM
 	src = &_etext;
@@ -124,7 +128,7 @@ void reset_handler(void)
 	while(dst < &_edata)
 		*dst++ = *src++; 
 		
-	// 0-fill the bss
+	// Zero-fill the bss
 	dst = &_bss;
 	while(dst < &_ebss)
 		*dst++ = 0;

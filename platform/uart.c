@@ -1,6 +1,6 @@
 /**
  * @file
- * Ethernet driver.
+ * UART driver.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -27,20 +27,56 @@
  */
 
 #include <FreeRTOS.h>
-#include "ethernet.h"
+#include "mmap.h"
+#include "uart.h"
 
 /**
- * Ethernet interrupt handler.
+ * UART0 initialization.
  */
-void ethernet_handler(void)
+void uart_init(void)
 {
+	u32_t reg;
 	
+	// IO configuration
+	SYSCTR->RCGC2 |= (1 << 0); // Enable GPIOA clock
+	asm("nop"); // FIXME
+	
+	GPIOA->AFSEL = (1 << 0) | (1 << 1); // PA0, PA1 are alternate functions
+	GPIOA->DEN = (1 << 0) | (1 << 1);   // PA0, PA1 are digital
+
+	
+	// UART0 configuration
+	SYSCTR->RCGC1 |= (1 << 0);  // Enable UART0 clock
+	asm("nop"); // FIXME
+	
+	UART0->IBRD = 27;           // UART0 at 115.200 baud
+	UART0->FBRD = 8;
+	UART0->LCRH |= 3;           // 8 bits frame
+	UART0->IM |= (1 << 4);      // Enable receive interrupt
+	UART0->CTL |= 0;            // Enable the uart
+	
+	// Unmask interrupt line
+	reg = NVIC->IPR[1];
+	reg &= ~(0xff << 8);        // Set the interrupt priority
+	reg |= ((configMAX_SYSCALL_INTERRUPT_PRIORITY + 1) << 8);
+	NVIC->IPR[1] = reg;
+	NVIC->ISER[0] |= (1 << 5);  // Enable UART0 interrupt line
 }
 
 /**
- * Initialize Ethernet hardware.
+ * UART0 interrupt handler.
  */
-void ethernet_init(void)
+void uart_handler(void)
 {
-	
+	//GPIOF->DATA[1] = 1;
+	// UARTMIS
+	// UARTICR
+}
+
+/**
+ * Send a byte through UART0.
+ */
+void uart_send_byte(u8_t byte)
+{
+	//UART0->IM |= (1 << 5); // Enable transmit interrupt
 }
