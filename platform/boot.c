@@ -26,11 +26,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <FreeRTOS.h>
+//#include <FreeRTOS.h>
 #include "types.h"
-
-#include "ethernet.h"
-#include "uart.h"
 
 // Prototypes
 extern void main(void);
@@ -45,7 +42,7 @@ extern u32_t _etext, _data, _edata, _bss, _ebss;
 
 // System stack
 __attribute__((section(".stack")))
-static u32_t system_stack[configMINIMAL_STACK_SIZE];
+static u32_t system_stack[200];//configMINIMAL_STACK_SIZE];
 
 // Interrupt vector table
 __attribute__((section(".isr_table"), used))
@@ -72,7 +69,7 @@ static void (*isr_handler[])() =
 	default_handler,        // GPIO C
 	default_handler,        // GPIO D
 	default_handler,        // GPIO E
-	uart_handler,           // UART 0
+	0,//uart_handler,           // UART 0
 	default_handler,        // UART 1
 	default_handler,        // SSI 0
 	default_handler,        // I2C 0
@@ -108,7 +105,7 @@ static void (*isr_handler[])() =
 	default_handler,        // I2C 1
 	default_handler,        // QEI 1
 	0, 0, 0,                // Reserved
-	ethernet_handler,       // Ethernet
+	0,//ethernet_handler,       // Ethernet
 	default_handler,        // Hibernation
 };
 
@@ -120,6 +117,8 @@ static void (*isr_handler[])() =
 void reset_handler(void)
 {
 	//*((volatile unsigned int *) 0xe000ed08) = 0x20000000; // for ram boot
+	//((void (*)()) *((u32_t *) 0x20000004))();
+
 	u32_t *src, *dst;
 	
 	// Copy the data segment to SRAM

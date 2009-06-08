@@ -28,8 +28,16 @@
 
 #include <FreeRTOS.h>
 #include <task.h>
-#include "mmap.h"
-#include "uart.h"
+#include <queue.h>
+#include "driverlib/inc/hw_ints.h"
+#include "driverlib/inc/hw_memmap.h"
+#include "driverlib/inc/hw_types.h"
+#include "driverlib/debug.h"
+#include "driverlib/gpio.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/uart.h"
+#include "driverlib/rit128x96x4.h"
 
 // Prototypes
 void hardware_init(void);
@@ -39,11 +47,11 @@ void led_task(void *param);
  * Main function.
  *
  * Start the tasks.
- */
+ */	
 void main(void)
 {
 	hardware_init();
-	uart_init();
+	//uart_init();
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(led_task, (signed char *) "main", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
@@ -55,11 +63,15 @@ void main(void)
  * Toggle the LED
  */
 void led_task(void *param)
-{	
+{
+	long val;
+	
 	while(1)
 	{
-		//uart_send_byte('!');
-		GPIOF->DATA[1] ^= 1;
+		RIT128x96x4StringDraw("AHAH!", 0, 0, 15);
+		UARTCharPutNonBlocking(UART0_BASE, '!');
+		val = GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_0);
+		GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_0, val^1);
 		vTaskDelay(250);
 	}
 }
@@ -69,30 +81,17 @@ void led_task(void *param)
  */
 void hardware_init(void)
 {
-	u32_t reg;
-	
-	// Main oscillator configuration
-	reg = SYSCTR->RCC;
-	reg &= ~(0xf << 6);
-	reg |= (0xe << 6);      // External crystal is at 8MHz
-	reg &= ~(1 << 11);      // PLL is the syclk source
-	reg &= ~(0x3 << 4);     // MOSC is the oscillator source
-	reg |= (1 << 1);        // Enable the main oscillator
-	SYSCTR->RCC = reg;
-	
-	while(!(SYSCTR->RIS & (1 << 6))); // Wait for the PLL to be stable
-	
-	reg = SYSCTR->RCC;
-	reg &= ~(0xf << 23);
-	reg |= (0x3 << 23);     // Sysclk at 50MHz
-	reg |= (1 << 22);       // Enable sysclk divider
-	reg |= (1 << 1);        // Disable the internal oscillator
-	SYSCTR->RCC = reg;
-	
-	// Status LED configuration
-	SYSCTR->RCGC2 |= (1 << 5); // Enable GPIOF clock
-	asm("nop"); // FIXME
+	// Setup the external clock
+	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
+	// Setup the OLED display
+	RIT128x96x4Init(1000000);
+	// Setup UART0
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+	GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+  	UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 115200, (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
+	// Setup the status LED
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+	GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_0);
 
-	GPIOF->DIR = (1 << 0); // PF0 as output
-	GPIOF->DEN = (1 << 0); // PF0 is digital 
 }
