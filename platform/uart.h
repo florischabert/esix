@@ -26,6 +26,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _UART_H
+#define _UART_H
 #include "types.h"
 
 #define BAUD_RATE 115200
@@ -54,3 +56,4 @@ void uart_puts(char *s);
  * Print through UART0.
  */
 int uart_printf(char *format, ...);
+#endif

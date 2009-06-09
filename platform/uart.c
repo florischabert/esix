@@ -41,7 +41,7 @@ void uart_init(void)
 {
 	SYSCTR->RCGC1 |= (1 << 0); // Enable UART0 clock
 	SYSCTR->RCGC2 |= (1 << 0); // Enable GPIOA clock
-
+	asm("nop");
 	GPIOA->AFSEL |= (1 << 0) | (1 << 1); // PA0,1 as alternate function
 	GPIOA->ODR |= (1 << 0) | (1 << 1);   // Enable PA0,1 open drain
  

@@ -150,7 +150,6 @@ struct uart_t {
  */
 struct ether_t {
 	u32_t MACRIS;
-	u32_t MACIACK;
 	u32_t MACIM;
 	u32_t MACRCTL;
 	u32_t MACTCTL;
@@ -160,11 +159,12 @@ struct ether_t {
 	u32_t MACTHR;
 	u32_t MACMCTL;
 	u32_t MACMDV;
+	u32_t Reserved0;
 	u32_t MACMTXD;
 	u32_t MACMTRXD;
 	u32_t MACNP;
 	u32_t MACTR;
-}
+};
 
 // Memory map
 #define NVIC         ((volatile struct nvic_t *) 0xe000e100)

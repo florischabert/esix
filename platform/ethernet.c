@@ -26,6 +26,9 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "ethernet.h"
+#include "mmap.h"
+
 /**
  * ether_init : configures the ethernet hardware found in lm3s6965 
  */
@@ -40,21 +43,26 @@ void ether_init()
 	//set the MAC Management frequency (must be <2.5MHz,
 	//Fmfq = Fcpu/(2*(MACDVR+1)) )
 	//still dunno at what speed we're running. 50MHz now?
-	ETH0->MACMDV	= 0x00000001;
+	ETH0->MACMDV	= 0x0000000a;
 
 	//program a MAC address (we should be reading this from somewhere...)
-	ETH->MACIA0	= 0x003ae967;	//4 first MAC address bytes
-	ETH->MACIA1	|= 0x0000c58d;  //the first 2 bytes are marked as reserved
+	ETH0->MACIA0	= 0x003ae967;	//4 first MAC address bytes
+	ETH0->MACIA1	|= 0x0000c58d;  //the first 2 bytes are marked as reserved
 
 	//generate FCS in hardware, do autoneg, FD.
 	ETH0->MACTCTL	|= 0x00000016;
 
 	//flush rx fifo, reject frames with bad CRC in hardware
-	ETH0->MACRCTL	|= 0x00000018;
+	//j'avais 0x18 avant...
+	ETH0->MACRCTL	|= 0x00000008;
 
 	//tell the hardware to hand over multicast frames. We're going to need 
 	//them for IPv6 and this ether chip doesn't have any mcast filter list.
 	ETH0->MACRCTL	|= 0x00000002;
+
+	//set leds to be controlled by hardware
+	GPIOF->AFSEL |= 0x0000000c;
+	GPIOF->ODR   |= 0x0000000c;
 }
 
 /**

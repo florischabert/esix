@@ -30,6 +30,7 @@
 #include <task.h>
 #include "mmap.h"
 #include "uart.h"
+#include "ethernet.h"
 
 // Prototypes
 void hardware_init(void);
@@ -42,6 +43,8 @@ void main(void)
 {
 	hardware_init();
 	uart_init();
+	ether_init();
+	ether_enable();
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(led_task, (signed char *) "main", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
