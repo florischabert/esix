@@ -28,11 +28,15 @@
 
 #include <FreeRTOS.h>
 #include <queue.h>
+#include <task.h>
 #include "mmap.h"
 #include "uart.h"
 
 // Communication FIFOs
 static xQueueHandle uart_send_queue;
+
+// Prototypes
+void uart_send_task(void *param);
 
 /**
  * UART0 initialization.
@@ -57,7 +61,23 @@ void uart_init(void)
 	NVIC->IPR[1] |= ((configMAX_SYSCALL_INTERRUPT_PRIORITY+1) << 8);
 	NVIC->ISER[0] |= (1 << 5); // Unmask UART0 interrupt
 	
-	//uart_send_queue = xQueueCreate(32, sizeof(char));   
+	uart_send_queue = xQueueCreate(32, sizeof(char));
+	xTaskCreate(uart_send_task, (signed char *) "uart send task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
+}
+
+/**
+ * UART0 send task.
+ */
+void uart_send_task(void *param)
+{
+	char c;
+	
+	while(1)
+	{
+		xQueueReceive(uart_send_queue, &c, portMAX_DELAY);
+		while(UART0->FR & (1 << 3)); // Wait for TX to be ready 
+		UART0->DR = c;
+	}
 }
 
 /**
@@ -65,24 +85,7 @@ void uart_init(void)
  */
 void uart_handler(void)
 {
-	static portBASE_TYPE reschedNeeded;
-	char c;
-	
-	reschedNeeded = pdFALSE;
-	
-	GPIOF->DATA[1] = 1;
-	// Data received
-	if(UART0->MIS & (1 << 5))
-	{
-	//	if(xQueueReceiveFromISR(uart_send_queue, &c, &reschedNeeded) == pdTRUE)
-	//		UART0->DR = c;
-	//	else
-		{
-			UART0->IM &= ~(1 << 5); // Disable TX interrupt
-			UART0->ICR = (1 << 5); // Disable TX interrupt
-		}
-	}
-	portEND_SWITCHING_ISR(reschedNeeded);
+
 }
 
 /**
@@ -90,9 +93,7 @@ void uart_handler(void)
  */
 void uart_putc(char c)
 {
-	//xQueueSend(uart_send_queue, &c, 0);	
-	//UART0->IM |= (1 << 5); // Enable TX interrupt
-	UART0->DR = c;
+	xQueueSend(uart_send_queue, &c, 0);	
 }
 
 /**
