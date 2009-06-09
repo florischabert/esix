@@ -145,6 +145,27 @@ struct uart_t {
 	u32_t ICR;
 };
 
+/**
+ * Ethernet controller.
+ */
+struct ether_t {
+	u32_t MACRIS;
+	u32_t MACIACK;
+	u32_t MACIM;
+	u32_t MACRCTL;
+	u32_t MACTCTL;
+	u32_t MACDATA;
+	u32_t MACIA0;
+	u32_t MACIA1;
+	u32_t MACTHR;
+	u32_t MACMCTL;
+	u32_t MACMDV;
+	u32_t MACMTXD;
+	u32_t MACMTRXD;
+	u32_t MACNP;
+	u32_t MACTR;
+}
+
 // Memory map
 #define NVIC         ((volatile struct nvic_t *) 0xe000e100)
 #define SYSCTR       ((volatile struct sysctr_t *) 0x400fe000)
@@ -156,5 +177,6 @@ struct uart_t {
 #define GPIOF        ((volatile struct gpio_t *) 0x40025000)
 #define GPIOG        ((volatile struct gpio_t *) 0x40026000)
 #define UART0        ((volatile struct uart_t *) 0x4000c000)
+#define ETH0         ((volatile struct ether_t *) 0x40048000)
 
 #endif
