@@ -130,8 +130,9 @@ struct gpio_t
 struct uart_t {
 	u32_t DR;
 	u32_t RSR;
+	u32_t Reserved0[4];
 	u32_t FR;
-	u32_t Reserved0;
+	u32_t Reserved1;
 	u32_t ILPR;
 	u32_t IBRD;
 	u32_t FBRD;

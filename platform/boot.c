@@ -26,8 +26,9 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-//#include <FreeRTOS.h>
+#include <FreeRTOS.h>
 #include "types.h"
+#include "uart.h"
 
 // Prototypes
 extern void main(void);
@@ -69,7 +70,7 @@ static void (*isr_handler[])() =
 	default_handler,        // GPIO C
 	default_handler,        // GPIO D
 	default_handler,        // GPIO E
-	0,//uart_handler,           // UART 0
+	uart_handler,           // UART 0
 	default_handler,        // UART 1
 	default_handler,        // SSI 0
 	default_handler,        // I2C 0

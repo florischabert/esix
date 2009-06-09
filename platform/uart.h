@@ -1,6 +1,6 @@
 /**
  * @file
- * Main code.
+ * UART0 driver.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,63 +26,31 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <FreeRTOS.h>
-#include <task.h>
-#include "mmap.h"
-#include "uart.h"
+#include "types.h"
 
-// Prototypes
-void hardware_init(void);
-void led_task(void *param);
+#define BAUD_RATE 115200
 
 /**
- * Main function.
- */	
-void main(void)
-{
-	hardware_init();
-	uart_init();
-	
-	// FreeRTOS tasks scheduling
-	xTaskCreate(led_task, (signed char *) "main", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
-	vTaskStartScheduler();
-	while(1);
-}
-
-/**
- * Toggle the LED
+ * UART0 initialization.
  */
-void led_task(void *param)
-{
-	while(1)
-	{
-		uart_puts("!");
-		GPIOF->DATA[1] ^= 1;
-		vTaskDelay(250);
-	}
-}
+void uart_init(void);
 
 /**
- * Setup the hardware.
+ * UART0 interrupt handler.
  */
-void hardware_init(void)
-{
-	u32_t reg;
-   
-	// Setup the main oscillator
-	reg = SYSCTR->RCC;
-	reg = (reg & ~(0xf << 23)) | (0x3 << 23); // Set sysclk divisor /4
-	reg |= (0x1 << 22);                       // Enale sysclk divider 
-	reg = (reg & ~(0xf << 6)) | (0xe << 6);   // 8MHz external quartz
-	reg &= ~(0x3 << 4);                       // Main oscillator as input source
-	reg &= ~(0x1 << 13);                      // Power on the PLL
-	SYSCTR->RCC = reg;
-	while(!(SYSCTR->RIS & (0x1 << 6)));       // Wait for the PLL to be stable
-	SYSCTR->RCC &= ~(1 << 11);                // Enable the PLL as source
+void uart_handler(void);
 
-	// Setup the status LED
-	SYSCTR->RCGC2 |= (1 << 5); // Enable GPIOF clock
-	asm("nop");
-	GPIOF->DIR = (1 << 0);    // PF0 as output
-	GPIOF->DEN = (1 << 0);    // PF0 is digital
-}
+/**
+ * Send a character through UART0.
+ */
+void uart_putc(char c);
+
+/**
+ * Send a tring through UART0.
+ */
+void uart_puts(char *s);
+
+/**
+ * Print through UART0.
+ */
+int uart_printf(char *format, ...);
