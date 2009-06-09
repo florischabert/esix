@@ -57,7 +57,7 @@ void uart_init(void)
 	NVIC->IPR[1] |= ((configMAX_SYSCALL_INTERRUPT_PRIORITY+1) << 8);
 	NVIC->ISER[0] |= (1 << 5); // Unmask UART0 interrupt
 	
-	uart_send_queue = xQueueCreate(32, sizeof(char));   
+	//uart_send_queue = xQueueCreate(32, sizeof(char));   
 }
 
 /**
@@ -70,12 +70,13 @@ void uart_handler(void)
 	
 	reschedNeeded = pdFALSE;
 	
+	GPIOF->DATA[1] = 1;
 	// Data received
 	if(UART0->MIS & (1 << 5))
 	{
-		if(xQueueReceiveFromISR(uart_send_queue, &c, &reschedNeeded) == pdTRUE)
-			UART0->DR = c;
-		else
+	//	if(xQueueReceiveFromISR(uart_send_queue, &c, &reschedNeeded) == pdTRUE)
+	//		UART0->DR = c;
+	//	else
 		{
 			UART0->IM &= ~(1 << 5); // Disable TX interrupt
 			UART0->ICR = (1 << 5); // Disable TX interrupt

@@ -161,7 +161,7 @@ struct ether_t {
 	u32_t MACMDV;
 	u32_t Reserved0;
 	u32_t MACMTXD;
-	u32_t MACMTRXD;
+	u32_t MACMRXD;
 	u32_t MACNP;
 	u32_t MACTR;
 };
