@@ -29,7 +29,7 @@
 #include <FreeRTOS.h>
 #include "types.h"
 #include "uart.h"
-#include "ethernet.h"
+//#include "ethernet.h"
 
 // Prototypes
 extern void main(void);
@@ -107,7 +107,7 @@ static void (*isr_handler[])() =
 	default_handler,        // I2C 1
 	default_handler,        // QEI 1
 	0, 0, 0,                // Reserved
-	ether_handler, 		// Ethernet
+	0,//ether_handler, 		// Ethernet
 	default_handler,        // Hibernation
 };
 
