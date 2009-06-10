@@ -89,13 +89,15 @@ void ether_enable()
 	ETH0->MACIM	&= ~0x0000007f;
 
 	//Unmask interrupts at the MII level
-	//u32_t mii_val = 0xffff;
-	//ether_mii_request(0x11, &mii_val, MII_WRITE);
+/*
+	u32_t mii_val = 0xffff;
+	ether_mii_request(0x11, &mii_val, MII_WRITE);
         ETH0->MACMTXD |= 0xff00;
+	
 	u16_t addr = 0x11;
         u16_t tmp     = (addr << 3 ) + 0x03; //0x3 = write + start
         ETH0->MACMCTL = tmp;
-
+*/
 }
 
 /**
@@ -118,79 +120,95 @@ void ether_disable()
  */
 void ether_handler()
 {
-	u32_t int_val	= ETH0->MACRIS;
-	GPIOF->DATA[1] ^= 1;
+	u16_t int_val	= ETH0->MACRIS;
 
-	switch(int_val)
-	{
-		case RXINT:
-			ether_frame_received();
-			break;
-		case TXEMP:
-			ether_txfifo_empty();
-			break;
-		case RXER:
-			ether_rx_error();
-			break;
-		case TXER:
-			ether_tx_error();
-			break;
-		case FOV: 
-			ether_fifo_overrun();
-			break;
-		case PHYINT:
-			ether_phy_int();
-			break;
-		case MDINT:
-			ether_mii_transaction_complete();
-			break;
-		default :
-			ether_big_fat_warning();
-			break;
-		ETH0->MACRIS &= ~0x0000007f;
-	}
+	if(int_val&RXINT)
+		ether_frame_received();
+	if(int_val&TXEMP)
+		ether_txfifo_empty();
+	if(int_val&RXER)
+		ether_rx_error();
+	if(int_val&TXER)
+		ether_tx_error();
+	if(int_val&FOV)
+		ether_fifo_overrun();
+	if(int_val&PHYINT)
+		ether_phy_int();
+	if(int_val&MDINT)
+		ether_mii_transaction_complete();
+
+	//ETH0->MACRIS |= 0x0000007f;
 }
 
+/**
+ * ether_frame_received : called after an interrupt has been received.
+ * copies a frame from the RX ring buffer to a loacl buffer.
+ * 
+ */
 void ether_frame_received()
 {
+	int frame[380]; //380 * 4bytes = 1520bytes
+	int i;
+	int macnp_curval;
+	struct ether_frame_t *eth_f = (struct ether_frame_t *) frame;
 	uart_putc('P');
-//	GPIOF->DATA[1] ^= 1;
+	//GPIOF->DATA[1] ^= 1;
+
+	//wait for the frame to be fully buffered
+	while(!ETH0->MACNP);
+
+	//get the number of frames 
+	macnp_curval	= ETH0->MACNP;
+
+	while(ETH0->MACNP == macnp_curval)
+	{
+		for(i=0;i<380;i++)
+			frame[i] = ETH0->MACDATA;
+	}
+
+	//got a v6 frame
+	if(eth_f->ETHERTYPE == 0xdd86)
+		GPIOF->DATA[1] ^= 1;
+
+	//automatically cleared when the RX FIFO is empty.
+	//ETH0->MACRIS |= 0x00000001;
 }
 
 void ether_txfifo_empty()
 {
 	
+//	GPIOF->DATA[1] ^= 1;
 }
 
 void ether_rx_error()
 {
 	
+//	GPIOF->DATA[1] ^= 1;
 }
 
 void ether_tx_error()
 {
+//	GPIOF->DATA[1] ^= 1;
 	
 }
 
 void ether_fifo_overrun()
 {
 	
+//	GPIOF->DATA[1] ^= 1;
 
 }
 
 void ether_phy_int()
 {
 	
+//	GPIOF->DATA[1] ^= 1;
 }
 
 void ether_mii_transaction_complete()
 {
 	
-}
-
-void ether_big_fat_warning(void)
-{
-	uart_putc('W');
+//	GPIOF->DATA[1] ^= 1;
 }
 
 /**

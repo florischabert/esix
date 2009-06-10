@@ -31,6 +31,43 @@
 	#include "types.h"
 	#include <FreeRTOS.h>
 
+	/**
+	 * Ethernet controller registers
+	 */
+	struct ether_t {
+		u32_t MACRIS;
+		u32_t MACIM;
+		u32_t MACRCTL;
+		u32_t MACTCTL;
+		u32_t MACDATA;
+		u32_t MACIA0;
+		u32_t MACIA1;
+		u32_t MACTHR;
+		u32_t MACMCTL;
+		u32_t MACMDV;
+		u32_t Reserved0;
+		u32_t MACMTXD;
+		u32_t MACMRXD;
+		u32_t MACNP;
+		u32_t MACTR;
+	};
+
+	/**
+	 * Ethernet frame format from/to lm3s6965
+	 */
+	struct ether_frame_t {
+		u16_t F_LENGTH; //needed by the eth controller
+		u16_t DA_1;
+		u16_t DA_2;
+		u16_t DA_3;
+		u16_t SA_1;
+		u16_t SA_2;
+		u16_t SA_3;
+		u16_t ETHERTYPE;
+		u16_t *data;
+	};
+
+
 	void ether_init(void);
 	void ether_enable(void);
 	void ether_disable(void);
@@ -42,8 +79,9 @@
 	void ether_rx_error(void);
 	void ether_txfifo_empty(void);
 	void ether_frame_received(void);
-	void ether_big_fat_warning(void);
 	void ether_mii_request(u32_t, u32_t*, int);
+
+
 
 	#define MII_READ  1
 	#define MII_WRITE 0
