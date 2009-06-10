@@ -29,6 +29,7 @@
 #include "ethernet.h"
 #include "mmap.h"
 #include "uart.h"
+	int frame[380]; //380 * 4bytes = 1520bytes
 
 /**
  * ether_init : configures the ethernet hardware found in lm3s6965 
@@ -147,10 +148,10 @@ void ether_handler()
  */
 void ether_frame_received()
 {
-	int frame[380]; //380 * 4bytes = 1520bytes
+	//int frame[380]; //380 * 4bytes = 1520bytes
 	int i;
 	int macnp_curval;
-	struct ether_frame_t *eth_f = (struct ether_frame_t *) frame;
+	struct ether_frame_t *eth_f = frame;
 	uart_putc('P');
 	//GPIOF->DATA[1] ^= 1;
 
