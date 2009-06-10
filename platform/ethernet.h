@@ -1,6 +1,6 @@
 /**
  * @file
- * Linker script for the LM3S6965 chip.
+ * LM3S6965 ethernet driver.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,38 +26,33 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-MEMORY
-{
-	FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 256K
-	RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
-}
+#ifndef _ETHERNET_H
+#define _ETHERNET_H
+	#include "types.h"
+	#include <FreeRTOS.h>
 
-SECTIONS
-{
-	.text : 
-	{
-		KEEP(*(.isr_table))
-		_text = .;
-		*(.text*)
-		*(.rodata*)
-		_etext = .;
-	} > FLASH
+	void ether_init(void);
+	void ether_enable(void);
+	void ether_disable(void);
+	void ether_handler(void);
+	void ether_mii_transaction_complete(void);
+	void ether_phy_int(void);
+	void ether_fifo_overrun(void);
+	void ether_tx_error(void);
+	void ether_rx_error(void);
+	void ether_txfifo_empty(void);
+	void ether_frame_received(void);
+	void ether_big_fat_warning(void);
+	void ether_mii_request(u32_t, u32_t*, int);
 
-	.data : AT (ADDR(.text) + SIZEOF(.text))
-	{
-		_data = .;
-		*(.data*)
-		_edata = .;
-	} > RAM
+	#define MII_READ  1
+	#define MII_WRITE 0
 
-	.bss (NOLOAD):
-	{
-		*(.stack*);
-		_bss = .;
-		*(.bss*)
-		*(COMMON)
-		_ebss = .;
-		*(.eh_frame)
-	} > RAM
-
-}
+	#define PHYINT 	(1 << 6)
+	#define MDINT 	(1 << 5)
+	#define RXER 	(1 << 4)
+	#define FOV 	(1 << 3)
+	#define TXEMP 	(1 << 2)
+	#define TXER 	(1 << 1)
+	#define RXINT 	(1 << 0)
+#endif
