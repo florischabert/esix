@@ -29,7 +29,9 @@
 #include "ethernet.h"
 #include "mmap.h"
 #include "uart.h"
-	int frame[380]; //380 * 4bytes = 1520bytes
+#include "../src/include/esix/esix.h"
+
+int frame[MAX_FRAME_SIZE]; //380 * 4bytes = 1520bytes
 
 /**
  * ether_init : configures the ethernet hardware found in lm3s6965 
@@ -150,26 +152,27 @@ void ether_frame_received()
 {
 	//int frame[380]; //380 * 4bytes = 1520bytes
 	int i;
-	int macnp_curval;
+	int words_to_read;
 	struct ether_frame_t *eth_f = frame;
-	uart_putc('P');
-	//GPIOF->DATA[1] ^= 1;
 
 	//wait for the frame to be fully buffered
-	while(!ETH0->MACNP);
+	//while(!ETH0->MACNP);
 
-	//get the number of frames 
-	macnp_curval	= ETH0->MACNP;
+	//read the first 4 bytes to get the frame length
+	frame[0]	= ETH0->MACDATA;
+	//convert the frame length (in bytes) to words (4 bytes)
+	words_to_read	= (eth_f->FRAME_LENGTH/4);
 
-	while(ETH0->MACNP == macnp_curval)
-	{
-		for(i=0;i<380;i++)
-			frame[i] = ETH0->MACDATA;
-	}
+	//we've read the first 4 bytes, now read FRAME_LENGTH/4 more words
+	i=1;
+	while((words_to_read-- > 0) 
+		&& (i < MAX_FRAME_SIZE))
+			frame[i++] = ETH0->MACDATA;
 
-	//got a v6 frame
+	//got a v6 frame, pass it to the v6 stack
 	if(eth_f->ETHERTYPE == 0xdd86)
-		GPIOF->DATA[1] ^= 1;
+		esix_received_frame((struct ip6_hdr *) &eth_f->data,
+			(eth_f->FRAME_LENGTH-16));
 
 	//automatically cleared when the RX FIFO is empty.
 	//ETH0->MACRIS |= 0x00000001;

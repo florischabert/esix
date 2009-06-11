@@ -31,6 +31,7 @@
 	#include "types.h"
 	#include <FreeRTOS.h>
 
+	#define MAX_FRAME_SIZE 380 //380 * 4 bytes = 1520 bytes
 	/**
 	 * Ethernet controller registers
 	 */
@@ -53,10 +54,10 @@
 	};
 
 	/**
-	 * Ethernet frame format from/to lm3s6965
+	 * Ethernet frame (FCS is hardware generated/appended) 
 	 */
 	struct ether_frame_t {
-		u16_t F_LENGTH; //needed by the eth controller
+		u16_t FRAME_LENGTH; //this field is added by the eth controller
 		u16_t DA_1;
 		u16_t DA_2;
 		u16_t DA_3;
@@ -64,7 +65,7 @@
 		u16_t SA_2;
 		u16_t SA_3;
 		u16_t ETHERTYPE;
-		u16_t *data;
+		u16_t data;
 	};
 
 
@@ -93,4 +94,5 @@
 	#define TXEMP 	(1 << 2)
 	#define TXER 	(1 << 1)
 	#define RXINT 	(1 << 0)
+
 #endif

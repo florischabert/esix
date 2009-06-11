@@ -29,11 +29,11 @@ CFLAGS = -mcpu=cortex-m3 -mthumb -g -O2 -Wall -ffreestanding -fasm \
 LDFLAGS = -mcpu=cortex-m3 --gc-sections -mthumb -nostartfiles \
 	-Xlinker -T  -Xlinker link.ld 
 
-$(PROGRAM): $(PROGRAM).o boot.o uart.o ethernet.o\
+$(PROGRAM): $(PROGRAM).o boot.o uart.o ethernet.o ../src/esix.o\
 	FreeRTOS/tasks.o FreeRTOS/list.o FreeRTOS/queue.o FreeRTOS/portable/port.o FreeRTOS/portable/heap_1.o
 
 bin: $(PROGRAM)
 	arm-none-eabi-objcopy -Obinary $(PROGRAM) $(PROGRAM).bin
 	
 clean:
-	rm -f $(PROGRAM) $(PROGRAM).bin *.o FreeRTOS/*.o FreeRTOS/portable/*.o driverlib/*.o
+	rm -f $(PROGRAM) $(PROGRAM).bin *.o FreeRTOS/*.o FreeRTOS/portable/*.o driverlib/*.o ../src/*.o
