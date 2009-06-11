@@ -235,10 +235,16 @@ void ether_mii_request(u32_t addr, u32_t *val, int op)
         }
         else //read op
         {
-                tmp     = (addr << 3) + 0x01; //0x1 = start, write is clea red.
+                tmp     = (addr << 3) + 0x01; //0x1 = start, write is cleared.
                 ETH0->MACMCTL = (ETH0->MACMCTL&0xfb)|tmp;
                 //return the payload
                 *val    = (ETH0->MACMRXD&0xffff);
         }
 }
 
+void ether_get_mac_addr(u16_t *val)
+{
+	val[0]	= (ETH0->MACIA0 >> 16); //we only want the first 2 bytes here
+	val[1]	= (ETH0->MACIA0);	//this should get truncated so we're ok.
+	val[2]	= (ETH0->MACIA1);
+}

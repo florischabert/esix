@@ -81,6 +81,7 @@
 	void ether_txfifo_empty(void);
 	void ether_frame_received(void);
 	void ether_mii_request(u32_t, u32_t*, int);
+	void ether_get_mac_addr(u16_t *);
 
 
 

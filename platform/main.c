@@ -62,7 +62,7 @@ void led_task(void *param)
 		ether_handler();	
 		uart_puts("AHAH!\r\n");
 		//GPIOF->DATA[1] ^= 1;
-		vTaskDelay(250);
+		vTaskDelay(50);
 	}
 }
 

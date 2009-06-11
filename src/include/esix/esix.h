@@ -28,8 +28,34 @@
 
 #ifndef _ESIX_H
 #define _ESIX_H
+	#include <stddef.h>
 	#define ESIX_BUFFER_SIZE 750 	//(750 * 4 = 3kB = 2 eth frames of 1500 bytes)
-	#define ESIX_MAX_IPADDR	3 	//max number of IP addresses the node can have
+	#define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
+	/**
+	 * IPv6 address
+	 */
+	struct ip6_addr {
+		u32_t	addr1;
+		u32_t	addr2;
+		u32_t	addr3;
+		u32_t	addr4;
+	};
+
+	/**
+	 * IP address table entry
+	 */
+	struct esix_ipaddr_table_row {
+		struct 	ip6_addr addr;	//Actual ip address
+		u8_t 	mask;		//netmask (in bits, counting the number of ones
+					//starting from the left.
+		u32_t	expiration_date;//date at which this entry expires.
+					//0 : never expires (for now)
+		//u32_t	preferred_exp_date;//date at which this address shouldn't be used if possible
+		u8_t	scope;		//LINK_LOCAL_SCOPE or GLOBAL_SCOPE
+	
+	};
+
+
 	/**
 	 * IPv6 header 
 	 */
@@ -84,8 +110,12 @@
 	#define REDIR	0x89	//Redirect
 	#define	MLDv2	0x90	//Multicast Listener Report (MLDv2) 
 
+	#define LINK_LOCAL_SCOPE	0 
+	#define GLOBAL_SCOPE	 	1
+
 	
 	
 	void esix_received_frame(struct ip6_hdr *, int);
 	void esix_received_icmp(struct icmp6_hdr *, int );
+	int esix_add_to_active_addresses(struct esix_ipaddr_table_row *);
 #endif
