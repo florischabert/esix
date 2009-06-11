@@ -45,6 +45,7 @@ void main(void)
 	uart_init();
 	ether_init();
 	ether_enable();
+	esix_init();
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(led_task, (signed char *) "main", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);

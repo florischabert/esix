@@ -139,8 +139,6 @@ void ether_handler()
 		ether_phy_int();
 	if(int_val&MDINT)
 		ether_mii_transaction_complete();
-
-	//ETH0->MACRIS |= 0x0000007f;
 }
 
 /**
@@ -170,7 +168,7 @@ void ether_frame_received()
 			frame[i++] = ETH0->MACDATA;
 
 	//got a v6 frame, pass it to the v6 stack
-	if(eth_f->ETHERTYPE == 0xdd86)
+	if(eth_f->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
 		esix_received_frame((struct ip6_hdr *) &eth_f->data,
 			(eth_f->FRAME_LENGTH-16));
 

@@ -29,6 +29,7 @@
 #ifndef _ESIX_H
 #define _ESIX_H
 	#include <stddef.h>
+	#include "system_dependant.h"
 	#define ESIX_BUFFER_SIZE 750 	//(750 * 4 = 3kB = 2 eth frames of 1500 bytes)
 	#define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
 	/**
@@ -112,10 +113,13 @@
 
 	#define LINK_LOCAL_SCOPE	0 
 	#define GLOBAL_SCOPE	 	1
+	#define MCAST_SCOPE		2 //should never be used to send a packet
 
 	
 	
 	void esix_received_frame(struct ip6_hdr *, int);
 	void esix_received_icmp(struct icmp6_hdr *, int );
 	int esix_add_to_active_addresses(struct esix_ipaddr_table_row *);
+	u16_t hton16(u16_t);
+	u32_t hton32(u32_t);
 #endif

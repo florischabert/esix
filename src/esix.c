@@ -43,7 +43,7 @@ static struct esix_ipaddr_table_row *addrs[ESIX_MAX_IPADDR];
  */
 void esix_init(void)
 {
-	int i;
+	int i,j;
 	for(i=0; i<ESIX_MAX_IPADDR; i++)
 		addrs[i] = NULL;
 
@@ -53,15 +53,16 @@ void esix_init(void)
 
 	//change here to get a dest mac address out of your ethernet
 	//driver if needed. Implementing ether_get_mac_addr() could be simpler.
+	//output must be in network order (big endian)
 
 	ether_get_mac_addr(mac_addr);
 
 	//unicast link local
-	struct esix_ipaddr_table_row *ucast_ll = pvPortMalloc(sizeof (struct esix_ipaddr_table_row)); 
+	struct esix_ipaddr_table_row *ucast_ll = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
 
 	//first 64 bits
-	ucast_ll->addr.addr1	= 0xfe800000; // fe80/8 is the link local unicast prefix 
-	ucast_ll->addr.addr2	= 0x00000000;
+	ucast_ll->addr.addr1	= hton32(0xfe800000); // fe80/8 is the link local unicast prefix 
+	ucast_ll->addr.addr2	= hton32(0x00000000);
 
 	//last 64 bits
 	u8_t	*tmp	= (u8_t*) &mac_addr[1] ; //split a half word in two bytes so we can use them
@@ -73,28 +74,43 @@ void esix_init(void)
 	ucast_ll->expiration_date	= 0x0;
 	ucast_ll->scope			= LINK_LOCAL_SCOPE;
 
-	//TODO perform DAD
-	
-
 	//multicast link local associated address (for neighbor discovery)
-	struct esix_ipaddr_table_row *mcast_ll = pvPortMalloc(sizeof (struct esix_ipaddr_table_row)); 
+	struct esix_ipaddr_table_row *mcast_ll = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
 
 	//first 64 bits
-	mcast_ll->addr.addr1	= 0xff020000;
-	mcast_ll->addr.addr2	= 0x00000000;
+	mcast_ll->addr.addr1	= hton32(0xff020000);
+	mcast_ll->addr.addr2	= hton32(0x00000000);
 
 	//last 64 bits
-	mcast_ll->addr.addr3	= 0x00000001;
+	mcast_ll->addr.addr3	= hton32(0x01);
 	mcast_ll->addr.addr4	= 0xff << 24 | tmp[1] << 16 | mac_addr[2];
 
 	//this one never expires
 	mcast_ll->expiration_date	= 0x0;
-	mcast_ll->scope			= LINK_LOCAL_SCOPE;
+	mcast_ll->scope			= MCAST_SCOPE;
 
-	
+	//multicast all-nodes (for router advertisements)
+
+	/*
+	struct esix_ipaddr_table_row *mcast_all = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
+
+	//first 64 bits
+	mcast_all->addr.addr1	= hton32(0xff020000);
+	mcast_all->addr.addr2	= hton32(0x00000000);
+
+	mcast_all->addr.addr3	= hton32(0x00000000);
+	mcast_all->addr.addr4	= hton32(0x00000001);
+
+	//this one never expires
+	mcast_all->expiration_date	= 0x0;
+	mcast_all->scope		= MCAST_SCOPE;
+
+	//TODO perform DAD
+	*/
 	//add them to the table of active addresses
 	esix_add_to_active_addresses(ucast_ll);
 	esix_add_to_active_addresses(mcast_ll);
+	//esix_add_to_active_addresses(mcast_all);
 }
 
 /**
@@ -106,28 +122,29 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 	int i, pkt_for_us;
 	//check if we have enough data to at least read the header
 	//and if we actually have an IPv6 packet
-	if((length < 40) )//|| ((hdr->ver_tc_flowlabel&0xf0000000) !=  0x06 << 28))
+	if((length < 40)  || 
+		((hdr->ver_tc_flowlabel&hton32(0xf0000000)) !=  hton32(0x06 << 28)))
 		return; 
 	
 	//check if the packet belongs to us
-	pkt_for_us = 1;
+	pkt_for_us = 0;
 	for(i=0; i<ESIX_MAX_IPADDR;i++)
 	{
 		//go through every entry of our address table and check word by word
 		if( (addrs[i] != NULL) &&
 			( hdr->daddr1 == (addrs[i]->addr.addr1) ) &&
-			( hdr->daddr2 == (addrs[i]->addr.addr2) ) &&
-			( hdr->daddr3 == (addrs[i]->addr.addr3) ) &&
-			( hdr->daddr4 == (addrs[i]->addr.addr4) ))
+			( hdr->daddr2 == (addrs[i]->addr.addr2) )) //&&
+			//( hdr->daddr3 == (addrs[i]->addr.addr3) ))// &&
+			//( hdr->daddr4 == (addrs[i]->addr.addr4) ))
 		{
-			pkt_for_us = 0;
+			pkt_for_us = 1;
 			break;
 		}
 
 	}
 
 	//drop the packet in case it doesn't
-	if(pkt_for_us)
+	if(pkt_for_us==0)
 		return;
 
 	//check the hop limit value (should be > 0)
@@ -144,8 +161,6 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 			return;
 			break;
 	}
-
-	//GPIOF->DATA[1] ^= 1;
 }
 
 /**
@@ -162,6 +177,10 @@ void esix_received_icmp(struct icmp6_hdr *hdr, int length)
 	{
 		case NBR_SOL:
 			GPIOF->DATA[1] ^= 1;
+			break;
+		case RTR_ADV:
+			GPIOF->DATA[1] ^= 1;
+			break;
 		default:	
 			return;
 	}
@@ -184,7 +203,32 @@ int esix_add_to_active_addresses(struct esix_ipaddr_table_row *row)
 			addrs[i] = row;
 			return 1;
 		}
+		i++;
 	}
 	//sorry dude, table was full.
 	return 0;
+}
+
+/**
+ * hton16 : converts host endianess to big endian (network order) 
+ */
+u16_t hton16(u16_t v)
+{
+	if(ENDIANESS)
+		return v;
+
+	u8_t * tmp	= (u8_t *) &v;
+	return (tmp[0] << 8 | tmp[1]);
+}
+
+/**
+ * hton32 : converts host endianess to big endian (network order) 
+ */
+u32_t hton32(u32_t v)
+{
+	if(ENDIANESS)
+		return v;
+
+	u8_t * tmp	= (u8_t *) &v;
+	return (tmp[0] << 24 | tmp[1] << 16 | tmp[2] << 8 | tmp[3]);
 }
