@@ -29,10 +29,12 @@
 #include <FreeRTOS.h>
 #include <queue.h>
 #include <task.h>
+#include <semphr.h>
 #include "mmap.h"
 #include "uart.h"
 
-// Communication FIFOs
+// Mutexes & FIFOs
+static xSemaphoreHandle uart_send_sem;
 static xQueueHandle uart_send_queue;
 
 // Prototypes
@@ -49,6 +51,7 @@ void uart_init(void)
 	GPIOA->AFSEL |= (1 << 0) | (1 << 1); // PA0,1 as alternate function
 	GPIOA->ODR |= (1 << 0) | (1 << 1);   // Enable PA0,1 open drain
  
+	UART0->CTL &= ~(1 << 0);            // Disable UART0
 	UART0->IBRD = ((((50000000*8)/BAUD_RATE)+1)/2) / 64; // 115200 baud rate
 	UART0->FBRD = ((((50000000*8)/BAUD_RATE)+1)/2) % 64;
 	UART0->LCRH = (0x3 << 5);          // 8 bits frame
@@ -56,12 +59,17 @@ void uart_init(void)
 	UART0->CTL |= (1 << 0);            // Enable UART0
 
 	//UART0->IM |= (1 << 4); // Enable RX interrupt
+	UART0->IM |= (1 << 5); // Enable TX interrupt
 
-	NVIC->IPR[1] &= ~(0xff << 8); // Set interrupt priority
+	// Unmask processor interrupt line. We use  theFreeRTOS API in the handler
+	// so the priority of the interrupt has to be lower than the priority of 
+	// FreeRTOS interrupts
+	NVIC->IPR[1] &= ~(0xff << 8); 
 	NVIC->IPR[1] |= ((configMAX_SYSCALL_INTERRUPT_PRIORITY+1) << 8);
 	NVIC->ISER[0] |= (1 << 5); // Unmask UART0 interrupt
 	
-	uart_send_queue = xQueueCreate(32, sizeof(char));
+	vSemaphoreCreateBinary(uart_send_sem);
+	uart_send_queue = xQueueCreate(64, sizeof(char));
 	xTaskCreate(uart_send_task, (signed char *) "uart send task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
 }
 
@@ -75,8 +83,8 @@ void uart_send_task(void *param)
 	while(1)
 	{
 		xQueueReceive(uart_send_queue, &c, portMAX_DELAY);
-		while(UART0->FR & (1 << 3)); // Wait for TX to be ready 
 		UART0->DR = c;
+		xSemaphoreTake(uart_send_sem, portMAX_DELAY);
 	}
 }
 
@@ -85,7 +93,19 @@ void uart_send_task(void *param)
  */
 void uart_handler(void)
 {
-
+	static portBASE_TYPE resched_needed; 
+	resched_needed = pdFALSE;
+	
+	// Transmit interrupt
+	if(UART0->MIS & (1 << 5))
+	{
+		UART0->ICR |= (1 << 5); // Clear the interrupt
+		xSemaphoreGiveFromISR(uart_send_sem, &resched_needed);
+	}
+	
+	// If the released task has a higher priority than the current one, we 
+	// reschedule the tasks. 
+	portEND_SWITCHING_ISR(resched_needed);
 }
 
 /**
