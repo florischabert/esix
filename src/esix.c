@@ -142,6 +142,9 @@ void esix_received_icmp(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 			esix_parse_rtr_adv(
 				(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
+		case ECHO_RQ: 
+			GPIOF->DATA[1] ^= 1;
+			break;
 		default:	
 			return;
 	}
@@ -370,7 +373,11 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	 struct ip6_hdr *ip_hdr)
 {
 	int i=0;
-	if(length < 14) //12 data bytes + 1 option type byte + 1 option length byte
+
+	//we at least need to have 16 bytes to parse...
+	//(router advertisement without any option = 16 bytes,
+	//advertises only a default route)
+	if(length < 12 || ntoh16(ip_hdr->payload_len) < 16 ) 
 		return;
 
 	//look up the routing table to see if this route already exists.
@@ -391,10 +398,15 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 			(routes[i]->next_hop.addr4	== ip_hdr->saddr4))
 
 			default_rt	= routes[i];
+		i++;
 	}
 
 	if(default_rt == NULL)
+	{
 		default_rt = MALLOC(sizeof(struct esix_route_table_row));
+		esix_add_to_active_routes(default_rt);  //add the pointer now to avoid adding it
+							//twice when we're updating
+	}
 	//TODO : check if malloc succeeded
 
 	
@@ -413,8 +425,23 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	default_rt->interface		= INTERFACE;
 
 	//parse options like MTU and prefix info
+	i=2; 	//we at least need 2 more bytes (type + length) to be able to process the first
+		//option field (those are TLVs)
+	while(((i + 12) < length) && //is the received ethernet frame long enough to continue?
+		((i + 16) < ntoh16(ip_hdr->payload_len))) // is the ip packet long enough to continue?
+	{
+		switch(ntoh16(rtr_adv->type))
+		{
+			case PRFX_INFO:
+			break;
 
+			case MTU:
+			break;
 
+			default:
+			break; 	
+		}
+		i += ntoh16(rtr_adv->length);
 
-	esix_add_to_active_routes(default_rt);
+	}
 }

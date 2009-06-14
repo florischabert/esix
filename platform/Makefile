@@ -30,7 +30,7 @@ LDFLAGS = -mcpu=cortex-m3 --gc-sections -mthumb -nostartfiles \
 	-Xlinker -T  -Xlinker link.ld 
 
 $(PROGRAM): $(PROGRAM).o boot.o uart.o ethernet.o ../src/esix.o\
-	FreeRTOS/tasks.o FreeRTOS/list.o FreeRTOS/queue.o FreeRTOS/portable/port.o FreeRTOS/portable/heap_2.o
+	FreeRTOS/tasks.o FreeRTOS/list.o FreeRTOS/queue.o FreeRTOS/portable/port.o FreeRTOS/portable/heap_1.o
 
 bin: $(PROGRAM)
 	arm-none-eabi-objcopy -Obinary $(PROGRAM) $(PROGRAM).bin

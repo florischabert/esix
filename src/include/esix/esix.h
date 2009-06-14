@@ -110,7 +110,8 @@
 		u16_t	rtr_lifetime;	//router lifetime
 		u32_t	reachable_time;
 		u32_t	retransm_timer;
-		u32_t	data;
+		u16_t	type;
+		u16_t	length;
 	};
 
 	/**
