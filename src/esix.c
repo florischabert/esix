@@ -39,7 +39,7 @@
 static struct 	esix_ipaddr_table_row *addrs[ESIX_MAX_IPADDR];
 
 //this table contains every routes assigned to the system
-//static struct 	esix_route_table_row *routes[ESIX_MAX_RT];
+static struct 	esix_route_table_row *routes[ESIX_MAX_RT];
 
 /**
  * esix_init : sets up the esix stack.
@@ -50,9 +50,9 @@ void esix_init(void)
 	for(i=0; i<ESIX_MAX_IPADDR; i++)
 		addrs[i] = NULL;
 
-/*	for(i=0; i<ESIX_MAX_RT; i++)
+	for(i=0; i<ESIX_MAX_RT; i++)
 		routes[i] = NULL;
-*/
+
 	u16_t mac_addr[3];
 
 	//change here to get a dest mac address out of your ethernet
@@ -139,8 +139,8 @@ void esix_received_icmp(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 			break;
 		case RTR_ADV:
 			GPIOF->DATA[1] ^= 1;
-			//esix_parse_rtr_adv(
-			//	(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
+			esix_parse_rtr_adv(
+				(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
 		default:	
 			return;
@@ -151,7 +151,6 @@ void esix_received_icmp(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 /**
  * esix_add_to_active_addresses : adds the given IP address to the table. Returns 1 on success.
  */
-
 int esix_add_to_active_addresses(struct esix_ipaddr_table_row *row)
 {
 	int i=0;
@@ -173,7 +172,6 @@ int esix_add_to_active_addresses(struct esix_ipaddr_table_row *row)
 /**
  * esix_add_to_active_routes : adds the given route to the routing table. Returns 1 on success.
  */
-/*
 int esix_add_to_active_routes(struct esix_route_table_row *row)
 {
 	int i=0;
@@ -185,11 +183,11 @@ int esix_add_to_active_routes(struct esix_route_table_row *row)
 			routes[i] = row;
 			return 1;
 		}
-
+		i++;
 	}	
 	//sorry dude, table was full.
 	return 0;
-}*/
+}
 
 /**
  * hton16 : converts host endianess to big endian (network order) 
@@ -288,7 +286,7 @@ void add_basic_addr_routes(u16_t *mac_addr, int intf_index, int intf_mtu)
 	mcast_ll->scope			= MCAST_SCOPE;
 
 	//multicast all-nodes (for router advertisements)
-	/*
+	
 	struct esix_ipaddr_table_row *mcast_all = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
 
 	//first 64 bits
@@ -303,13 +301,13 @@ void add_basic_addr_routes(u16_t *mac_addr, int intf_index, int intf_mtu)
 	mcast_all->scope		= MCAST_SCOPE;
 
 	//TODO perform DAD
-	*/
+	
 	//add them to the table of active addresses
 	esix_add_to_active_addresses(ucast_ll);
 	esix_add_to_active_addresses(mcast_ll);
-	//esix_add_to_active_addresses(mcast_all);
+	esix_add_to_active_addresses(mcast_all);
 
-/* MALLOC still bugs pretty badly...
+// MALLOC still bugs pretty badly...
 	//link local route (fe80::/64)
 	struct esix_route_table_row *ll_rt	= MALLOC(sizeof(struct esix_route_table_row));
 	
@@ -325,7 +323,7 @@ void add_basic_addr_routes(u16_t *mac_addr, int intf_index, int intf_mtu)
 	ll_rt->ttl		= DEFAULT_TTL;  // 1 should be ok, linux uses 255...
 	ll_rt->mtu		= intf_mtu;	
 	ll_rt->expiration_date	= 0x0; //this never expires
-	ll-rt->interface	= intf_index;
+	ll_rt->interface	= intf_index;
 
 	//multicast route (ff00:: /8)
 	struct esix_route_table_row *mcast_rt	= MALLOC(sizeof(struct esix_route_table_row));
@@ -342,11 +340,10 @@ void add_basic_addr_routes(u16_t *mac_addr, int intf_index, int intf_mtu)
 	mcast_rt->expiration_date	= 0x0; //this never expires
 	mcast_rt->ttl			= DEFAULT_TTL;  // 1 should be ok, linux uses 255...
 	mcast_rt->mtu			= intf_mtu;
-	mcastrt->interface		= intf_index;
+	mcast_rt->interface		= intf_index;
 
 	esix_add_to_active_routes(ll_rt);
 	esix_add_to_active_routes(mcast_rt);
-*/
 }
 
 /**
@@ -369,7 +366,6 @@ void	esix_send_router_sollicitation(int intf_index)
  * esix_parse_rtr_adv : parses RA messages, add/update a default route,
  * a prefix route and builds an IP address out of this prefix.
  */
-/*
 void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	 struct ip6_hdr *ip_hdr)
 {
@@ -422,4 +418,3 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 
 	esix_add_to_active_routes(default_rt);
 }
-*/
