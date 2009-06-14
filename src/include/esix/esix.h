@@ -32,6 +32,7 @@
 	#include "system_dependant.h"
 	#define ESIX_BUFFER_SIZE 750 	//(750 * 4 = 3kB = 2 eth frames of 1500 bytes)
 	#define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
+	#define ESIX_MAX_RT	8 	//max number of routes the node can have
 	/**
 	 * IPv6 address
 	 */
@@ -56,6 +57,20 @@
 	
 	};
 
+	/**
+	 * Route table entry
+	 */
+	struct esix_route_table_row {
+		struct 	ip6_addr addr;	//Network address
+		u8_t	mask;
+		struct 	ip6_addr next_hop;	//next hop address (should be link-local)
+		u32_t	expiration_date;
+		u8_t	ttl;		//TTL for this route (per-router TTL values are learnt
+					//from router advertisements)
+		u16_t	mtu;		//MTU for this route
+		u8_t 	interface;	//interface index
+	};
+
 
 	/**
 	 * IPv6 header 
@@ -65,14 +80,14 @@
 		u16_t 	payload_len;	//payload length (next headers + upper protocols)
 		u8_t  	next_header;	//next header type
 		u8_t  	hlimit; 	//hop limit
-		u32_t	daddr1;		//first word of destination address
-		u32_t	daddr2;		
-		u32_t	daddr3;	
-		u32_t	daddr4;
 		u32_t	saddr1;		//first word of source address
 		u32_t	saddr2;		
 		u32_t	saddr3;	
 		u32_t	saddr4;
+		u32_t	daddr1;		//first word of destination address
+		u32_t	daddr2;		
+		u32_t	daddr3;	
+		u32_t	daddr4;
 		u32_t	data;
 	};
 
@@ -84,6 +99,35 @@
 		u8_t	code;
 		u16_t	chksum;
 		u32_t	data;
+	};
+
+	/**
+	 * ICMP Router Advertisement header.
+	 */
+	struct icmp6_rtr_adv {
+		u8_t	cur_hlim;	//hlim to be used 
+		u8_t	flags;		//other config, router preference, etc...
+		u16_t	rtr_lifetime;	//router lifetime
+		u32_t	reachable_time;
+		u32_t	retransm_timer;
+		u32_t	data;
+	};
+
+	/**
+	 * ICMP option, prefix info header.
+	 */
+	struct icmp6_opt_prefix_info {
+		u8_t	flags;		//onlink, autoconf,...
+		u32_t	valid_lifetime;
+		u32_t	preferred_lifetime;
+		struct ip6_addr prefix;
+	};
+
+	/**
+	 * ICMP option, MTU.
+	 */
+	struct icmp6_opt_mtu {
+		u32_t	mtu;
 	};
 
 	//list of IP protocol numbers (some are IPv6-specific)
@@ -110,16 +154,35 @@
 	#define NBR_ADV	0x88	//Neighbor advertisement
 	#define REDIR	0x89	//Redirect
 	#define	MLDv2	0x90	//Multicast Listener Report (MLDv2) 
+	
+	//list of ICMPv6 options
+	#define PRFX_INFO 	0x3
+	#define MTU		0x5
 
 	#define LINK_LOCAL_SCOPE	0 
 	#define GLOBAL_SCOPE	 	1
 	#define MCAST_SCOPE		2 //should never be used to send a packet
 
+	#define DEFAULT_TTL		64 	//default TTL when unspecified by
+						//router advertisements
+	#define DEFAULT_MTU		1500
+
 	
 	
 	void esix_received_frame(struct ip6_hdr *, int);
-	void esix_received_icmp(struct icmp6_hdr *, int );
+	void esix_received_icmp(struct icmp6_hdr *, int, struct ip6_hdr *);
 	int esix_add_to_active_addresses(struct esix_ipaddr_table_row *);
+	int esix_add_to_active_routes(struct esix_route_table_row *);
+	void esix_send_ttl_expired(struct ip6_hdr *);
+	void add_basic_addr_routes(u16_t *, int, int);
+	void esix_send_router_sollicitation(int );
+	void esix_parse_rtr_adv(struct icmp6_rtr_adv *, int, struct ip6_hdr *);
 	u16_t hton16(u16_t);
+	u16_t ntoh16(u16_t);
 	u32_t hton32(u32_t);
+	u32_t ntoh32(u32_t);
+
+	#define INTERFACE	0 //default interface # until we have a proper intf
+				//management system.
+
 #endif

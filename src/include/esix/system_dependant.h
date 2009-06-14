@@ -1,6 +1,6 @@
 /**
  * @file
- * esix ipv6 stack main file.
+ * esix ipv6 stack system dependant parameters.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,6 +26,6 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define MALLOC pvPortMalloc 	//malloc function to be used, OS dependant
+#define MALLOC 	pvPortMalloc 	//malloc function to be used, OS dependant
+#define TIME	time()		//time() function to be used
 #define ENDIANESS 0		//0 : little endian, 1 : big endian 
-
