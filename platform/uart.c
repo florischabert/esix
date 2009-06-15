@@ -126,9 +126,58 @@ void uart_puts(char *s)
 }
 
 /**
+ * Print in hexadecimal.
+ */
+int uart_printx(unsigned int u)
+{
+	char s[11] = "0x00000000";
+	unsigned int r;
+	int i = 9;
+	while(u)
+	{
+		r = u % 16;
+		if(r >= 10)
+			r += 'a' - '0' - 10;
+		s[i--] = r + '0';
+		u /= 16;
+	}
+	uart_puts(s);
+	return 10;
+}
+
+/**
  * Print through UART0.
  */
 int uart_printf(char *format, ...)
 {
-	return 0;
+	char *arg;
+	int n = 0;
+	
+	arg = (char *) &format + sizeof(format);
+	while(*format != '\0')
+	{
+		if(*format == '%')
+		{
+			format++;
+			if(*format == 0)
+				break;
+			switch(*format)
+			{
+				case '%':
+					uart_putc('%');
+					n++;
+					break;
+				case 'x':
+					n += uart_printx(*(unsigned int *)((arg += sizeof(unsigned int)) - sizeof(unsigned int)));
+					break;
+			}
+		}
+		else
+		{
+			uart_putc(*format);
+			n++;
+		}
+		format++;
+	}
+	return n;
 }

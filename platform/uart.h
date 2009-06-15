@@ -53,6 +53,11 @@ void uart_putc(char c);
 void uart_puts(char *s);
 
 /**
+ * Print in hexadecimal.
+ */
+	int uart_printx(unsigned int u);
+
+/**
  * Print through UART0.
  */
 int uart_printf(char *format, ...);
