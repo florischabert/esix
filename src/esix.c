@@ -78,6 +78,10 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 	if((length < 40)  || 
 		((hdr->ver_tc_flowlabel&hton32(0xf0000000)) !=  hton32(0x06 << 28)))
 		return; 
+
+	//now check if the ethernet frame is long enough to carry the entire ipv6 packet
+	if(length < (hdr->payload_len + 40))
+		return;
 	
 	//check if the packet belongs to us
 	pkt_for_us = 0;
@@ -128,8 +132,8 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 void esix_received_icmp(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr )
 {
 	//check if we have enough bytes to read the ICMP header
-	if(length < 4)
-		return;
+	//if(length < 4)
+	//	return;
 
 	//determine what to do next
 	switch(icmp_hdr->type)
@@ -310,7 +314,6 @@ void add_basic_addr_routes(u16_t *mac_addr, int intf_index, int intf_mtu)
 	esix_add_to_active_addresses(mcast_ll);
 	esix_add_to_active_addresses(mcast_all);
 
-// MALLOC still bugs pretty badly...
 	//link local route (fe80::/64)
 	struct esix_route_table_row *ll_rt	= MALLOC(sizeof(struct esix_route_table_row));
 	
@@ -377,7 +380,8 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	//we at least need to have 16 bytes to parse...
 	//(router advertisement without any option = 16 bytes,
 	//advertises only a default route)
-	if(length < 12 || ntoh16(ip_hdr->payload_len) < 16 ) 
+	//if(length < 12 || ntoh16(ip_hdr->payload_len) < 16 ) 
+	if(ntoh16(ip_hdr->payload_len) < 16 ) 
 		return;
 
 	//look up the routing table to see if this route already exists.
@@ -427,12 +431,15 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	//parse options like MTU and prefix info
 	i=2; 	//we at least need 2 more bytes (type + length) to be able to process the first
 		//option field (those are TLVs)
-	while(((i + 12) < length) && //is the received ethernet frame long enough to continue?
-		((i + 16) < ntoh16(ip_hdr->payload_len))) // is the ip packet long enough to continue?
+	//while(((i + 12) < length) && //is the received ethernet frame long enough to continue?
+	while ((i + 16) < ntoh16(ip_hdr->payload_len)) // is the ip packet long enough to continue?
 	{
-		switch(ntoh16(rtr_adv->type))
+		switch(ntoh16(rtr_adv->option_hdr.type))
 		{
 			case PRFX_INFO:
+				struct icmp6_opt_prefix_info *pfx_info
+					= (struct icmp6_opt_prefix_info *) rtr_adv->option_hdr.data; 
+				//if(i+12+ 
 			break;
 
 			case MTU:

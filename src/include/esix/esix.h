@@ -102,6 +102,17 @@
 	};
 
 	/**
+	 * ICMP option header
+	 */
+	struct icmp6_option_hdr
+	{
+		u16_t	type;
+		u16_t	length;
+		u16_t	payload;
+	};
+
+
+	/**
 	 * ICMP Router Advertisement header.
 	 */
 	struct icmp6_rtr_adv {
@@ -110,8 +121,7 @@
 		u16_t	rtr_lifetime;	//router lifetime
 		u32_t	reachable_time;
 		u32_t	retransm_timer;
-		u16_t	type;
-		u16_t	length;
+		struct icmp6_option_hdr option_hdr;
 	};
 
 	/**
