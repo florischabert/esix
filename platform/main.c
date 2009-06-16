@@ -60,10 +60,10 @@ void led_task(void *param)
 {
 	while(1)
 	{
-		ether_handler();	
-		//uart_puts("AHAH!\r\n");
+	//	ether_handler();	
+	//	uart_puts("AHAH!\r\n");
 		//GPIOF->DATA[1] ^= 1;
-		//vTaskDelay(5);
+		vTaskDelay(5);
 	}
 }
 

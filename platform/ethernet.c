@@ -57,7 +57,6 @@ void ether_init()
 	ETH0->MACTCTL	|= 0x00000016;
 
 	//flush rx fifo, reject frames with bad CRC in hardware
-	//j'avais 0x18 avant...
 	ETH0->MACRCTL	|= 0x00000018;
 
 	//tell the hardware to hand over multicast frames. We're going to need 
@@ -89,9 +88,10 @@ void ether_enable()
 	ETH0->MACTCTL	|= 0x00000001;
 	//Unmask all ethernet interupts
 	//at the controller level
-	ETH0->MACIM	&= ~0x0000007f;
+	ETH0->MACIM	|= 0x0000007f;
 
 	//Unmask interrupts at the MII level
+
 /*
 	u32_t mii_val = 0xffff;
 	ether_mii_request(0x11, &mii_val, MII_WRITE);

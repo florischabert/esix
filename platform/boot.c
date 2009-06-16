@@ -29,7 +29,7 @@
 #include <FreeRTOS.h>
 #include "types.h"
 #include "uart.h"
-//#include "ethernet.h"
+#include "ethernet.h"
 
 // Prototypes
 extern void main(void);
@@ -55,7 +55,7 @@ static void (*isr_handler[])() =
 	// Processor exceptions
 	reset_handler,
 	default_handler,      // NMI
-	default_handler,      // Hard Falut
+	default_handler,      // Hard Fault
 	default_handler,      // MPU mismatch
 	default_handler,      // Bus Fault
 	default_handler,      // Usage Fault
@@ -79,7 +79,6 @@ static void (*isr_handler[])() =
 	default_handler,        // PWM 0
 	default_handler,        // PWM 1
 	default_handler,        // PWM 2
-	default_handler,        // PWM 3
 	default_handler,        // QEI 0
 	default_handler,        // ADC 0
 	default_handler,        // ADC 1
@@ -107,7 +106,7 @@ static void (*isr_handler[])() =
 	default_handler,        // I2C 1
 	default_handler,        // QEI 1
 	0, 0, 0,                // Reserved
-	0,//ether_handler, 		// Ethernet
+	ether_handler, 		// Ethernet
 	default_handler,        // Hibernation
 };
 
