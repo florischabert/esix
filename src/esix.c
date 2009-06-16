@@ -41,6 +41,9 @@ static struct 	esix_ipaddr_table_row *addrs[ESIX_MAX_IPADDR];
 //this table contains every routes assigned to the system
 static struct 	esix_route_table_row *routes[ESIX_MAX_RT];
 
+//stores our mac addr, for now...
+static u16_t mac_addr[3];
+
 /**
  * esix_init : sets up the esix stack.
  */
@@ -53,7 +56,6 @@ void esix_init(void)
 	for(i=0; i<ESIX_MAX_RT; i++)
 		routes[i] = NULL;
 
-	u16_t mac_addr[3];
 
 	//change here to get a dest mac address out of your ethernet
 	//driver if needed. Implementing ether_get_mac_addr() in your driver
@@ -80,7 +82,7 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 		return; 
 
 	//now check if the ethernet frame is long enough to carry the entire ipv6 packet
-	if(length < (hdr->payload_len + 40))
+	if(length < (ntoh16(hdr->payload_len) + 40))
 		return;
 	
 	//check if the packet belongs to us
@@ -116,7 +118,7 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 	{
 		case ICMP:
 			esix_received_icmp((struct icmp6_hdr *) &hdr->data, 
-				length-40, hdr);
+				ntoh16(hdr->payload_len), hdr);
 			break;
 
 		//unknown (unimplemented) IP type
@@ -132,8 +134,8 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 void esix_received_icmp(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr )
 {
 	//check if we have enough bytes to read the ICMP header
-	//if(length < 4)
-	//	return;
+	if(length < 4)
+		return;
 
 	//determine what to do next
 	switch(icmp_hdr->type)
@@ -228,8 +230,10 @@ u16_t ntoh16(u16_t v)
 	if(ENDIANESS)
 		return v;
 
-	u8_t * tmp	= (u8_t *) &v;
-	return (tmp[1] << 8 | tmp[0]);
+	//bug due to alignment weirdiness
+	//u8_t * tmp	= (u8_t *) &v;
+	//return (tmp[1] << 8 | tmp[0]);
+	return (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff));
 }
 
 /**
@@ -376,18 +380,23 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	 struct ip6_hdr *ip_hdr)
 {
 	int i=0;
+	int j=0;
+	struct icmp6_opt_prefix_info *pfx_info;
+	struct icmp6_opt_mtu *mtu_info;
+	struct icmp6_option_hdr *option_hdr;
+	struct esix_route_table_row *default_rt	= NULL;
+	struct esix_ipaddr_table_row *ucast_af;
+	u8_t	*tmp;
 
 	//we at least need to have 16 bytes to parse...
 	//(router advertisement without any option = 16 bytes,
 	//advertises only a default route)
-	//if(length < 12 || ntoh16(ip_hdr->payload_len) < 16 ) 
-	if(ntoh16(ip_hdr->payload_len) < 16 ) 
+	if(ntoh16(length) < 16 ) 
 		return;
 
 	//look up the routing table to see if this route already exists.
 	//if it does, select it instead of creating a new one.
 	
-	struct esix_route_table_row *default_rt	= NULL;
 
 	while(i<ESIX_MAX_RT)
 	{
@@ -425,30 +434,86 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	default_rt->next_hop.addr4	= ip_hdr->saddr4;
 	default_rt->ttl			= rtr_adv->cur_hlim;
 	default_rt->mtu			= DEFAULT_MTU;
-	//mcast_rt->expiration_date	= TIME + ntoh32(rtr_adv->valid_lifetime); //FIXME
+	default_rt->expiration_date	= TIME + ntoh32(rtr_adv->rtr_lifetime);
 	default_rt->interface		= INTERFACE;
 
 	//parse options like MTU and prefix info
-	i=2; 	//we at least need 2 more bytes (type + length) to be able to process the first
-		//option field (those are TLVs)
-	//while(((i + 12) < length) && //is the received ethernet frame long enough to continue?
-	while ((i + 16) < ntoh16(ip_hdr->payload_len)) // is the ip packet long enough to continue?
+	i=16+2; 	//we at least need 2 more bytes (type + length) to be able to process
+			//the first option field (those are TLVs)
+	option_hdr = &rtr_adv->option_hdr;
+	while (i < ntoh16(length)) // is the ip packet long enough to continue?
 	{
-		switch(ntoh16(rtr_adv->option_hdr.type))
+		switch(ntoh16(option_hdr->type))
 		{
 			case PRFX_INFO:
-				struct icmp6_opt_prefix_info *pfx_info
-					= (struct icmp6_opt_prefix_info *) rtr_adv->option_hdr.data; 
-				//if(i+12+ 
+				pfx_info = (struct icmp6_opt_prefix_info *) &option_hdr->payload; 
+				if( (i+30) < ntoh16(length))
+				{
+					ucast_af = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
+					j=0;
+
+					//first network bytes
+					ucast_af->addr.addr1	= pfx_info->prefix.addr1;
+					ucast_af->addr.addr2	= pfx_info->prefix.addr2;
+
+					//host bytes
+					ucast_af->addr.addr3	= 
+						hton32(mac_addr[0] << 16 | tmp[1] << 8 | 0xff);
+
+					ucast_af->addr.addr4	= 
+						hton32(0xfe << 24 | tmp[0] << 16 | mac_addr[2]);
+		
+					//this one never expires
+					ucast_af->expiration_date	= TIME + pfx_info->valid_lifetime;
+					ucast_af->scope			= GLOBAL_SCOPE;
+
+					while(j<ESIX_MAX_IPADDR)
+					{
+						if((addrs[j] != NULL) &&
+							(addrs[j]->scope	== ucast_af->scope)	 &&
+							(addrs[j]->expiration_date != 0) 		 &&
+							(addrs[j]->addr.addr1	== ucast_af->addr.addr1) &&
+							(addrs[j]->addr.addr2	== ucast_af->addr.addr2) &&
+							(addrs[j]->addr.addr3	== ucast_af->addr.addr3) &&
+							(addrs[j]->addr.addr4	== ucast_af->addr.addr4) &&
+							(addrs[j]->mask		== 64))
+						{
+							//we're only updating
+							addrs[j]->expiration_date = 
+								ucast_af->expiration_date;
+							FREE(ucast_af);
+						}
+						else
+						//TODO perform DAD
+						//try to add it to the table of addresses and
+						//free it so we don't leak memory in case it fails
+							if(!esix_add_to_active_addresses(ucast_af))
+								FREE(ucast_af);
+					}//while(j<...
+				}//if(i+...
+				i+=	30; 
+				option_hdr	= ((char*) rtr_adv)+i;
 			break;
 
 			case MTU:
+				mtu_info = (struct icmp6_opt_mtu_info *) &rtr_adv->option_hdr.payload; 
+				if( (i+6) < ntoh16(length))
+				{
+					default_rt->mtu	= ntoh16(mtu_info->mtu);
+				}
+				i+=8;
+				option_hdr	= ((char*) rtr_adv)+i;
 			break;
 
 			default:
+				i+= (option_hdr->length*8) - 2; //option_hdr->length gives the size of
+								//type + length + data fields in
+								//8 bytes multiples
+				option_hdr	= ((char*) rtr_adv)+i;
+
 			break; 	
 		}
-		i += ntoh16(rtr_adv->length);
+		i += 2; //try to read the next option header
 
 	}
 }
