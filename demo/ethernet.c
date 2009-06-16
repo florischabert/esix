@@ -29,7 +29,7 @@
 #include "ethernet.h"
 #include "mmap.h"
 #include "uart.h"
-#include "../src/include/esix/esix.h"
+#include <esix.h>
 
 int frame[MAX_FRAME_SIZE]; //380 * 4bytes = 1520bytes
 

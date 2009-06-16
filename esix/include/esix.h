@@ -28,11 +28,12 @@
 
 #ifndef _ESIX_H
 #define _ESIX_H
-	#include <stddef.h>
-	#include "system_dependant.h"
 	#define ESIX_BUFFER_SIZE 750 	//(750 * 4 = 3kB = 2 eth frames of 1500 bytes)
 	#define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
 	#define ESIX_MAX_RT	8 	//max number of routes the node can have
+
+	void esix_init(void);
+
 	/**
 	 * IPv6 address
 	 */

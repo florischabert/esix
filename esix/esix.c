@@ -26,12 +26,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mmap.h"
-#include "uart.h"
-#include "../platform/types.h"
-#include "include/esix/esix.h"
-#include "../platform/ethernet.h"
-
+#include "config.h"
+#include "include/esix.h"
 //general purpose buffer, mainly used to build packets/
 //static int esix_buffer[ESIX_BUFFER_SIZE];
 
@@ -141,15 +137,12 @@ void esix_received_icmp(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
-			GPIOF->DATA[1] ^= 1;
 			break;
 		case RTR_ADV:
-			GPIOF->DATA[1] ^= 1;
 			esix_parse_rtr_adv(
 				(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
 		case ECHO_RQ: 
-			GPIOF->DATA[1] ^= 1;
 			break;
 		default:	
 			return;
@@ -218,8 +211,10 @@ u32_t hton32(u32_t v)
 	if(ENDIANESS)
 		return v;
 
-	u8_t * tmp	= (u8_t *) &v;
-	return (tmp[0] << 24 | tmp[1] << 16 | tmp[2] << 8 | tmp[3]);
+	return ((v << 24) & 0xff000000) |
+	       ((v << 8) & 0x00ff0000) |
+	       ((v >> 8) & 0x0000ff00) |
+	       ((v >> 24) & 0x000000ff);
 }
 
 /**
@@ -233,7 +228,7 @@ u16_t ntoh16(u16_t v)
 	//bug due to alignment weirdiness
 	//u8_t * tmp	= (u8_t *) &v;
 	//return (tmp[1] << 8 | tmp[0]);
-	return (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff));
+	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
 }
 
 /**
@@ -244,8 +239,10 @@ u32_t ntoh32(u32_t v)
 	if(ENDIANESS)
 		return v;
 
-	u8_t * tmp	= (u8_t *) &v;
-	return (tmp[3] << 24 | tmp[2] << 16 | tmp[1] << 8 | tmp[0]);
+	return ((v << 24) & 0xff000000) |
+	       ((v << 8) & 0x00ff0000) |
+	       ((v >> 8) & 0x0000ff00) |
+	       ((v >> 24) & 0x000000ff);
 }
 
 /**
@@ -492,7 +489,7 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 					}//while(j<...
 				}//if(i+...
 				i+=	30; 
-				option_hdr	= ((char*) rtr_adv)+i;
+				option_hdr	= (struct icmp6_option_hdr *)(((char*) rtr_adv)+i);
 			break;
 
 			case MTU:
@@ -502,14 +499,14 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 					default_rt->mtu	= ntoh16(mtu_info->mtu);
 				}
 				i+=8;
-				option_hdr	= ((char*) rtr_adv)+i;
+				option_hdr	= (struct icmp6_option_hdr *)(((char*) rtr_adv)+i);
 			break;
 
 			default:
 				i+= (option_hdr->length*8) - 2; //option_hdr->length gives the size of
 								//type + length + data fields in
 								//8 bytes multiples
-				option_hdr	= ((char*) rtr_adv)+i;
+				option_hdr	= (struct icmp6_option_hdr *)(((char*) rtr_adv)+i);
 
 			break; 	
 		}

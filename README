@@ -2,9 +2,9 @@ IPv6 stack for embedded systems
 
 ..... a lot still needs to be done ....
 
-src/
+esix/
 	esix source code
 doc/
 	esix documentation (including doxygen)
-platform/
-	platform specific code
+demo/
+	demo code for the eval board

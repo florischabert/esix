@@ -1,0 +1,11 @@
+How to use esix ?
+
+1. You have to customize the config.h file to make esix working on your arch/OS.
+2. TODO
+
+
+
+include/
+	contains the main header files to use esix in your code
+lib/
+	contains the compiled static library

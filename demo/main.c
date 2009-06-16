@@ -31,7 +31,7 @@
 #include "mmap.h"
 #include "uart.h"
 #include "ethernet.h"
-
+#include <esix.h>
 // Prototypes
 void hardware_init(void);
 void led_task(void *param);

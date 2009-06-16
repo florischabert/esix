@@ -1,6 +1,6 @@
 /**
  * @file
- * esix ipv6 stack system dependant parameters.
+ * Comment
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,6 +26,19 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define MALLOC 	pvPortMalloc 	//malloc function to be used, OS dependant
-#define TIME	time()		//time() function to be used
+#ifndef _CONFIG_H
+#define _CONFIG_H
+
+#define NULL ((void *) 0)
+typedef unsigned int u32_t;
+typedef unsigned short u16_t;
+typedef unsigned short u8_t;
+
+void vPortFree(void *);
+void *pvPortMalloc(size_t);
+#define FREE vPortFree
+#define MALLOC pvPortMalloc 	//malloc function to be used, OS dependant
+#define TIME	0+//time()		//time() function to be used
 #define ENDIANESS 0		//0 : little endian, 1 : big endian 
+
+#endif

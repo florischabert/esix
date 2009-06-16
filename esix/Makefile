@@ -20,20 +20,10 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS  SOFTWARE, 
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-PROGRAM = main
-CC = arm-none-eabi-gcc
-LD = arm-none-eabi-gcc
-CFLAGS = -mcpu=cortex-m3 -mthumb -g -O2 -Wall -ffreestanding -fasm \
-	-fdata-sections -ffunction-sections \
-	-I. -I../esix/include -IFreeRTOS/include -IFreeRTOS/portable
-LDFLAGS = -mcpu=cortex-m3 --gc-sections -mthumb -nostartfiles \
-	-Xlinker -T  -Xlinker link.ld 
+libesix: esix.o libesix.a
 
-$(PROGRAM): $(PROGRAM).o boot.o uart.o ethernet.o ../src/esix.o\
-	FreeRTOS/tasks.o FreeRTOS/list.o FreeRTOS/queue.o FreeRTOS/portable/port.o FreeRTOS/portable/heap_1.o
+libesix.a:
+	$(AR) rcs lib/libesix.a *.o
 
-bin: $(PROGRAM)
-	arm-none-eabi-objcopy -Obinary $(PROGRAM) $(PROGRAM).bin
-	
 clean:
-	rm -f $(PROGRAM) $(PROGRAM).bin *.o FreeRTOS/*.o FreeRTOS/portable/*.o driverlib/*.o ../src/*.o
+	rm -f *.o lib/libesix.a
