@@ -106,7 +106,7 @@ static void (*isr_handler[])() =
 	default_handler,        // I2C 1
 	default_handler,        // QEI 1
 	0, 0, 0,                // Reserved
-	ether_handler, 		// Ethernet
+	ether_handler,          // Ethernet
 	default_handler,        // Hibernation
 };
 
@@ -115,10 +115,15 @@ static void (*isr_handler[])() =
  *
  * Copy the data segment to SRAM, 0-fill the bss and call the main function.
  */
+__attribute__((naked))
 void reset_handler(void)
 {
-	//*((volatile unsigned int *) 0xe000ed08) = 0x20000000; // for ram boot
-	//((void (*)()) *((u32_t *) 0x20000004))();
+	/* Simple bootloader to boot from SRAM:
+	*((volatile unsigned int *) 0xe000ed08) = 0x20000000; // Vector Table offset
+	asm volatile ("mov r0, #0x20000000\n\t" 
+	              "ldr sp, [r0]\n\t"    // Set the stack pointer
+	              "ldr pc, [r0, #4]");  // Go to the reset_handler
+	*/
 
 	u32_t *src, *dst;
 	
