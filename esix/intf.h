@@ -1,6 +1,6 @@
 /**
  * @file
- * esix ipv6 stack.
+ * Comment
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,15 +26,49 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _GLOBALS_H
-#define _GLOBALS_H
-	
-	//this table contains every ip address assigned to the system.
-	extern struct 	esix_ipaddr_table_row *addrs[ESIX_MAX_IPADDR];
+#ifndef _INTF_H
+#define _INTF_H
 
-	//this table contains every routes assigned to the system
-	extern struct 	esix_route_table_row *routes[ESIX_MAX_RT];
+#include "intf.h"
+#include "config.h"
+#include "include/esix.h"
 
-	//stores our mac addr, for now...
-	extern u16_t mac_addr[3];
+//general purpose buffer, mainly used to build packets/
+//static int esix_buffer[ESIX_BUFFER_SIZE];
+
+//this table contains every ip address assigned to the system.
+struct esix_ipaddr_table_row *addrs[ESIX_MAX_IPADDR];
+
+//this table contains every routes assigned to the system
+struct esix_route_table_row *routes[ESIX_MAX_RT];
+
+//stores our mac addr, for now...
+struct esix_mac_addr mac_addr;
+
+/**
+ * Adds a link local address/route based on the MAC address
+ * and joins the all-nodes mcast group
+ */
+void esix_intf_add_basic_addr_routes(struct esix_mac_addr addr, int intf_index, int intf_mtu);	
+
+/**
+ * Adds the given IP address to the table.
+ *
+ * @return 1 on success.
+ */
+int esix_intf_add_to_active_addresses(struct esix_ipaddr_table_row *row);
+
+/**
+ * esix_add_to_active_routes : adds the given route to the routing table. Returns 1 on success.
+ */
+int esix_intf_add_to_active_routes(struct esix_route_table_row *row);
+
+/**
+ * esix_new_addr : creates an addres with the passed arguments
+ * and adds or updates it.
+ */
+int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen, u32_t expiration_date, int scope);
+
+int esix_intf_remove_addr(u8_t scope, u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen);
+
 #endif

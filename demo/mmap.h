@@ -99,7 +99,7 @@ struct sysctr_t
 /**
  * GPIO register.
  */
-struct gpio_t
+	struct gpio_t
 {
 	u32_t DATA[256];
 	u32_t DIR;
@@ -145,6 +145,27 @@ struct uart_t {
 	u32_t ICR;
 };
 
+/**
+* Ethernet controller registers
+*/
+struct ether_t {
+	u32_t MACRIS;
+	u32_t MACIM;
+	u32_t MACRCTL;
+	u32_t MACTCTL;
+	u32_t MACDATA;
+	u32_t MACIA0;
+	u32_t MACIA1;
+	u32_t MACTHR;
+	u32_t MACMCTL;
+	u32_t MACMDV;
+	u32_t Reserved0;
+	u32_t MACMTXD;
+	u32_t MACMRXD;
+	u32_t MACNP;
+	u32_t MACTR;
+};
+	
 // Memory map
 #define NVIC         ((volatile struct nvic_t *) 0xe000e100)
 #define SYSCTR       ((volatile struct sysctr_t *) 0x400fe000)

@@ -29,16 +29,18 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
-#define NULL ((void *) 0)
+#define ESIX_BUFFER_SIZE 750 	//(750 * 4 = 3kB = 2 eth frames of 1500 bytes)
+#define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
+#define ESIX_MAX_RT	8 	//max number of routes the node can have
+
+#define INTERFACE	0 //default interface # until we have a proper intf
+				//management system.
+
 typedef unsigned int u32_t;
 typedef unsigned short u16_t;
-typedef unsigned short u8_t;
+typedef unsigned short u8_t; 
+typedef unsigned int size_t; 
 
-void vPortFree(void *);
-void *pvPortMalloc(u32_t size);
-#define FREE vPortFree
-#define MALLOC pvPortMalloc 	//malloc function to be used, OS dependant
-#define TIME	0+//time()		//time() function to be used
-#define ENDIANESS 0		//0 : little endian, 1 : big endian 
+#define ENDIANESS 0		//0 : little endian, 1 : big endian
 
 #endif

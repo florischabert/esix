@@ -27,11 +27,13 @@
  */
 
 #include "icmp6.h"
+#include "tools.h"
+#include "intf.h"
 
 /**
  * esix_received_icmp : handles icmp packets.
  */
-void esix_received_icmp(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr )
+void esix_icmp_received(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr )
 {
 	//check if we have enough bytes to read the ICMP header
 	if(length < 4)
@@ -43,7 +45,7 @@ void esix_received_icmp(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 		case NBR_SOL:
 			break;
 		case RTR_ADV:
-			esix_parse_rtr_adv(
+			esix_icmp_parse_rtr_adv(
 				(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
 		case ECHO_RQ: 
@@ -58,7 +60,7 @@ void esix_received_icmp(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
  * esix_send_ttl_expired : sends a TTL expired message
  * back to its source.
  */
-void	esix_send_ttl_expired(struct ip6_hdr *hdr)
+void	esix_icmp_send_ttl_expired(struct ip6_hdr *hdr)
 {
 }
 
@@ -66,7 +68,7 @@ void	esix_send_ttl_expired(struct ip6_hdr *hdr)
  * esix_send_router_sollicitation : crafts and sends a router sollicitation
  * on the interface specified by index. 
  */
-void	esix_send_router_sollicitation(int intf_index)
+void	esix_icmp_send_router_sollicitation(int intf_index)
 {
 }
 
@@ -74,7 +76,7 @@ void	esix_send_router_sollicitation(int intf_index)
  * esix_parse_rtr_adv : parses RA messages, add/update a default route,
  * a prefix route and builds an IP address out of this prefix.
  */
-void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
+void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	 struct ip6_hdr *ip_hdr)
 {
 	int i=0;
@@ -82,7 +84,6 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	struct icmp6_opt_mtu *mtu_info;
 	struct icmp6_option_hdr *option_hdr;
 	struct esix_route_table_row *default_rt	= NULL;
-	u8_t	*tmp;
 
 	//we at least need to have 16 bytes to parse...
 	//(router advertisement without any option = 16 bytes,
@@ -112,8 +113,8 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 
 	if(default_rt == NULL)
 	{
-		default_rt = MALLOC(sizeof(struct esix_route_table_row));
-		esix_add_to_active_routes(default_rt);  //add the pointer now to avoid adding it
+		default_rt = esix_w_malloc(sizeof(struct esix_route_table_row));
+		esix_intf_add_to_active_routes(default_rt);  //add the pointer now to avoid adding it
 							//twice when we're updating
 	}
 	//TODO : check if malloc succeeded
@@ -130,7 +131,7 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	default_rt->next_hop.addr4	= ip_hdr->saddr4;
 	default_rt->ttl			= rtr_adv->cur_hlim;
 	default_rt->mtu			= DEFAULT_MTU;
-	default_rt->expiration_date	= TIME + ntoh32(rtr_adv->rtr_lifetime);
+	default_rt->expiration_date	= esix_w_get_time() + ntoh32(rtr_adv->rtr_lifetime);
 	default_rt->interface		= INTERFACE;
 
 	//parse options like MTU and prefix info
@@ -147,12 +148,10 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 				//stateless autoconfigration.
 				if( (i+30) < ntoh16(length) && pfx_info->prefix_length != 0x40)
 				{
-					//split a half word in two bytes so we can use them separately
-					tmp	= (u8_t*) &mac_addr[1]; 
 					//builds a new global scope address
 					//not endian-safe for now, words in the prefix field
 					//are not aligned when received
-					esix_new_addr(  hton32(pfx_info->p[0] << 24	//prefix 
+					esix_intf_new_addr(  hton32(pfx_info->p[0] << 24	//prefix 
 								| pfx_info->p[1] << 16 
 								| pfx_info->p[2] << 8
 								| pfx_info->p[3]),
@@ -160,13 +159,10 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 								| pfx_info->p[5] << 16 
 								| pfx_info->p[6] << 8
 								| pfx_info->p[7]),
-							hton32(mac_addr[0] << 16 	//autoconf
-							 	| tmp[1] << 8 | 0xff),
-							hton32(0xfe << 24 		//autoconf
-								| tmp[0] << 16 
-								| mac_addr[2]),
+								hton32((mac_addr.h << 16) | ((mac_addr.l >> 16) & 0xff00) | 0xff),	//stateless autoconf FIXME: universal bit ?
+								hton32((0xfe << 24) | (mac_addr.l & 0xffffff)),
 							0x40,				// /64
-							TIME + pfx_info->valid_lifetime, //expiration date
+							esix_w_get_time() + pfx_info->valid_lifetime, //expiration date
 							GLOBAL_SCOPE);
 				}//if(i+...
 				i+=	30; 

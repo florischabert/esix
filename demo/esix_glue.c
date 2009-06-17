@@ -1,6 +1,6 @@
 /**
  * @file
- * Linker script for the LM3S6965 chip.
+ * Provide wrappers for esix.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,38 +26,63 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-MEMORY
+#include <FReeRTOS.h>
+#include "types.h"
+#include <esix.h>
+#include "mmap.h"
+#include "uart.h"
+
+/*
+ * Malloc wrapper for esix.
+ * 
+ * Needs to be implemented by the user.
+ */
+void *esix_w_malloc(size_t size)
 {
-	FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 256K
-	RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
+	return pvPortMalloc(size);
 }
 
-SECTIONS
+/*
+ * Free wrapper for esix.
+ * 
+ * Needs to be implemented by the user.
+ */
+void esix_w_free(void *ptr)
 {
-	.text : 
-	{
-		KEEP(*(.isr_table))
-		_text = .;
-		*(.text*)
-		*(.rodata*)
-		_etext = .;
-	} > RAM
+	vPortFree(ptr);
+}
 
-	.data : AT (ADDR(.text) + SIZEOF(.text))
-	{
-		_data = .;
-		*(.data*)
-		_edata = .;
-	} > RAM
+/*
+ * Give the current time in ms.
+ *
+ * Needs to be implemented by the user.
+ */
+u32_t esix_w_get_time(void)
+{
+	return 0;
+}
 
-	.bss (NOLOAD):
-	{
-		*(.stack*);
-		_bss = .;
-		*(.bss*)
-		*(COMMON)
-		_ebss = .;
-		*(.eh_frame)
-	} > RAM
+/*
+ * Give the interface MAC address.
+ *
+ * Needs to be implemented by the user.
+ */
+struct esix_mac_addr esix_w_get_mac_address()
+{
+	struct esix_mac_addr addr;
+	
+	addr.l = ETH0->MACIA0;
+	addr.h = ETH0->MACIA1;
+	
+	return addr;
+}
 
+/*
+ * Log print wrapper for esix.
+ * 
+ * Needs to be implemented by the user.
+ */
+void esix_w_log(char *string)
+{
+	uart_puts(string);
 }

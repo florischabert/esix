@@ -151,7 +151,7 @@ void ether_frame_received()
 	//int frame[380]; //380 * 4bytes = 1520bytes
 	int i;
 	int words_to_read;
-	struct ether_frame_t *eth_f = frame;
+	struct ether_frame_t *eth_f = (struct ether_frame_t *) frame;
 
 	//wait for the frame to be fully buffered
 	//while(!ETH0->MACNP);
@@ -169,7 +169,7 @@ void ether_frame_received()
 
 	//got a v6 frame, pass it to the v6 stack
 	if(eth_f->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
-		esix_received_frame((struct ip6_hdr *) &eth_f->data,
+		esix_ip_process_packet(&eth_f->data,
 			(eth_f->FRAME_LENGTH-20));
 
 	//automatically cleared when the RX FIFO is empty.
@@ -238,11 +238,4 @@ void ether_mii_request(u32_t addr, u32_t *val, int op)
                 //return the payload
                 *val    = (ETH0->MACMRXD&0xffff);
         }
-}
-
-void ether_get_mac_addr(u16_t *val)
-{
-	val[0]	= (ETH0->MACIA0 >> 16); //we only want the first 2 bytes here
-	val[1]	= (ETH0->MACIA0);	//this should get truncated so we're ok.
-	val[2]	= (ETH0->MACIA1);
 }

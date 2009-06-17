@@ -32,7 +32,7 @@ LDFLAGS = -mcpu=cortex-m3 --gc-sections -mthumb -nostartfiles -L../src \
 
 all: libesix $(PROGRAM)
 
-$(PROGRAM): $(PROGRAM).o boot.o uart.o ethernet.o \
+$(PROGRAM): $(PROGRAM).o uart.o ethernet.o esix_glue.o \
 	FreeRTOS/tasks.o FreeRTOS/list.o FreeRTOS/queue.o \
 	FreeRTOS/portable/GCC/ARM_CM3/port.o FreeRTOS/portable/MemMang/heap_2.o
 	@echo "  -> Linking ..."
@@ -48,6 +48,6 @@ bin: $(PROGRAM)
 	arm-none-eabi-objcopy -Obinary $(PROGRAM) $(PROGRAM).bin
 	
 clean:
-	rm -f $(PROGRAM) $(PROGRAM).bin *.o FreeRTOS/*.o FreeRTOS/portable/GCC/ARM_CM3/*.o FreeRTOS/MemMang/*.o
+	rm -f $(PROGRAM) $(PROGRAM).bin *.o FreeRTOS/*.o FreeRTOS/portable/GCC/ARM_CM3/*.o FreeRTOS/portable/MemMang/*.o
 	@echo "Clearing libesix..."
 	make -C ../esix clean

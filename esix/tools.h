@@ -1,6 +1,6 @@
 /**
  * @file
- * Linker script for the LM3S6965 chip.
+ * Useful stuff.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,38 +26,32 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-MEMORY
-{
-	FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 256K
-	RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
-}
+#ifndef _TOOLS_H
+#define _TOOLS_H
 
-SECTIONS
-{
-	.text : 
-	{
-		KEEP(*(.isr_table))
-		_text = .;
-		*(.text*)
-		*(.rodata*)
-		_etext = .;
-	} > RAM
+#include "config.h"
 
-	.data : AT (ADDR(.text) + SIZEOF(.text))
-	{
-		_data = .;
-		*(.data*)
-		_edata = .;
-	} > RAM
+#define NULL ((void *) 0)
 
-	.bss (NOLOAD):
-	{
-		*(.stack*);
-		_bss = .;
-		*(.bss*)
-		*(COMMON)
-		_ebss = .;
-		*(.eh_frame)
-	} > RAM
+/**
+ * hton16 : converts host endianess to big endian (network order) 
+ */
+u16_t hton16(u16_t v);
 
-}
+/**
+ * hton32 : converts host endianess to big endian (network order) 
+ */
+u32_t hton32(u32_t v);
+
+/**
+ * ntoh16 : converts network order to host endianess
+ */
+u16_t ntoh16(u16_t v);
+
+/**
+ * ntoh32 : converts network order to host endianess 
+ */
+u32_t ntoh32(u32_t v);
+
+
+#endif

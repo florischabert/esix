@@ -27,13 +27,17 @@
  */
 
 #include "ip6.h"
+#include "intf.h"
+#include "tools.h"
+#include "icmp6.h"
 
 /**
  * esix_received_frame : processes incoming packets, does sanity checks,
  * then passes the payload to the corresponding upper layer.
  */
-void esix_received_frame(struct ip6_hdr *hdr, int length)
+void esix_ip_process_packet(void *packet, int length)
 {
+	struct ip6_hdr *hdr = packet;
 	int i, pkt_for_us;
 	//check if we have enough data to at least read the header
 	//and if we actually have an IPv6 packet
@@ -70,7 +74,7 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 	//check the hop limit value (should be > 0)
 	if(hdr->hlimit == 0)
 	{
-		esix_send_ttl_expired(hdr);
+		esix_icmp_send_ttl_expired(hdr);
 		return;
 	}
 
@@ -78,7 +82,7 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 	switch(hdr->next_header)
 	{
 		case ICMP:
-			esix_received_icmp((struct icmp6_hdr *) &hdr->data, 
+			esix_icmp_received((struct icmp6_hdr *) &hdr->data, 
 				ntoh16(hdr->payload_len), hdr);
 			break;
 
