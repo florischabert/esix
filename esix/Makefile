@@ -20,10 +20,12 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS  SOFTWARE, 
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-libesix: esix.o intf.o ip6.o icmp6.o udp6.o tcp6.o tools.o libesix.a
+SRC=$(wildcard *.c)
+OBJ=$(SRC:.c=.o)
+LIB=libesix.a
 
-libesix.a:
-	$(AR) rcs lib/libesix.a *.o
+$(LIB): $(OBJ)
+	$(AR) rcs lib/$(LIB) $(OBJ)
 
 clean:
-	rm -f *.o lib/libesix.a
+	rm -f $(OBJ) lib/$(LIB)

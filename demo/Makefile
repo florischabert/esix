@@ -20,34 +20,38 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS  SOFTWARE, 
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-PROGRAM = main
-CC = arm-none-eabi-gcc
-LD = arm-none-eabi-gcc
-AR = arm-none-eabi-ar
+SRC=$(wildcard *.c) \
+	FreeRTOS/tasks.c FreeRTOS/list.c FreeRTOS/queue.c \
+	FreeRTOS/portable/GCC/ARM_CM3/port.c FreeRTOS/portable/MemMang/heap_2.c
+OBJ=$(SRC:.c=.o)
+PROGRAM=main
+
+CC=arm-none-eabi-gcc
+LD=arm-none-eabi-gcc
+AR=arm-none-eabi-ar
 CFLAGS = -mcpu=cortex-m3 -mthumb -g -O2 -Wall -ffreestanding -fasm \
 	-fdata-sections -ffunction-sections \
 	-I. -I../esix/include -IFreeRTOS/include -IFreeRTOS/portable/GCC/ARM_CM3
 LDFLAGS = -mcpu=cortex-m3 --gc-sections -mthumb -nostartfiles -L../src \
 	-Xlinker -T  -Xlinker link.ld
 
-all: libesix $(PROGRAM)
-
-$(PROGRAM): $(PROGRAM).o boot.o uart.o ethernet.o esix_glue.o \
-	FreeRTOS/tasks.o FreeRTOS/list.o FreeRTOS/queue.o \
-	FreeRTOS/portable/GCC/ARM_CM3/port.o FreeRTOS/portable/MemMang/heap_2.o
-	@echo "  -> Linking ..."
-	$(CC) -o $(PROGRAM) $(LDFLAGS) $^ -L../esix/lib -lesix
-	@echo "  -> Done"	
+all: $(PROGRAM)
 
 libesix:
-	@echo "  -> Compiling libesix ..."
-	make -C ../esix CC=$(CC) AR=$(AR) CFLAGS="-mcpu=cortex-m3 -mthumb -g -O2 -Wall" 
-	@echo "  -> Done"
+	@echo "### -> Compiling libesix ..."
+	make -C ../esix CC=$(CC) AR=$(AR) CFLAGS="-mcpu=cortex-m3 -mthumb -g -O2 -Wall"
+	@echo ""
+
+$(PROGRAM):  libesix $(OBJ)
+	@echo "\n### -> Linking ..."
+	$(CC) -o $(PROGRAM) $(LDFLAGS) $(OBJ) -L../esix/lib -lesix
 
 bin: $(PROGRAM)
 	arm-none-eabi-objcopy -Obinary $(PROGRAM) $(PROGRAM).bin
-	
+
+.PHONY: clean
+
 clean:
-	rm -f $(PROGRAM) $(PROGRAM).bin *.o FreeRTOS/*.o FreeRTOS/portable/GCC/ARM_CM3/*.o FreeRTOS/portable/MemMang/*.o
-	@echo "Clearing libesix..."
+	rm -f $(PROGRAM) $(PROGRAM).bin $(OBJ)
+	@echo "### -> Clearing libesix..."
 	make -C ../esix clean
