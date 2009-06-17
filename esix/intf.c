@@ -79,9 +79,9 @@ void esix_intf_add_basic_addr_routes(struct esix_mac_addr addr, int intf_index, 
 	ll_rt->addr.addr4	= 0x0;
 	ll_rt->mask		= 64;
 	ll_rt->next_hop.addr1	= 0x0; //a value of 0 means no next hop 
-	ll_rt->next_hop.addr1	= 0x0; 
-	ll_rt->next_hop.addr1	= 0x0; 
-	ll_rt->next_hop.addr1	= 0x0; 
+	ll_rt->next_hop.addr2	= 0x0; 
+	ll_rt->next_hop.addr3	= 0x0; 
+	ll_rt->next_hop.addr4	= 0x0; 
 	ll_rt->ttl		= DEFAULT_TTL;  // 1 should be ok, linux uses 255...
 	ll_rt->mtu		= intf_mtu;	
 	ll_rt->expiration_date	= 0x0; //this never expires
@@ -96,9 +96,9 @@ void esix_intf_add_basic_addr_routes(struct esix_mac_addr addr, int intf_index, 
 	mcast_rt->addr.addr4		= 0x0;
 	mcast_rt->mask			= 8;
 	mcast_rt->next_hop.addr1	= 0x0; //a value of 0 means no next hop 
-	mcast_rt->next_hop.addr1	= 0x0; 
-	mcast_rt->next_hop.addr1	= 0x0; 
-	mcast_rt->next_hop.addr1	= 0x0; 
+	mcast_rt->next_hop.addr2	= 0x0; 
+	mcast_rt->next_hop.addr3	= 0x0; 
+	mcast_rt->next_hop.addr4	= 0x0; 
 	mcast_rt->expiration_date	= 0x0; //this never expires
 	mcast_rt->ttl			= DEFAULT_TTL;  // 1 should be ok, linux uses 255...
 	mcast_rt->mtu			= intf_mtu;

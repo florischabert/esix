@@ -26,7 +26,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <FReeRTOS.h>
+#include <FreeRTOS.h>
 #include "types.h"
 #include <esix.h>
 #include "mmap.h"
