@@ -187,9 +187,10 @@
 	int esix_add_to_active_addresses(struct esix_ipaddr_table_row *);
 	int esix_add_to_active_routes(struct esix_route_table_row *);
 	void esix_send_ttl_expired(struct ip6_hdr *);
-	void add_basic_addr_routes(u16_t *, int, int);
+	void esix_add_basic_addr_routes(u16_t *, int, int);
 	void esix_send_router_sollicitation(int );
 	void esix_parse_rtr_adv(struct icmp6_rtr_adv *, int, struct ip6_hdr *);
+	int esix_new_addr(u32_t, u32_t, u32_t, u32_t, u8_t, u32_t, int);
 	u16_t hton16(u16_t);
 	u16_t ntoh16(u16_t);
 	u32_t hton32(u32_t);

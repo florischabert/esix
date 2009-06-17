@@ -61,7 +61,7 @@ void esix_init(void)
 
 	ether_get_mac_addr(mac_addr);
 
-	add_basic_addr_routes(mac_addr, INTERFACE, 1500);
+	esix_add_basic_addr_routes(mac_addr, INTERFACE, 1500);
 	//esix_send_router_sollicitation(INTERFACE);
 }
 
@@ -121,74 +121,47 @@ u32_t ntoh32(u32_t v)
 }
 
 /**
- * add_basic_addr_routes : adds a link local address/route based on the MAC address
+ * esix_add_basic_addr_routes : adds a link local address/route based on the MAC address
  * and joins the all-nodes mcast group
  */
-void add_basic_addr_routes(u16_t *mac_addr, int intf_index, int intf_mtu)
+void esix_add_basic_addr_routes(u16_t *mac_addr, int intf_index, int intf_mtu)
 {
 	//builds our link local and associated multicast addresses
 	//from the MAC address given by the L2 layer.
 
 	//unicast link local
-	struct esix_ipaddr_table_row *ucast_ll = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
 
-	//first 64 bits
-	ucast_ll->addr.addr1	= hton32(0xfe800000); // fe80/8 is the link local unicast prefix 
-	ucast_ll->addr.addr2	= hton32(0x00000000);
-
-	//last 64 bits
 	u8_t	*tmp	= (u8_t*) &mac_addr[1] ; //split a half word in two bytes so we can use them
 						//separately
-	ucast_ll->addr.addr3	= hton32(
-					mac_addr[0] << 16 | tmp[1] << 8 | 0xff);
-	ucast_ll->addr.addr4	= hton32(0xfe << 24 | tmp[0] << 16 | mac_addr[2]);
 
-	//this one never expires
-	ucast_ll->expiration_date	= 0x0;
-	ucast_ll->scope			= LINK_LOCAL_SCOPE;
+	esix_new_addr(	hton32(0xfe800000), 	//0xfe80 
+			hton32(0x00000000),
+			hton32( mac_addr[0] << 16 | tmp[1] << 8 | 0xff),	//stateless autoconf
+			hton32(0xfe << 24 | tmp[0] << 16 | mac_addr[2]),
+			0x80,			// /128
+			0x0,			//this one never expires
+			LINK_LOCAL_SCOPE);
+
 
 	//multicast link local associated address (for neighbor discovery)
-	struct esix_ipaddr_table_row *mcast_ll = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
+	esix_new_addr(	hton32(0xff020000), 	//0xff02 
+			hton32(0x00000000),	//0x0000
+			hton32(0x00000001),	//0x0001
+			hton32(0xff << 24 | tmp[0] << 16 | mac_addr[2]),
+			0x80,			// /128
+			0x0,			//this one never expires
+			MCAST_SCOPE);
 
-	//first 64 bits
-	mcast_ll->addr.addr1	= hton32(0xff020000);
-	mcast_ll->addr.addr2	= hton32(0x00000000);
-
-	//last 64 bits
-	mcast_ll->addr.addr3	= hton32(0x00000001);
-
-	//TODO: endianess support & testing 
-	//struct ether_addr with some unions in it avoiding endianess weirdiness?
-	/*if(ENDIANESS)
-		mcast_ll->addr.addr4	= hton32(0xff << 24 | tmp[1] << 16 | mac_addr[2]);
-	else*/
-	mcast_ll->addr.addr4	= hton32(0xff << 24 | tmp[0] << 16 | mac_addr[2]);
-
-	//this one never expires
-	mcast_ll->expiration_date	= 0x0;
-	mcast_ll->scope			= MCAST_SCOPE;
 
 	//multicast all-nodes (for router advertisements)
-	
-	struct esix_ipaddr_table_row *mcast_all = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
+	esix_new_addr(	hton32(0xff020000), 	//ff02::1 
+			hton32(0x00000000), 
+			hton32(0x00000000),
+			hton32(0x00000001),
+			0x80, 			// /128
+			0x0,			//this one never expires
+			MCAST_SCOPE);
 
-	//first 64 bits
-	mcast_all->addr.addr1	= hton32(0xff020000);
-	mcast_all->addr.addr2	= hton32(0x00000000);
-
-	mcast_all->addr.addr3	= hton32(0x00000000);
-	mcast_all->addr.addr4	= hton32(0x00000001);
-
-	//this one never expires
-	mcast_all->expiration_date	= 0x0;
-	mcast_all->scope		= MCAST_SCOPE;
-
-	//TODO perform DAD
-	
-	//add them to the table of active addresses
-	esix_add_to_active_addresses(ucast_ll);
-	esix_add_to_active_addresses(mcast_ll);
-	esix_add_to_active_addresses(mcast_all);
 
 	//link local route (fe80::/64)
 	struct esix_route_table_row *ll_rt	= MALLOC(sizeof(struct esix_route_table_row));
@@ -228,3 +201,94 @@ void add_basic_addr_routes(u16_t *mac_addr, int intf_index, int intf_mtu)
 	esix_add_to_active_routes(mcast_rt);
 }
 
+/**
+ * esix_add_to_active_addresses : adds the given IP address to the table. Returns 1 on success.
+ */
+int esix_add_to_active_addresses(struct esix_ipaddr_table_row *row)
+{
+	int i=0;
+
+	//look for an empty place where to store our entry.
+	while(i<ESIX_MAX_IPADDR)
+	{
+		if(addrs[i] == NULL)
+		{
+			addrs[i] = row;
+			return 1;
+		}
+		i++;
+	}
+	//sorry dude, table was full.
+	return 0;
+}
+
+/**
+ * esix_add_to_active_routes : adds the given route to the routing table. Returns 1 on success.
+ */
+int esix_add_to_active_routes(struct esix_route_table_row *row)
+{
+	int i=0;
+
+	while(i<ESIX_MAX_RT)
+	{
+		if(routes[i]	== NULL)
+		{
+			routes[i] = row;
+			return 1;
+		}
+		i++;
+	}	
+	//sorry dude, table was full.
+	return 0;
+}
+
+/**
+ * esix_new_addr : creates an addres with the passed arguments
+ * and adds or updates it.
+ */
+int esix_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen,
+			u32_t expiration_date, int scope)
+{
+	struct esix_ipaddr_table_row *new_addr = 
+				MALLOC (sizeof (struct esix_ipaddr_table_row)); 
+	new_addr->addr.addr1		= addr1;
+	new_addr->addr.addr2		= addr2;
+	new_addr->addr.addr3		= addr3;
+	new_addr->addr.addr4		= addr4;
+	new_addr->expiration_date	= expiration_date;
+	new_addr->scope			= scope;
+	new_addr->mask			= masklen;
+
+	int j=0;
+	while(j<ESIX_MAX_IPADDR)
+	{
+		//check if we already stored this address
+		if((addrs[j] != NULL) &&
+			(addrs[j]->scope	== new_addr->scope)	 &&
+			(addrs[j]->expiration_date != 0) 		 &&
+			(addrs[j]->addr.addr1	== new_addr->addr.addr1) &&
+			(addrs[j]->addr.addr2	== new_addr->addr.addr2) &&
+			(addrs[j]->addr.addr3	== new_addr->addr.addr3) &&
+			(addrs[j]->addr.addr4	== new_addr->addr.addr4) &&
+			(addrs[j]->mask		== new_addr->mask ))
+		{
+			//we're only updating it
+			addrs[j]->expiration_date = 
+				new_addr->expiration_date;
+			FREE(new_addr);
+			break;
+		}
+		else
+		//TODO perform DAD
+		//
+		//it's new, perform DAD and 
+		//try to add it to the table of addresses and
+		//free it so we don't leak memory in case it fails
+			if(!esix_add_to_active_addresses(new_addr))
+			{
+				FREE(new_addr);
+				return 0;
+			}
+	}//while(j<...
+	return 1;
+}

@@ -78,12 +78,10 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	 struct ip6_hdr *ip_hdr)
 {
 	int i=0;
-	int j=0;
 	struct icmp6_opt_prefix_info *pfx_info;
 	struct icmp6_opt_mtu *mtu_info;
 	struct icmp6_option_hdr *option_hdr;
 	struct esix_route_table_row *default_rt	= NULL;
-	struct esix_ipaddr_table_row *ucast_af;
 	u8_t	*tmp;
 
 	//we at least need to have 16 bytes to parse...
@@ -145,50 +143,31 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 		{
 			case PRFX_INFO:
 				pfx_info = (struct icmp6_opt_prefix_info *) &option_hdr->payload; 
-				if( (i+30) < ntoh16(length))
+				//the advertised prefix length MUST be 64 (0x40) in order to do
+				//stateless autoconfigration.
+				if( (i+30) < ntoh16(length) && pfx_info->prefix_length != 0x40)
 				{
-					ucast_af = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
-					j=0;
-					u8_t	*tmp	= (u8_t*) &mac_addr[1] ; //split a half word in two bytes so we can use them
-
-					//first network bytes
-					ucast_af->addr.addr1	= hton32(pfx_info->p[0] << 24 | pfx_info->p[1] << 16 | pfx_info->p[2] << 8| pfx_info->p[3]); // | (pfx_info->prefix.addr2 << 16);
-					ucast_af->addr.addr2	= hton32(pfx_info->p[4] << 24 | pfx_info->p[5] << 16 | pfx_info->p[6] << 8| pfx_info->p[7]); // | (pfx_info->prefix.addr2 << 16);
-
-					//host bytes
-					ucast_af->addr.addr3	= 
-						hton32(mac_addr[0] << 16 | tmp[1] << 8 | 0xff);
-
-					ucast_af->addr.addr4	= 
-						hton32(0xfe << 24 | tmp[0] << 16 | mac_addr[2]);
-		
-					//this one never expires
-					ucast_af->expiration_date	= TIME + pfx_info->valid_lifetime;
-					ucast_af->scope			= GLOBAL_SCOPE;
-
-					while(j<ESIX_MAX_IPADDR)
-					{
-						if((addrs[j] != NULL) &&
-							(addrs[j]->scope	== ucast_af->scope)	 &&
-							(addrs[j]->expiration_date != 0) 		 &&
-							(addrs[j]->addr.addr1	== ucast_af->addr.addr1) &&
-							(addrs[j]->addr.addr2	== ucast_af->addr.addr2) &&
-							(addrs[j]->addr.addr3	== ucast_af->addr.addr3) &&
-							(addrs[j]->addr.addr4	== ucast_af->addr.addr4) &&
-							(addrs[j]->mask		== 64))
-						{
-							//we're only updating
-							addrs[j]->expiration_date = 
-								ucast_af->expiration_date;
-							FREE(ucast_af);
-						}
-						else
-						//TODO perform DAD
-						//try to add it to the table of addresses and
-						//free it so we don't leak memory in case it fails
-							if(!esix_add_to_active_addresses(ucast_af))
-								FREE(ucast_af);
-					}//while(j<...
+					//split a half word in two bytes so we can use them separately
+					tmp	= (u8_t*) &mac_addr[1]; 
+					//builds a new global scope address
+					//not endian-safe for now, words in the prefix field
+					//are not aligned when received
+					esix_new_addr(  hton32(pfx_info->p[0] << 24	//prefix 
+								| pfx_info->p[1] << 16 
+								| pfx_info->p[2] << 8
+								| pfx_info->p[3]),
+							hton32(pfx_info->p[4] << 24 	//prefix
+								| pfx_info->p[5] << 16 
+								| pfx_info->p[6] << 8
+								| pfx_info->p[7]),
+							hton32(mac_addr[0] << 16 	//autoconf
+							 	| tmp[1] << 8 | 0xff),
+							hton32(0xfe << 24 		//autoconf
+								| tmp[0] << 16 
+								| mac_addr[2]),
+							0x40,				// /64
+							TIME + pfx_info->valid_lifetime, //expiration date
+							GLOBAL_SCOPE);
 				}//if(i+...
 				i+=	30; 
 				option_hdr	= (struct icmp6_option_hdr*)(((char*) rtr_adv)+i);
@@ -208,6 +187,8 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 				i+= (option_hdr->length*8) - 2; //option_hdr->length gives the size of
 								//type + length + data fields in
 								//8 bytes multiples
+								//skip this length since we don't know
+								//how to process it
 				option_hdr	= (struct icmp6_option_hdr*) ((char*) rtr_adv)+i;
 
 			break; 	
