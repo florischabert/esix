@@ -20,7 +20,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS  SOFTWARE, 
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-libesix: esix.o libesix.a
+libesix: esix.o ip6.o icmp6.o libesix.a
 
 libesix.a:
 	$(AR) rcs lib/libesix.a *.o

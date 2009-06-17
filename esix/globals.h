@@ -1,6 +1,6 @@
 /**
  * @file
- * esix stack, ipv6 packets processing functions.
+ * esix ipv6 stack.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,9 +26,15 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _IP6_H
-#define _IP6_H
-	#include "config.h"
-	#include "include/esix.h"
-	#include "globals.h"
+#ifndef _GLOBALS_H
+#define _GLOBALS_H
+	
+	//this table contains every ip address assigned to the system.
+	extern struct 	esix_ipaddr_table_row *addrs[ESIX_MAX_IPADDR];
+
+	//this table contains every routes assigned to the system
+	extern struct 	esix_route_table_row *routes[ESIX_MAX_RT];
+
+	//stores our mac addr, for now...
+	extern u16_t mac_addr[3];
 #endif

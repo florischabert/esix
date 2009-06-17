@@ -34,7 +34,7 @@ all: libesix $(PROGRAM)
 
 $(PROGRAM): $(PROGRAM).o boot.o uart.o ethernet.o \
 	FreeRTOS/tasks.o FreeRTOS/list.o FreeRTOS/queue.o \
-	FreeRTOS/portable/GCC/ARM_CM3/port.o FreeRTOS/portable/MemMAng/heap_1.o
+	FreeRTOS/portable/GCC/ARM_CM3/port.o FreeRTOS/portable/MemMang/heap_2.o
 	@echo "  -> Linking ..."
 	$(CC) -o $(PROGRAM) $(LDFLAGS) $^ -L../esix/lib -lesix
 	@echo "  -> Done"	
