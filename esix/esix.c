@@ -28,6 +28,7 @@
 
 #include "config.h"
 #include "include/esix.h"
+
 //general purpose buffer, mainly used to build packets/
 //static int esix_buffer[ESIX_BUFFER_SIZE];
 
@@ -45,7 +46,7 @@ static u16_t mac_addr[3];
  */
 void esix_init(void)
 {
-	int i,j;
+	int i;
 	for(i=0; i<ESIX_MAX_IPADDR; i++)
 		addrs[i] = NULL;
 
@@ -83,6 +84,7 @@ void esix_received_frame(struct ip6_hdr *hdr, int length)
 	
 	//check if the packet belongs to us
 	pkt_for_us = 0;
+
 	for(i=0; i<ESIX_MAX_IPADDR;i++)
 	{
 		//go through every entry of our address table and check word by word
@@ -228,7 +230,7 @@ u16_t ntoh16(u16_t v)
 	//bug due to alignment weirdiness
 	//u8_t * tmp	= (u8_t *) &v;
 	//return (tmp[1] << 8 | tmp[0]);
-	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
+	return (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff));
 }
 
 /**
@@ -438,9 +440,9 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	i=16+2; 	//we at least need 2 more bytes (type + length) to be able to process
 			//the first option field (those are TLVs)
 	option_hdr = &rtr_adv->option_hdr;
-	while (i < ntoh16(length)) // is the ip packet long enough to continue?
+	while (i < length) // is the ip packet long enough to continue?
 	{
-		switch(ntoh16(option_hdr->type))
+		switch(option_hdr->type)
 		{
 			case PRFX_INFO:
 				pfx_info = (struct icmp6_opt_prefix_info *) &option_hdr->payload; 
@@ -448,10 +450,11 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 				{
 					ucast_af = MALLOC (sizeof (struct esix_ipaddr_table_row)); 
 					j=0;
+					u8_t	*tmp	= (u8_t*) &mac_addr[1] ; //split a half word in two bytes so we can use them
 
 					//first network bytes
-					ucast_af->addr.addr1	= pfx_info->prefix.addr1;
-					ucast_af->addr.addr2	= pfx_info->prefix.addr2;
+					ucast_af->addr.addr1	= hton32(pfx_info->p[0] << 24 | pfx_info->p[1] << 16 | pfx_info->p[2] << 8| pfx_info->p[3]); // | (pfx_info->prefix.addr2 << 16);
+					ucast_af->addr.addr2	= hton32(pfx_info->p[4] << 24 | pfx_info->p[5] << 16 | pfx_info->p[6] << 8| pfx_info->p[7]); // | (pfx_info->prefix.addr2 << 16);
 
 					//host bytes
 					ucast_af->addr.addr3	= 
@@ -489,28 +492,27 @@ void esix_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 					}//while(j<...
 				}//if(i+...
 				i+=	30; 
-				option_hdr	= (struct icmp6_option_hdr *)(((char*) rtr_adv)+i);
+				option_hdr	= (struct icmp6_option_hdr*)(((char*) rtr_adv)+i);
 			break;
 
 			case MTU:
-				mtu_info = (struct icmp6_opt_mtu_info *) &rtr_adv->option_hdr.payload; 
+				mtu_info = (struct icmp6_opt_mtu *) &rtr_adv->option_hdr.payload; 
 				if( (i+6) < ntoh16(length))
 				{
 					default_rt->mtu	= ntoh16(mtu_info->mtu);
 				}
 				i+=8;
-				option_hdr	= (struct icmp6_option_hdr *)(((char*) rtr_adv)+i);
+				option_hdr	= (struct icmp6_option_hdr*) ((char*) rtr_adv)+i;
 			break;
 
 			default:
 				i+= (option_hdr->length*8) - 2; //option_hdr->length gives the size of
 								//type + length + data fields in
 								//8 bytes multiples
-				option_hdr	= (struct icmp6_option_hdr *)(((char*) rtr_adv)+i);
+				option_hdr	= (struct icmp6_option_hdr*) ((char*) rtr_adv)+i;
 
 			break; 	
 		}
 		i += 2; //try to read the next option header
-
 	}
 }

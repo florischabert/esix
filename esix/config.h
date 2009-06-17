@@ -35,7 +35,7 @@ typedef unsigned short u16_t;
 typedef unsigned short u8_t;
 
 void vPortFree(void *);
-void *pvPortMalloc(size_t);
+void *pvPortMalloc(u32_t size);
 #define FREE vPortFree
 #define MALLOC pvPortMalloc 	//malloc function to be used, OS dependant
 #define TIME	0+//time()		//time() function to be used

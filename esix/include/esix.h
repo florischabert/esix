@@ -31,9 +31,6 @@
 	#define ESIX_BUFFER_SIZE 750 	//(750 * 4 = 3kB = 2 eth frames of 1500 bytes)
 	#define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
 	#define ESIX_MAX_RT	8 	//max number of routes the node can have
-
-	void esix_init(void);
-
 	/**
 	 * IPv6 address
 	 */
@@ -107,8 +104,8 @@
 	 */
 	struct icmp6_option_hdr
 	{
-		u16_t	type;
-		u16_t	length;
+		u8_t	type;
+		u8_t	length;
 		u16_t	payload;
 	};
 
@@ -129,9 +126,12 @@
 	 * ICMP option, prefix info header.
 	 */
 	struct icmp6_opt_prefix_info {
+		u8_t	prefix_length;
 		u8_t	flags;		//onlink, autoconf,...
 		u32_t	valid_lifetime;
 		u32_t	preferred_lifetime;
+		u16_t	reserved;
+		char p[16];
 		struct ip6_addr prefix;
 	};
 
@@ -139,6 +139,7 @@
 	 * ICMP option, MTU.
 	 */
 	struct icmp6_opt_mtu {
+		u16_t 	reserved;
 		u32_t	mtu;
 	};
 
