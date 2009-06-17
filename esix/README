@@ -1,11 +1,10 @@
 How to use esix ?
 
-1. You have to customize the config.h file to make esix working on your arch/OS.
-2. TODO
-
+1. First, you have to customize the config.h file to make esix work on your hardware.
+2. Then, you need to implement some wrappers (memory allocation, timer, ethernet frame management). These wrappers are OS dependant. See include/esix.h to know exactly what you have to implement.
 
 
 include/
-	contains the main header files to use esix in your code
+	contains the main headers for users
 lib/
-	contains the compiled static library
+	contains the compiled library

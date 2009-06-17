@@ -67,8 +67,8 @@
 	 */
 	struct esix_mac_addr
 	{
-		u32_t l;
 		u16_t h;
+		u32_t l;
 	};
 	
 	/*
