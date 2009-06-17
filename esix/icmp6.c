@@ -43,12 +43,15 @@ void esix_icmp_received(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
+			GPIOF->DATA[1]	^= 1;
 			break;
 		case RTR_ADV:
 			esix_icmp_parse_rtr_adv(
 				(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
+			GPIOF->DATA[1]	= 1;
 			break;
 		case ECHO_RQ: 
+			GPIOF->DATA[1]	= 1;
 			break;
 		default:	
 			return;

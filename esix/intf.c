@@ -159,7 +159,8 @@ int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t 
 			u32_t expiration_date, int scope)
 {
 	struct esix_ipaddr_table_row *new_addr = 
-				esix_w_malloc (sizeof (struct esix_ipaddr_table_row)); 
+				esix_w_malloc(sizeof (struct esix_ipaddr_table_row)); 
+
 	new_addr->addr.addr1		= addr1;
 	new_addr->addr.addr2		= addr2;
 	new_addr->addr.addr3		= addr3;
@@ -185,21 +186,21 @@ int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t 
 			addrs[j]->expiration_date = 
 				new_addr->expiration_date;
 			esix_w_free(new_addr);
-			break;
+			return 1;
 		}
-		else
-		//TODO perform DAD
-		//
-		//it's new, perform DAD and 
-		//try to add it to the table of addresses and
-		//free it so we don't leak memory in case it fails
-			if(!esix_intf_add_to_active_addresses(new_addr))
-			{
-				esix_w_free(new_addr);
-				return 0;
-			}
+		j++;
 	}//while(j<...
-	return 1;
+	//TODO perform DAD
+	//
+	//it's new, perform DAD and 
+	//try to add it to the table of addresses and
+	//free it so we don't leak memory in case it fails
+	if(esix_intf_add_to_active_addresses(new_addr))
+		return 1;
+
+	//if we're still here, something's wrong.
+	esix_w_free(new_addr);
+	return 0;
 }
 
 int esix_intf_remove_addr(u8_t scope, u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen)
