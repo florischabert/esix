@@ -84,5 +84,5 @@ struct esix_mac_addr esix_w_get_mac_address()
  */
 void esix_w_log(char *string)
 {
-	uart_puts(string);
+	uart_printf("%x\n", (u32_t) string);
 }

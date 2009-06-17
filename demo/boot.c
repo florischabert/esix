@@ -44,7 +44,7 @@ extern u32_t _etext, _data, _edata, _bss, _ebss;
 
 // System stack
 __attribute__((section(".stack")))
-static u32_t system_stack[configMINIMAL_STACK_SIZE];
+	static u32_t system_stack[configMINIMAL_STACK_SIZE+89]; // FIXME WTF ?
 
 // Interrupt vector table
 __attribute__((section(".isr_table"), used))
