@@ -292,3 +292,30 @@ int esix_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t maskl
 	}//while(j<...
 	return 1;
 }
+
+int esix_remove_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen)
+{
+	int j=0;
+	struct esix_ipaddr_table_row *ptr;
+	while(j<ESIX_MAX_IPADDR)
+	{
+		//find'em and detroy'em :)
+		if((addrs[j] != NULL) &&
+			(addrs[j]->scope	== scope) &&
+			(addrs[j]->addr.addr1	== addr1) &&
+			(addrs[j]->addr.addr2	== addr2) &&
+			(addrs[j]->addr.addr3	== addr3) &&
+			(addrs[j]->addr.addr4	== addr4) &&
+			(addrs[j]->mask		== masklen))
+		{
+			//first remove the entry from the table
+			//then free it's allocated memory
+			//might avoid random crashes
+			ptr		= addrs[j];
+			addrs[j] 	= NULL; 
+			FREE(ptr);
+			return 1;
+		}
+	}
+	return 0;
+}

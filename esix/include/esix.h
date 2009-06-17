@@ -191,6 +191,7 @@
 	void esix_send_router_sollicitation(int );
 	void esix_parse_rtr_adv(struct icmp6_rtr_adv *, int, struct ip6_hdr *);
 	int esix_new_addr(u32_t, u32_t, u32_t, u32_t, u8_t, u32_t, int);
+	int esix_remove_addr(u32_t, u32_t, u32_t, u32_t, u8_t);
 	u16_t hton16(u16_t);
 	u16_t ntoh16(u16_t);
 	u32_t hton32(u32_t);
