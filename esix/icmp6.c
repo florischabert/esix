@@ -43,16 +43,15 @@ void esix_icmp_received(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
-			//toggle_led();
-			//GPIOF->DATA[1]	^= 1;
+			toggle_led();
 			break;
 		case RTR_ADV:
+			toggle_led();
 			esix_icmp_parse_rtr_adv(
 				(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
-			//GPIOF->DATA[1]	= 1;
 			break;
 		case ECHO_RQ: 
-			//GPIOF->DATA[1]	= 1;
+			toggle_led();
 			break;
 		default:	
 			return;
@@ -142,8 +141,10 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	i=16+2; 	//we at least need 2 more bytes (type + length) to be able to process
 			//the first option field (those are TLVs)
 	option_hdr = &rtr_adv->option_hdr;
+	/* this part's too buggy for now
 	while (i < length) // is the ip packet long enough to continue?
 	{
+		
 		switch(option_hdr->type)
 		{
 			case PRFX_INFO:
@@ -172,7 +173,6 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 				i+=	30; 
 				option_hdr	= (struct icmp6_option_hdr*)(((char*) rtr_adv)+i);
 			break;
-
 			case MTU:
 				mtu_info = (struct icmp6_opt_mtu *) &rtr_adv->option_hdr.payload; 
 				if( (i+6) < ntoh16(length))
@@ -195,4 +195,5 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 		}
 		i += 2; //try to read the next option header
 	}
+	*/
 }

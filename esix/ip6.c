@@ -70,7 +70,6 @@ void esix_ip_process_packet(void *packet, int length)
 	//drop the packet in case it doesn't
 	if(pkt_for_us==0)
 		return;
-	toggle_led();
 
 	//check the hop limit value (should be > 0)
 	if(hdr->hlimit == 0)
@@ -83,8 +82,8 @@ void esix_ip_process_packet(void *packet, int length)
 	switch(hdr->next_header)
 	{
 		case ICMP:
-	//		esix_icmp_received((struct icmp6_hdr *) &hdr->data, 
-	//			ntoh16(hdr->payload_len), hdr);
+			esix_icmp_received((struct icmp6_hdr *) &hdr->data, 
+				ntoh16(hdr->payload_len), hdr);
 			break;
 
 		//unknown (unimplemented) IP type

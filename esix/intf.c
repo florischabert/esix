@@ -44,6 +44,7 @@ void esix_intf_add_basic_addr_routes(struct esix_mac_addr addr, int intf_index, 
 	esix_intf_new_addr(	hton32(0xfe800000), 	//0xfe80 
 			hton32(0x00000000),
 			hton32(addr.l | 0xff),	//stateless autoconf FIXME: universal bit ?
+			//0xfe here is OK
 			hton32((0xfe000000) | ((addr.l << 16) & 0xff0000) | addr.h),
 			0x80,			// /128
 			0x0,			//this one never expires
@@ -53,7 +54,8 @@ void esix_intf_add_basic_addr_routes(struct esix_mac_addr addr, int intf_index, 
 	esix_intf_new_addr(	hton32(0xff020000), 	//0xff02 
 			hton32(0x00000000),	//0x0000
 			hton32(0x00000001),	//0x0001
-			hton32((0xfe000000) | ((addr.l << 16) & 0xff0000) | addr.h),
+			//0xff here is OK
+			hton32((0xff000000) | ((addr.l << 16) & 0xff0000) | addr.h),
 			0x80,			// /128
 			0x0,			//this one never expires
 			MCAST_SCOPE);
