@@ -22,7 +22,7 @@
 
 SRC=$(wildcard *.c) \
 	FreeRTOS/tasks.c FreeRTOS/list.c FreeRTOS/queue.c \
-	FreeRTOS/portable/GCC/ARM_CM3/port.c FreeRTOS/portable/MemMang/heap_2.c
+	FreeRTOS/portable/GCC/ARM_CM3/port.c FreeRTOS/portable/MemMang/heap_1.c
 OBJ=$(SRC:.c=.o)
 PROGRAM=main
 

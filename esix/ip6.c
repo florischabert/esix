@@ -83,8 +83,8 @@ void esix_ip_process_packet(void *packet, int length)
 	switch(hdr->next_header)
 	{
 		case ICMP:
-			esix_icmp_received((struct icmp6_hdr *) &hdr->data, 
-				ntoh16(hdr->payload_len), hdr);
+	//		esix_icmp_received((struct icmp6_hdr *) &hdr->data, 
+	//			ntoh16(hdr->payload_len), hdr);
 			break;
 
 		//unknown (unimplemented) IP type
