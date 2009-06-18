@@ -38,7 +38,7 @@
 
 typedef unsigned int u32_t;
 typedef unsigned short u16_t;
-typedef unsigned short u8_t; 
+typedef unsigned char u8_t; 
 typedef unsigned int size_t; 
 
 #define ENDIANESS 0		//0 : little endian, 1 : big endian
