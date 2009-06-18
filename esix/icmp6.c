@@ -43,15 +43,15 @@ void esix_icmp_received(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
-			toggle_led();
+			//toggle_led();
 			break;
 		case RTR_ADV:
-			toggle_led();
+			//toggle_led();
 			esix_icmp_parse_rtr_adv(
 				(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
 		case ECHO_RQ: 
-			toggle_led();
+			//toggle_led();
 			break;
 		default:	
 			return;
@@ -85,7 +85,7 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	int i=0;
 	struct icmp6_opt_prefix_info *pfx_info;
 	struct icmp6_opt_mtu *mtu_info;
-	struct icmp6_option_hdr *option_hdr;
+	static struct icmp6_option_hdr *option_hdr;
 	struct esix_route_table_row *default_rt	= NULL;
 
 	//we at least need to have 16 bytes to parse...
@@ -138,20 +138,18 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	default_rt->interface		= INTERFACE;
 
 	//parse options like MTU and prefix info
-	i=16+2; 	//we at least need 2 more bytes (type + length) to be able to process
-			//the first option field (those are TLVs)
 	option_hdr = &rtr_adv->option_hdr;
-	/* this part's too buggy for now
-	while (i < length) // is the ip packet long enough to continue?
+	i=16; 	//we at least need 2 more bytes (type + length) to be able to process
+			//the first option field (those are TLVs)
+	while (i + 2 < length) // is the ip packet long enough to continue?
 	{
-		
 		switch(option_hdr->type)
 		{
 			case PRFX_INFO:
 				pfx_info = (struct icmp6_opt_prefix_info *) &option_hdr->payload; 
 				//the advertised prefix length MUST be 64 (0x40) in order to do
 				//stateless autoconfigration.
-				if( (i+30) < ntoh16(length) && pfx_info->prefix_length != 0x40)
+				if( (i+32) < ntoh16(length) && pfx_info->prefix_length == 0x40)
 				{
 					//builds a new global scope address
 					//not endian-safe for now, words in the prefix field
@@ -164,23 +162,24 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 								| pfx_info->p[5] << 16 
 								| pfx_info->p[6] << 8
 								| pfx_info->p[7]),
-								hton32((mac_addr.h << 16) | ((mac_addr.l >> 16) & 0xff00) | 0xff),	//stateless autoconf FIXME: universal bit ?
-								hton32((0xfe << 24) | (mac_addr.l & 0xffffff)),
+								hton32((mac_addr.l | 0xff)),	//FIXME: universal bit ?
+								hton32((0xfe000000) | ((mac_addr.l << 16) & 0xff0000) | mac_addr.h),
 							0x40,				// /64
 							esix_w_get_time() + pfx_info->valid_lifetime, //expiration date
 							GLOBAL_SCOPE);
 				}//if(i+...
-				i+=	30; 
-				option_hdr	= (struct icmp6_option_hdr*)(((char*) rtr_adv)+i);
+				i+=	32; 
+				option_hdr	= ((char*) rtr_adv) +i+1;
 			break;
 			case MTU:
+				toggle_led();
 				mtu_info = (struct icmp6_opt_mtu *) &rtr_adv->option_hdr.payload; 
-				if( (i+6) < ntoh16(length))
+				if( (i+8) < ntoh16(length))
 				{
 					default_rt->mtu	= ntoh16(mtu_info->mtu);
 				}
 				i+=8;
-				option_hdr	= (struct icmp6_option_hdr*) ((char*) rtr_adv)+i;
+				option_hdr	= ((char*) rtr_adv)+i;
 			break;
 
 			default:
@@ -189,11 +188,10 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 								//8 bytes multiples
 								//skip this length since we don't know
 								//how to process it
-				option_hdr	= (struct icmp6_option_hdr*) ((char*) rtr_adv)+i;
+				option_hdr	= ((char*) rtr_adv)+i;
 
 			break; 	
 		}
 		i += 2; //try to read the next option header
 	}
-	*/
 }

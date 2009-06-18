@@ -60,7 +60,7 @@
 		u8_t	type;
 		u8_t	code;
 		u16_t	chksum;
-		u32_t	data;
+		u8_t	data;
 	};
 
 	/**
@@ -70,7 +70,7 @@
 	{
 		u8_t	type;
 		u8_t	length;
-		u16_t	payload;
+		u8_t	payload;
 	};
 
 	/**
@@ -95,7 +95,6 @@
 		u32_t	preferred_lifetime;
 		u16_t	reserved;
 		char p[16];
-		struct ip6_addr prefix;
 	};
 
 	/**
