@@ -91,3 +91,8 @@ void hardware_init(void)
 	GPIOF->DIR = (1 << 0);    // PF0 as output
 	GPIOF->DEN = (1 << 0);    // PF0 is digital
 }
+
+void toggle_led()
+{
+	GPIOF->DATA[1]	^= 1;	
+}

@@ -56,10 +56,10 @@ void esix_ip_process_packet(void *packet, int length)
 	{
 		//go through every entry of our address table and check word by word
 		if( (addrs[i] != NULL) &&
-			( hdr->daddr1 == (addrs[i]->addr.addr1) ) &&
-			( hdr->daddr2 == (addrs[i]->addr.addr2) ) &&
-			( hdr->daddr3 == (addrs[i]->addr.addr3) ) &&
-			( hdr->daddr4 == (addrs[i]->addr.addr4) ))
+			( hdr->daddr1 == addrs[i]->addr.addr1 ) &&
+			( hdr->daddr2 == addrs[i]->addr.addr2 ) &&
+			( hdr->daddr3 == addrs[i]->addr.addr3 ) &&
+			( hdr->daddr4 == addrs[i]->addr.addr4 ))
 		{
 			pkt_for_us = 1;
 			break;
@@ -70,6 +70,7 @@ void esix_ip_process_packet(void *packet, int length)
 	//drop the packet in case it doesn't
 	if(pkt_for_us==0)
 		return;
+	toggle_led();
 
 	//check the hop limit value (should be > 0)
 	if(hdr->hlimit == 0)
