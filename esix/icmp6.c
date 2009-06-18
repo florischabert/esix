@@ -85,8 +85,8 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	int i=0;
 	struct icmp6_opt_prefix_info *pfx_info;
 	struct icmp6_opt_mtu *mtu_info;
-	static struct icmp6_option_hdr *option_hdr;
-	struct esix_route_table_row *default_rt	= NULL;
+	struct icmp6_option_hdr *option_hdr;
+	static struct esix_route_table_row *default_rt	= NULL;
 
 	//we at least need to have 16 bytes to parse...
 	//(router advertisement without any option = 16 bytes,
@@ -118,31 +118,32 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	{
 		default_rt = esix_w_malloc(sizeof(struct esix_route_table_row));
 		esix_intf_add_to_active_routes(default_rt);  //add the pointer now to avoid adding it
-							//twice when we're updating
+								//twice when we're updating
+		default_rt->addr.addr1		= 0x0;
+		default_rt->addr.addr2		= 0x0;
+		default_rt->addr.addr3		= 0x0;
+		default_rt->addr.addr4		= 0x0;
+		default_rt->mask		= 0;
+		default_rt->next_hop.addr1	= ip_hdr->saddr1;
+		default_rt->next_hop.addr2	= ip_hdr->saddr2;
+		default_rt->next_hop.addr3	= ip_hdr->saddr3;
+		default_rt->next_hop.addr4	= ip_hdr->saddr4;
+		default_rt->mtu			= DEFAULT_MTU;
+		default_rt->interface		= INTERFACE;
 	}
 	//TODO : check if malloc succeeded
 
 	
-	default_rt->addr.addr1		= 0x0;
-	default_rt->addr.addr2		= 0x0;
-	default_rt->addr.addr3		= 0x0;
-	default_rt->addr.addr4		= 0x0;
-	default_rt->mask		= 0;
-	default_rt->next_hop.addr1	= ip_hdr->saddr1;
-	default_rt->next_hop.addr2	= ip_hdr->saddr2;
-	default_rt->next_hop.addr3	= ip_hdr->saddr3;
-	default_rt->next_hop.addr4	= ip_hdr->saddr4;
-	default_rt->ttl			= rtr_adv->cur_hlim;
-	default_rt->mtu			= DEFAULT_MTU;
+	//set/update the expiration date and TTL
 	default_rt->expiration_date	= esix_w_get_time() + ntoh32(rtr_adv->rtr_lifetime);
-	default_rt->interface		= INTERFACE;
+	default_rt->ttl			= rtr_adv->cur_hlim;
 
 	//parse options like MTU and prefix info
-	option_hdr = &rtr_adv->option_hdr;
-	i=16; 	//we at least need 2 more bytes (type + length) to be able to process
+	i=12; 	//we at least need 2 more bytes (type + length) to be able to process
 			//the first option field (those are TLVs)
 	while (i + 2 < length) // is the ip packet long enough to continue?
 	{
+		option_hdr = ((u8_t *) rtr_adv + i);
 		switch(option_hdr->type)
 		{
 			case PRFX_INFO:
@@ -169,29 +170,25 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 							GLOBAL_SCOPE);
 				}//if(i+...
 				i+=	32; 
-				option_hdr	= ((char*) rtr_adv) +i+1;
 			break;
+
 			case MTU:
 				toggle_led();
-				mtu_info = (struct icmp6_opt_mtu *) &rtr_adv->option_hdr.payload; 
-				if( (i+8) < ntoh16(length))
+				mtu_info = (struct icmp6_opt_mtu *) &option_hdr->payload; 
+				if( (i+8) < ntoh16(length) )//&& option_hdr->length == 1)
 				{
 					default_rt->mtu	= ntoh16(mtu_info->mtu);
 				}
 				i+=8;
-				option_hdr	= ((char*) rtr_adv)+i;
 			break;
 
 			default:
-				i+= (option_hdr->length*8) - 2; //option_hdr->length gives the size of
+				i+= (option_hdr->length*8); //option_hdr->length gives the size of
 								//type + length + data fields in
 								//8 bytes multiples
 								//skip this length since we don't know
 								//how to process it
-				option_hdr	= ((char*) rtr_adv)+i;
-
 			break; 	
 		}
-		i += 2; //try to read the next option header
 	}
 }

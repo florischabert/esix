@@ -82,7 +82,7 @@
 		u16_t	rtr_lifetime;	//router lifetime
 		u32_t	reachable_time;
 		u32_t	retransm_timer;
-		struct icmp6_option_hdr option_hdr;
+		u8_t option_hdr;
 	};
 
 	/**
@@ -94,7 +94,7 @@
 		u32_t	valid_lifetime;
 		u32_t	preferred_lifetime;
 		u16_t	reserved;
-		char p[16];
+		u8_t p[16];
 	};
 
 	/**
