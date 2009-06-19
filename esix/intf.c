@@ -161,8 +161,34 @@ int esix_intf_add_to_active_routes(struct esix_route_table_row *row)
 int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen,
 			u32_t expiration_date, int scope)
 {
-	struct esix_ipaddr_table_row *new_addr = 
-				esix_w_malloc(sizeof (struct esix_ipaddr_table_row)); 
+	struct esix_ipaddr_table_row *new_addr;
+
+	int j=0;
+	while(j<ESIX_MAX_IPADDR)
+	{
+		//check if we already stored this address
+		if((addrs[j] != NULL) &&
+			(addrs[j]->scope	== scope) &&
+			(addrs[j]->expiration_date != 0)  &&
+			(addrs[j]->addr.addr1	== addr1) &&
+			(addrs[j]->addr.addr2	== addr2) &&
+			(addrs[j]->addr.addr3	== addr3) &&
+			(addrs[j]->addr.addr4	== addr4) &&
+			(addrs[j]->mask		== masklen ))
+		{
+			//we're only updating it's lifetime.
+			addrs[j]->expiration_date = expiration_date;
+			return 1;
+		}
+		j++;
+	}
+
+	//we're still there, let's create our new address.
+	new_addr = esix_w_malloc(sizeof (struct esix_ipaddr_table_row)); 
+
+	//hmmmm... I smell gas...
+	if(new_addr == NULL)
+		return 0;
 
 	new_addr->addr.addr1		= addr1;
 	new_addr->addr.addr2		= addr2;
@@ -172,27 +198,6 @@ int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t 
 	new_addr->scope			= scope;
 	new_addr->mask			= masklen;
 
-	int j=0;
-	while(j<ESIX_MAX_IPADDR)
-	{
-		//check if we already stored this address
-		if((addrs[j] != NULL) &&
-			(addrs[j]->scope	== new_addr->scope)	 &&
-			(addrs[j]->expiration_date != 0) 		 &&
-			(addrs[j]->addr.addr1	== new_addr->addr.addr1) &&
-			(addrs[j]->addr.addr2	== new_addr->addr.addr2) &&
-			(addrs[j]->addr.addr3	== new_addr->addr.addr3) &&
-			(addrs[j]->addr.addr4	== new_addr->addr.addr4) &&
-			(addrs[j]->mask		== new_addr->mask ))
-		{
-			//we're only updating it
-			addrs[j]->expiration_date = 
-				new_addr->expiration_date;
-			esix_w_free(new_addr);
-			return 1;
-		}
-		j++;
-	}
 	//TODO perform DAD
 	//
 	//it's new, perform DAD and 
@@ -201,7 +206,7 @@ int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t 
 	if(esix_intf_add_to_active_addresses(new_addr))
 		return 1;
 
-	//if we're still here, something's wrong.
+	//if we're still here, something went wrong.
 	esix_w_free(new_addr);
 	return 0;
 }
@@ -229,6 +234,7 @@ int esix_intf_remove_addr(u8_t scope, u32_t addr1, u32_t addr2, u32_t addr3, u32
 			esix_w_free(ptr);
 			return 1;
 		}
+		j++;
 	}
 	return 0;
 }
@@ -256,19 +262,18 @@ int esix_intf_new_route(u32_t dst1, u32_t dst2, u32_t dst3, u32_t dst4, u8_t mas
 			(routes[i]->mask		== mask)     &&
 			(routes[i]->interface		== interface))
 			
-			rt	= routes[i];
+			{
+			//we found something, just update some variables
+				rt	= routes[i];
+				rt->expiration_date	= expiration_date;
+				rt->ttl			= ttl;
+				rt->mtu			= mtu;
+				return 1;
+			}
 		i++;
 	}
 
-	//we found something, just update some variables
-	if(rt != NULL)
-	{
-		rt->expiration_date	= expiration_date;
-		rt->ttl			= ttl;
-		rt->mtu			= mtu;
-		return 1;
-	}
-
+	//we're still there, let's create the new route.
 	rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
 
 	//hmmmm... I smell gas...
