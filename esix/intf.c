@@ -43,7 +43,7 @@ void esix_intf_add_basic_addr_routes(struct esix_mac_addr addr, int intf_index, 
 	//unicast link local
 	esix_intf_new_addr(	hton32(0xfe800000), 	//0xfe80 
 			hton32(0x00000000),
-			hton32(addr.l | 0xff),	//stateless autoconf FIXME: universal bit ?
+			hton32(addr.l | 0x020000ff),	//stateless autoconf, 0x02 : universal bit
 			//0xfe here is OK
 			hton32((0xfe000000) | ((addr.l << 16) & 0xff0000) | addr.h),
 			0x80,			// /128
@@ -133,7 +133,9 @@ int esix_intf_add_to_active_addresses(struct esix_ipaddr_table_row *row)
 }
 
 /**
- * esix_add_to_active_routes : adds the given route to the routing table. Returns 1 on success.
+ * esix_add_to_active_routes : adds the given route to the routing table. 
+ *
+ * @return 1 on success.
  */
 int esix_intf_add_to_active_routes(struct esix_route_table_row *row)
 {
@@ -190,7 +192,7 @@ int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t 
 			return 1;
 		}
 		j++;
-	}//while(j<...
+	}
 	//TODO perform DAD
 	//
 	//it's new, perform DAD and 
@@ -230,3 +232,68 @@ int esix_intf_remove_addr(u8_t scope, u32_t addr1, u32_t addr2, u32_t addr3, u32
 	}
 	return 0;
 }
+
+int esix_intf_new_route(u32_t dst1, u32_t dst2, u32_t dst3, u32_t dst4, u8_t mask, u32_t nxt_hop1,
+				u32_t nxt_hop2, u32_t nxt_hop3, u32_t nxt_hop4, u32_t expiration_date,
+				u8_t ttl, u16_t mtu, u8_t interface)
+{
+	int i=0;
+	struct esix_route_table_row *rt	= NULL;
+
+	//try to look up this route in the table
+	//to find if it already exists and only needs an update
+	while(i<ESIX_MAX_RT)
+	{
+		if((routes[i] != NULL) &&
+			(routes[i]->addr.addr1		== dst1) &&
+			(routes[i]->addr.addr2		== dst2) &&
+			(routes[i]->addr.addr3		== dst3) &&
+			(routes[i]->addr.addr4		== dst4) &&
+			(routes[i]->next_hop.addr1	== nxt_hop1) &&
+			(routes[i]->next_hop.addr2	== nxt_hop2) &&
+			(routes[i]->next_hop.addr3	== nxt_hop3) &&
+			(routes[i]->next_hop.addr4	== nxt_hop4) &&
+			(routes[i]->mask		== mask)     &&
+			(routes[i]->interface		== interface))
+			
+			rt	= routes[i];
+		i++;
+	}
+
+	//we found something, just update some variables
+	if(rt != NULL)
+	{
+		rt->expiration_date	= expiration_date;
+		rt->ttl			= ttl;
+		rt->mtu			= mtu;
+		return 1;
+	}
+
+	rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
+
+	//hmmmm... I smell gas...
+	if(rt == NULL)
+		return 0;
+
+	rt->addr.addr1		= dst1;
+	rt->addr.addr2		= dst2;
+	rt->addr.addr3		= dst3;
+	rt->addr.addr4		= dst4;
+	rt->mask		= mask;
+	rt->next_hop.addr1	= nxt_hop1;
+	rt->next_hop.addr2	= nxt_hop2;
+	rt->next_hop.addr3	= nxt_hop3;
+	rt->next_hop.addr4	= nxt_hop4;
+	rt->expiration_date	= expiration_date;
+	rt->ttl			= ttl;
+	rt->mtu			= mtu;
+	rt->interface		= interface;
+
+	//now try to add it
+	if(esix_intf_add_to_active_routes(rt))
+		return 1;
+
+	//we're still here, clean our mess up.
+	esix_w_free(rt);
+	return 0;
+} 

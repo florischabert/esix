@@ -43,15 +43,15 @@ void esix_icmp_received(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
-			//toggle_led();
+			toggle_led();
 			break;
 		case RTR_ADV:
-			//toggle_led();
+			toggle_led();
 			esix_icmp_parse_rtr_adv(
 				(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
 		case ECHO_RQ: 
-			//toggle_led();
+			toggle_led();
 			break;
 		default:	
 			return;
@@ -83,10 +83,11 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	 struct ip6_hdr *ip_hdr)
 {
 	int i=0;
-	struct icmp6_opt_prefix_info *pfx_info;
+	u32_t mtu;
+	struct icmp6_opt_prefix_info *pfx_info = NULL;
 	struct icmp6_opt_mtu *mtu_info;
 	struct icmp6_option_hdr *option_hdr;
-	static struct esix_route_table_row *default_rt	= NULL;
+	int got_prefix_info	= 0;
 
 	//we at least need to have 16 bytes to parse...
 	//(router advertisement without any option = 16 bytes,
@@ -94,50 +95,8 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	if(ntoh16(length) < 16 ) 
 		return;
 
-	//look up the routing table to see if this route already exists.
-	//if it does, select it instead of creating a new one.
-	
-
-	while(i<ESIX_MAX_RT)
-	{
-		if((routes[i] != NULL) &&
-			(routes[i]->addr.addr1		== 0x0) &&
-			(routes[i]->addr.addr2		== 0x0) &&
-			(routes[i]->addr.addr3		== 0x0) &&
-			(routes[i]->addr.addr4		== 0x0) &&
-			(routes[i]->next_hop.addr1	== ip_hdr->saddr1) &&
-			(routes[i]->next_hop.addr2	== ip_hdr->saddr2) &&
-			(routes[i]->next_hop.addr3	== ip_hdr->saddr3) &&
-			(routes[i]->next_hop.addr4	== ip_hdr->saddr4))
-
-			default_rt	= routes[i];
-		i++;
-	}
-
-	if(default_rt == NULL)
-	{
-		default_rt = esix_w_malloc(sizeof(struct esix_route_table_row));
-		esix_intf_add_to_active_routes(default_rt);  //add the pointer now to avoid adding it
-								//twice when we're updating
-		default_rt->addr.addr1		= 0x0;
-		default_rt->addr.addr2		= 0x0;
-		default_rt->addr.addr3		= 0x0;
-		default_rt->addr.addr4		= 0x0;
-		default_rt->mask		= 0;
-		default_rt->next_hop.addr1	= ip_hdr->saddr1;
-		default_rt->next_hop.addr2	= ip_hdr->saddr2;
-		default_rt->next_hop.addr3	= ip_hdr->saddr3;
-		default_rt->next_hop.addr4	= ip_hdr->saddr4;
-		default_rt->mtu			= DEFAULT_MTU;
-		default_rt->interface		= INTERFACE;
-	}
-	//TODO : check if malloc succeeded
-
-	
-	//set/update the expiration date and TTL
-	default_rt->expiration_date	= esix_w_get_time() + ntoh32(rtr_adv->rtr_lifetime);
-	default_rt->ttl			= rtr_adv->cur_hlim;
-
+	mtu	= DEFAULT_MTU;
+				
 	//parse options like MTU and prefix info
 	i=12; 	//we at least need 2 more bytes (type + length) to be able to process
 			//the first option field (those are TLVs)
@@ -152,32 +111,16 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 				//stateless autoconfigration.
 				if( (i+32) < ntoh16(length) && pfx_info->prefix_length == 0x40)
 				{
-					//builds a new global scope address
-					//not endian-safe for now, words in the prefix field
-					//are not aligned when received
-					esix_intf_new_addr(  hton32(pfx_info->p[0] << 24	//prefix 
-								| pfx_info->p[1] << 16 
-								| pfx_info->p[2] << 8
-								| pfx_info->p[3]),
-							hton32(pfx_info->p[4] << 24 	//prefix
-								| pfx_info->p[5] << 16 
-								| pfx_info->p[6] << 8
-								| pfx_info->p[7]),
-								hton32((mac_addr.l | 0xff)),	//FIXME: universal bit ?
-								hton32((0xfe000000) | ((mac_addr.l << 16) & 0xff0000) | mac_addr.h),
-							0x40,				// /64
-							esix_w_get_time() + pfx_info->valid_lifetime, //expiration date
-							GLOBAL_SCOPE);
-				}//if(i+...
+					got_prefix_info	= 1;
+				}
 				i+=	32; 
 			break;
 
 			case MTU:
-				toggle_led();
 				mtu_info = (struct icmp6_opt_mtu *) &option_hdr->payload; 
-				if( (i+8) < ntoh16(length) )//&& option_hdr->length == 1)
+				if( (i+8) < ntoh16(length) )
 				{
-					default_rt->mtu	= ntoh16(mtu_info->mtu);
+					mtu	= ntoh16(mtu_info->mtu);
 				}
 				i+=8;
 			break;
@@ -191,4 +134,74 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 			break; 	
 		}
 	}
+
+	//now add the routes (we needed the MTU value first)
+
+	//default route
+	//a lifetime of 0 means remove the route
+	if(ntoh32(rtr_adv->rtr_lifetime) == 0x0)
+	{
+		//TODO delete the default route here.
+	}
+	else
+	{
+		esix_intf_new_route(	0x0, 0x0, 0x0, 0x0, 	//default dest
+					0x0,			//default mask
+					ip_hdr->saddr1,		//next hop
+					ip_hdr->saddr2,
+					ip_hdr->saddr3,
+					ip_hdr->saddr4,
+					esix_w_get_time() + ntoh32(rtr_adv->rtr_lifetime), //exp. date
+					rtr_adv->cur_hlim,	//TTL
+					mtu,
+					INTERFACE);
+	}
+
+
+	//global address && onlink route
+	//a lifetime of 0 means remove the address/route
+	if(got_prefix_info && pfx_info->valid_lifetime == 0x0)
+	{
+		//TODO : remove the address / route here
+	}
+	else if (got_prefix_info)
+	{
+		//builds a new global scope address
+		//not endian-safe for now, words in the prefix field
+		//are not aligned when received
+		esix_intf_new_addr(  	hton32(pfx_info->p[0] << 24	//prefix 
+					 | pfx_info->p[1] << 16 
+					 | pfx_info->p[2] << 8
+					 | pfx_info->p[3]),
+					hton32(pfx_info->p[4] << 24 	//prefix
+					 | pfx_info->p[5] << 16 
+					 | pfx_info->p[6] << 8
+					 | pfx_info->p[7]),
+					hton32((mac_addr.l | 0x020000ff)),	// 0x02 : universal bit
+					hton32((0xfe000000) | ((mac_addr.l << 16) & 0xff0000) | mac_addr.h),
+				0x40,				// /64
+				esix_w_get_time() + pfx_info->valid_lifetime, //expiration date
+				GLOBAL_SCOPE);
+
+		//onlink route (local route for our own subnet)
+		esix_intf_new_route(  	hton32(pfx_info->p[0] << 24	//prefix 
+					 | pfx_info->p[1] << 16 
+					 | pfx_info->p[2] << 8
+					 | pfx_info->p[3]),
+					hton32(pfx_info->p[4] << 24 	//prefix
+					 | pfx_info->p[5] << 16 
+					 | pfx_info->p[6] << 8
+					 | pfx_info->p[7]),
+					0x0,
+					0x0,
+					0x40,				//ALWAYS /64 for autoconf.
+					0x0,		
+					0x0,				//No next hop means on-link.
+					0x0,
+					0x0,
+					esix_w_get_time() + ntoh32(pfx_info->valid_lifetime), //exp. date
+					rtr_adv->cur_hlim,	//TTL
+					mtu,
+					INTERFACE);
+	}//else if (got_prefix_info)
 }

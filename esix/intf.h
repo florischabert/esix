@@ -67,8 +67,12 @@ int esix_intf_add_to_active_routes(struct esix_route_table_row *row);
  * esix_new_addr : creates an addres with the passed arguments
  * and adds or updates it.
  */
-int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen, u32_t expiration_date, int scope);
+int esix_intf_new_addr(u32_t, u32_t, u32_t, u32_t, u8_t, u32_t, int);
 
-int esix_intf_remove_addr(u8_t scope, u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen);
+int esix_intf_remove_addr(u8_t, u32_t, u32_t, u32_t, u32_t, u8_t);
+
+
+int esix_intf_new_route(u32_t, u32_t, u32_t, u32_t, u8_t, u32_t, u32_t, u32_t, 
+	u32_t, u32_t, u8_t, u16_t, u8_t);
 
 #endif
