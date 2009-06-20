@@ -35,7 +35,8 @@
 // Prototypes
 void hardware_init(void);
 void led_task(void *param);
-
+void led_task2(void *param);
+int led2h;
 /**
  * Main function.
  */	
@@ -48,9 +49,15 @@ void main(void)
 	esix_init();
 	
 	// FreeRTOS tasks scheduling
-	xTaskCreate(led_task, (signed char *) "main", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(led_task, (signed char *) "led", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
 	while(1);
+}
+
+void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed portCHAR *pcTaskName)
+{
+	//if(*pcTaskName == 'b')
+		GPIOF->DATA[1] = 1;
 }
 
 /**
@@ -60,10 +67,10 @@ void led_task(void *param)
 {
 	while(1)
 	{
+	//	uart_printf("led %x\n", uxTaskGetStackHighWaterMark(NULL));
 	//	ether_handler();	
 	//	uart_puts("AHAH!\r\n");
-		//GPIOF->DATA[1] ^= 1;
-		vTaskDelay(5);
+		vTaskDelay(1000);
 	}
 }
 

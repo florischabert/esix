@@ -39,6 +39,7 @@ void esix_ip_process_packet(void *packet, int length)
 {
 	struct ip6_hdr *hdr = packet;
 	int i, pkt_for_us;
+uart_puts("packet received\n");
 	//check if we have enough data to at least read the header
 	//and if we actually have an IPv6 packet
 	if((length < 40)  || 
@@ -77,19 +78,17 @@ void esix_ip_process_packet(void *packet, int length)
 		esix_icmp_send_ttl_expired(hdr);
 		return;
 	}
-
 	//determine what to do next
 	switch(hdr->next_header)
 	{
 		case ICMP:
-			esix_icmp_received((struct icmp6_hdr *) &hdr->data, 
+			esix_icmp_process_packet((struct icmp6_hdr *) &hdr->data, 
 				ntoh16(hdr->payload_len), hdr);
 			break;
 
 		//unknown (unimplemented) IP type
 		default:
 			return;
-			break;
 	}
 }
 

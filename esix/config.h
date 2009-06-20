@@ -32,6 +32,7 @@
 #define ESIX_BUFFER_SIZE 750 	//(750 * 4 = 3kB = 2 eth frames of 1500 bytes)
 #define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
 #define ESIX_MAX_RT	8 	//max number of routes the node can have
+#define ESIX_MAX_NB 8 //max number of neighbors in the table
 
 #define INTERFACE	0 //default interface # until we have a proper intf
 				//management system.

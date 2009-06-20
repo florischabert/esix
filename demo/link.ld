@@ -58,6 +58,7 @@ SECTIONS
 		*(COMMON)
 		_ebss = .;
 		*(.eh_frame)
+		end = .;
 	} > RAM
 
 }

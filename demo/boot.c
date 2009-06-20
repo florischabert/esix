@@ -43,12 +43,10 @@ void default_handler(void);
 extern u32_t _etext, _data, _edata, _bss, _ebss;
 
 // System stack
-__attribute__((section(".stack")))
-	static u32_t system_stack[configMINIMAL_STACK_SIZE+512]; // FIXME WTF ?
+static u32_t system_stack[512] __attribute__((section(".stack"))); // FIXME
 
 // Interrupt vector table
-__attribute__((section(".isr_table"), used))
-static void (*isr_handler[])() = 
+static void (*isr_handler[])() __attribute__((section(".isr_table"), used)) = 
 {
 	// Stack pointer
 	(void *) (system_stack + sizeof(system_stack)),
@@ -118,7 +116,8 @@ static void (*isr_handler[])() =
 __attribute__((naked))
 void reset_handler(void)
 {
-	/* Simple bootloader to boot from SRAM:
+	// Simple bootloader to boot from SRAM:
+	/*
 	*((volatile unsigned int *) 0xe000ed08) = 0x20000000; // Vector Table offset
 	asm volatile ("mov r0, #0x20000000\n\t" 
 	              "ldr sp, [r0]\n\t"    // Set the stack pointer

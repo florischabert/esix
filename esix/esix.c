@@ -48,8 +48,8 @@ void esix_init(void)
 	//is the best way.
 	//output must be in network order (big endian)
 
-	mac_addr = esix_w_get_mac_address();
-
-	esix_intf_add_basic_addr_routes(mac_addr, INTERFACE, 1500);
-	//esix_send_router_sollicitation(INTERFACE);
+	esix_intf_add_default_neighbors(esix_w_get_mac_address());
+	esix_intf_add_default_addresses();
+	esix_intf_add_default_routes(INTERFACE, 1500);
+	//esix_send_router_sol(INTERFACE);
 }

@@ -31,46 +31,57 @@
 #include "ip6.h"
 #include "include/esix.h"
 
+void esix_intf_add_default_neighbors(struct esix_mac_addr maddr)
+{
+	//first row of the neighbors table is us
+	esix_intf_add_neighbor(0,0,0,hton32(1), // ip address FIXME: which one ?
+	                       maddr, // MAC address
+	                       0, // never expires
+	                       INTERFACE);
+}
+
 /**
  * Adds a link local address/route based on the MAC address
  * and joins the all-nodes mcast group
  */
-void esix_intf_add_basic_addr_routes(struct esix_mac_addr addr, int intf_index, int intf_mtu)
+void esix_intf_add_default_addresses(void)
 {
 	//builds our link local and associated multicast addresses
 	//from the MAC address given by the L2 layer.
 
 	//unicast link local
-	esix_intf_new_addr(	hton32(0xfe800000), 	//0xfe80 
+	esix_intf_add_address(	hton32(0xfe800000), 	//0xfe80 
 			hton32(0x00000000),
-			hton32(addr.l | 0x020000ff),	//stateless autoconf, 0x02 : universal bit
+			hton32(neighbors[0]->mac_addr.l | 0x020000ff),	//stateless autoconf, 0x02 : universal bit
 			//0xfe here is OK
-			hton32((0xfe000000) | ((addr.l << 16) & 0xff0000) | addr.h),
+			hton32((0xfe000000) | ((neighbors[0]->mac_addr.l << 16) & 0xff0000) | neighbors[0]->mac_addr.h),
 			0x80,			// /128
 			0x0,			//this one never expires
 			LINK_LOCAL_SCOPE);
 
 	//multicast solicited-node address (for neighbor discovery)
-	esix_intf_new_addr(	hton32(0xff020000), 	//0xff02 
+	esix_intf_add_address(	hton32(0xff020000), 	//0xff02 
 			hton32(0x00000000),	//0x0000
 			hton32(0x00000001),	//0x0001
 			//0xff here is OK
-			hton32((0xff000000) | ((addr.l << 16) & 0xff0000) | addr.h),
+			hton32((0xff000000) | ((neighbors[0]->mac_addr.l << 16) & 0xff0000) | neighbors[0]->mac_addr.h),
 			0x80,			// /128
 			0x0,			//this one never expires
 			MCAST_SCOPE);
 
 
 	//multicast all-nodes (for router advertisements)
-	esix_intf_new_addr(	hton32(0xff020000), 	//ff02::1 
+	esix_intf_add_address(	hton32(0xff020000), 	//ff02::1 
 			hton32(0x00000000), 
 			hton32(0x00000000),
 			hton32(0x00000001),
 			0x80, 			// /128
 			0x0,			//this one never expires
 			MCAST_SCOPE);
+}
 
-
+void esix_intf_add_default_routes(int intf_index, int intf_mtu)
+{
 	//link local route (fe80::/64)
 	struct esix_route_table_row *ll_rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
 	
@@ -105,8 +116,75 @@ void esix_intf_add_basic_addr_routes(struct esix_mac_addr addr, int intf_index, 
 	mcast_rt->mtu			= intf_mtu;
 	mcast_rt->interface		= intf_index;
 
-	esix_intf_add_to_active_routes(ll_rt);
-	esix_intf_add_to_active_routes(mcast_rt);
+	esix_intf_add_route_row(ll_rt);
+	esix_intf_add_route_row(mcast_rt);
+}
+
+int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row)
+{
+	int i=0;
+	
+	//look for an empty place where to store our entry.
+	while(i<ESIX_MAX_NB)
+	{
+		if(neighbors[i] == NULL)
+		{
+			neighbors[i] = row;
+			return 1;
+		}
+		i++;
+	}
+	//sorry dude, table was full.
+	return 0;
+}
+
+int esix_intf_add_neighbor(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, struct esix_mac_addr mac_addr, u32_t expiration_date, u8_t interface)
+{
+	int i = 0;
+	struct esix_neighbor_table_row *nb;
+	
+	//try to look up this neighbor in the table
+	//to find if it already exists and only needs an update
+	while(i<ESIX_MAX_NB)
+	{
+		if((neighbors[i] != NULL) &&
+			(neighbors[i]->addr.addr1		== addr1) &&
+			(neighbors[i]->addr.addr2		== addr2) &&
+			(neighbors[i]->addr.addr3		== addr3) &&
+			(neighbors[i]->addr.addr4		== addr4) &&
+			(neighbors[i]->interface		== interface))
+		{
+			//we found something, just update some variables
+				nb	= neighbors[i];
+				nb->expiration_date	= expiration_date;
+				nb->mac_addr			= mac_addr;
+				return 1;
+		}
+		i++;
+	}
+
+	//we're still there, let's create the new neighbor.
+	nb	= esix_w_malloc(sizeof(struct esix_neighbor_table_row));
+
+	//hmmmm... I smell gas...
+	if(nb == NULL)
+		return 0;
+
+	nb->addr.addr1			= addr1;
+	nb->addr.addr2			= addr2;
+	nb->addr.addr3	 		= addr3;
+	nb->addr.addr4			= addr4;
+	nb->expiration_date	= expiration_date;
+	nb->mac_addr			= mac_addr;
+	nb->interface			= interface;
+	
+	//now try to add it
+	if(esix_intf_add_neighbor_row(nb))
+		return 1;
+
+	//we're still here, clean our mess up.
+	esix_w_free(nb);
+	return 0;
 }
 
 /**
@@ -114,10 +192,10 @@ void esix_intf_add_basic_addr_routes(struct esix_mac_addr addr, int intf_index, 
  *
  * @return 1 on success.
  */
-int esix_intf_add_to_active_addresses(struct esix_ipaddr_table_row *row)
+int esix_intf_add_address_row(struct esix_ipaddr_table_row *row)
 {
 	int i=0;
-
+	
 	//look for an empty place where to store our entry.
 	while(i<ESIX_MAX_IPADDR)
 	{
@@ -137,7 +215,7 @@ int esix_intf_add_to_active_addresses(struct esix_ipaddr_table_row *row)
  *
  * @return 1 on success.
  */
-int esix_intf_add_to_active_routes(struct esix_route_table_row *row)
+int esix_intf_add_route_row(struct esix_route_table_row *row)
 {
 	int i=0;
 
@@ -158,7 +236,7 @@ int esix_intf_add_to_active_routes(struct esix_route_table_row *row)
  * esix_new_addr : creates an addres with the passed arguments
  * and adds or updates it.
  */
-int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen,
+int esix_intf_add_address(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen,
 			u32_t expiration_date, int scope)
 {
 	struct esix_ipaddr_table_row *new_addr;
@@ -203,7 +281,7 @@ int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t 
 	//it's new, perform DAD and 
 	//try to add it to the table of addresses and
 	//free it so we don't leak memory in case it fails
-	if(esix_intf_add_to_active_addresses(new_addr))
+	if(esix_intf_add_address_row(new_addr))
 		return 1;
 
 	//if we're still here, something went wrong.
@@ -211,7 +289,7 @@ int esix_intf_new_addr(u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t 
 	return 0;
 }
 
-int esix_intf_remove_addr(u8_t scope, u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen)
+int esix_intf_remove_address(u8_t scope, u32_t addr1, u32_t addr2, u32_t addr3, u32_t addr4, u8_t masklen)
 {
 	int j=0;
 	struct esix_ipaddr_table_row *ptr;
@@ -239,7 +317,7 @@ int esix_intf_remove_addr(u8_t scope, u32_t addr1, u32_t addr2, u32_t addr3, u32
 	return 0;
 }
 
-int esix_intf_new_route(u32_t dst1, u32_t dst2, u32_t dst3, u32_t dst4, u8_t mask, u32_t nxt_hop1,
+int esix_intf_add_route(u32_t dst1, u32_t dst2, u32_t dst3, u32_t dst4, u8_t mask, u32_t nxt_hop1,
 				u32_t nxt_hop2, u32_t nxt_hop3, u32_t nxt_hop4, u32_t expiration_date,
 				u8_t ttl, u16_t mtu, u8_t interface)
 {
@@ -295,7 +373,7 @@ int esix_intf_new_route(u32_t dst1, u32_t dst2, u32_t dst3, u32_t dst4, u8_t mas
 	rt->interface		= interface;
 
 	//now try to add it
-	if(esix_intf_add_to_active_routes(rt))
+	if(esix_intf_add_route_row(rt))
 		return 1;
 
 	//we're still here, clean our mess up.

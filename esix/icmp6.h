@@ -76,13 +76,21 @@
 	/**
 	 * ICMP Router Advertisement header.
 	 */
-	struct icmp6_rtr_adv {
+	struct icmp6_router_adv {
 		u8_t	cur_hlim;	//hlim to be used 
 		u8_t	flags;		//other config, router preference, etc...
 		u16_t	rtr_lifetime;	//router lifetime
 		u32_t	reachable_time;
 		u32_t	retransm_timer;
 		u8_t option_hdr;
+	};
+	
+	/**
+	 * ICMP Echo Request header.
+	 */
+	struct icmp6_echo_req {
+		u16_t	identifier;
+		u16_t	seq_num;
 	};
 
 	/**
@@ -108,7 +116,7 @@
 	/**
 	 * Handles icmp packets.
 	 */
-	void esix_icmp_received(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr );
+	void esix_icmp_process_packet(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr );
 
 	/**
 	 * Sends a TTL expired message back to its source.
@@ -119,13 +127,17 @@
 	 * Crafts and sends a router sollicitation
 	 * on the interface specified by index. 
 	 */
-	void	esix_icmp_send_router_sollicitation(int intf_index);
+	void	esix_icmp_send_router_sol(int intf_index);
 
 	/**
 	 * Parses RA messages, add/update a default route,
 	 * a prefix route and builds an IP address out of this prefix.
 	 */
-	void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length, struct ip6_hdr *ip_hdr);
-
+	void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length, struct ip6_hdr *ip_hdr);
+	
+	/**
+	 * Process echo requests
+	 */
+	void esix_icmp_process_echo_req(struct icmp6_echo_req *echo_rq, int length, struct ip6_hdr *ip_hdr);
 	
 #endif

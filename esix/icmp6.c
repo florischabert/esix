@@ -31,27 +31,29 @@
 #include "intf.h"
 
 /**
- * esix_received_icmp : handles icmp packets.
+ * Handles icmp packets.
  */
-void esix_icmp_received(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr )
+void esix_icmp_process_packet(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr )
 {
 	//check if we have enough bytes to read the ICMP header
 	if(length < 4)
 		return;
-
+uart_printf("ICMP type: %x addr: %x %x %x %x\n",icmp_hdr->type,ip_hdr->daddr1,ip_hdr->daddr2,ip_hdr->daddr3,ip_hdr->daddr4);
 	//determine what to do next
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
-			toggle_led();
+			///esix_icmp_process_neighbor_sol(
+			//	(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
 		case RTR_ADV:
 			toggle_led();
-			esix_icmp_parse_rtr_adv(
-				(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
+			esix_icmp_process_router_adv(
+				(struct icmp6_router_adv *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
 		case ECHO_RQ: 
-			toggle_led();
+			esix_icmp_process_echo_req(
+				(struct icmp6_echo_req *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
 		default:	
 			return;
@@ -60,26 +62,25 @@ void esix_icmp_received(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *
 
 
 /**
- * esix_send_ttl_expired : sends a TTL expired message
- * back to its source.
+ * Sends a TTL expired message back to its source.
  */
 void	esix_icmp_send_ttl_expired(struct ip6_hdr *hdr)
 {
 }
 
 /**
- * esix_send_router_sollicitation : crafts and sends a router sollicitation
+ * Crafts and sends a router sollicitation
  * on the interface specified by index. 
  */
-void	esix_icmp_send_router_sollicitation(int intf_index)
+void	esix_icmp_send_router_sol(int intf_index)
 {
 }
 
 /**
- * esix_parse_rtr_adv : parses RA messages, add/update a default route,
+ * Parses RA messages, add/update a default route,
  * a prefix route and builds an IP address out of this prefix.
  */
-void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
+void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	 struct ip6_hdr *ip_hdr)
 {
 	int i=0;
@@ -102,7 +103,7 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 			//the first option field (those are TLVs)
 	while (i + 2 < length) // is the ip packet long enough to continue?
 	{
-		option_hdr = ((u8_t *) rtr_adv + i);
+		option_hdr = (struct icmp6_option_hdr *) ((u8_t *) rtr_adv + i);
 		switch(option_hdr->type)
 		{
 			case PRFX_INFO:
@@ -145,7 +146,7 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 	}
 	else
 	{
-		esix_intf_new_route(	0x0, 0x0, 0x0, 0x0, 	//default dest
+		esix_intf_add_route(	0x0, 0x0, 0x0, 0x0, 	//default dest
 					0x0,			//default mask
 					ip_hdr->saddr1,		//next hop
 					ip_hdr->saddr2,
@@ -169,22 +170,22 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 		//builds a new global scope address
 		//not endian-safe for now, words in the prefix field
 		//are not aligned when received
-		esix_intf_new_addr(  	hton32(pfx_info->p[0] << 24	//prefix 
+		esix_intf_add_address(  	hton32(pfx_info->p[0] << 24	//prefix 
 					 | pfx_info->p[1] << 16 
 					 | pfx_info->p[2] << 8
 					 | pfx_info->p[3]),
 					hton32(pfx_info->p[4] << 24 	//prefix
 					 | pfx_info->p[5] << 16 
 					 | pfx_info->p[6] << 8
-					 | pfx_info->p[7]),
-					hton32((mac_addr.l | 0x020000ff)),	// 0x02 : universal bit
-					hton32((0xfe000000) | ((mac_addr.l << 16) & 0xff0000) | mac_addr.h),
+					 | pfx_info->p[7]), // FIXME: mac adress in the table ?
+					hton32((neighbors[0]->mac_addr.l | 0x020000ff)),	// 0x02 : universal bit
+					hton32((0xfe000000) | ((neighbors[0]->mac_addr.l << 16) & 0xff0000) | neighbors[0]->mac_addr.h),
 				0x40,				// /64
 				esix_w_get_time() + pfx_info->valid_lifetime, //expiration date
 				GLOBAL_SCOPE);
 
 		//onlink route (local route for our own subnet)
-		esix_intf_new_route(  	hton32(pfx_info->p[0] << 24	//prefix 
+		esix_intf_add_route(  	hton32(pfx_info->p[0] << 24	//prefix 
 					 | pfx_info->p[1] << 16 
 					 | pfx_info->p[2] << 8
 					 | pfx_info->p[3]),
@@ -205,3 +206,11 @@ void esix_icmp_parse_rtr_adv(struct icmp6_rtr_adv *rtr_adv, int length,
 					INTERFACE);
 	}//else if (got_prefix_info)
 }
+
+void esix_icmp_process_echo_req(struct icmp6_echo_req *echo_rq, int length, struct ip6_hdr *ip_hdr)
+{
+	uart_printf("ethernet stack %x\n", uxTaskGetStackHighWaterMark(NULL));
+	uart_puts("echo rq received\n");
+	
+}
+

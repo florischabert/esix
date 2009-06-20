@@ -79,6 +79,13 @@
 	struct esix_mac_addr esix_w_get_mac_address(void);
 	
 	/*
+	 * Send an IPv6 packet.
+	 *
+	 * Needs to be implemented by the user.
+	 */
+	void esix_w_send_packet(struct esix_mac_addr daddr, void *packet, int length);
+	
+	/*
 	 * Process a received IPv6 packet.
 	 * 
 	 * @param packet is a pointer to the packet.

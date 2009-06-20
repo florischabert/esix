@@ -56,35 +56,7 @@
 		u32_t	addr3;
 		u32_t	addr4;
 	};
-
-	/**
-	 * IP address table entry
-	 */
-	struct esix_ipaddr_table_row {
-		struct 	ip6_addr addr;	//Actual ip address
-		u8_t 	mask;		//netmask (in bits, counting the number of ones
-					//starting from the left.
-		u32_t	expiration_date;//date at which this entry expires.
-					//0 : never expires (for now)
-		//u32_t	preferred_exp_date;//date at which this address shouldn't be used if possible
-		u8_t	scope;		//LINK_LOCAL_SCOPE or GLOBAL_SCOPE
 	
-	};
-
-	/**
-	 * Route table entry
-	 */
-	struct esix_route_table_row {
-		struct 	ip6_addr addr;	//Network address
-		u8_t	mask;
-		struct 	ip6_addr next_hop;	//next hop address (should be link-local)
-		u32_t	expiration_date;
-		u8_t	ttl;		//TTL for this route (per-router TTL values are learnt
-					//from router advertisements)
-		u16_t	mtu;		//MTU for this route
-		u8_t 	interface;	//interface index
-	};
-
 	/**
 	 * IPv6 header 
 	 */

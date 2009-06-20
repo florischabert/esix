@@ -31,42 +31,25 @@
 #include <esix.h>
 #include "mmap.h"
 #include "uart.h"
+#include "ethernet.h"
 
-/*
- * Malloc wrapper for esix.
- * 
- * Needs to be implemented by the user.
- */
+#define HTON16(v) (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff))
+
 void *esix_w_malloc(size_t size)
 {
 	return pvPortMalloc(size);
 }
 
-/*
- * Free wrapper for esix.
- * 
- * Needs to be implemented by the user.
- */
 void esix_w_free(void *ptr)
 {
 	vPortFree(ptr);
 }
 
-/*
- * Give the current time in ms.
- *
- * Needs to be implemented by the user.
- */
 u32_t esix_w_get_time(void)
 {
 	return 0;
 }
 
-/*
- * Give the interface MAC address.
- *
- * Needs to be implemented by the user.
- */
 struct esix_mac_addr esix_w_get_mac_address()
 {
 	struct esix_mac_addr addr;
@@ -77,12 +60,19 @@ struct esix_mac_addr esix_w_get_mac_address()
 	return addr;
 }
 
-/*
- * Log print wrapper for esix.
- * 
- * Needs to be implemented by the user.
- */
-void esix_w_log(char *string)
+void esix_w_send_packet(struct esix_mac_addr daddr, void *packet, int length)
 {
-	uart_printf("%x\n", (u32_t) string);
+	eth_f = pvPortMalloc(sizeof(struct ether_frame_t));
+		
+	eth_f->FRAME_LENGTH = length + 20;
+	eth_f->DA_1 = HTON16(daddr.l >> 16);
+	eth_f->DA_2 = HTON16(daddr.l);
+	eth_f->DA_3 = HTON16(daddr.h);
+	eth_f->SA_1 = HTON16(ETH0->MACIA0 >> 16);
+	eth_f->SA_2 = HTON16(ETH0->MACIA0);
+	eth_f->SA_3 = HTON16(ETH0->MACIA1);
+	eth_f->ETHERTYPE = 0xdd86; // IPv6 packet`
+	eth_f->data = packet;
+	
+	ether_send_start();
 }

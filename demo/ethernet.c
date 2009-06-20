@@ -26,12 +26,21 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <FreeRTOS.h>
+#include <task.h>
+#include <semphr.h>
 #include "ethernet.h"
 #include "mmap.h"
 #include "uart.h"
 #include <esix.h>
 
-int frame[MAX_FRAME_SIZE]; //380 * 4bytes = 1520bytes
+// Mutexes
+static xSemaphoreHandle ether_receive_sem;
+static xSemaphoreHandle ether_send_sem;
+
+// Prototypes
+void ether_receive_task(void *param);
+void ether_send_task(void *param);
 
 /**
  * ether_init : configures the ethernet hardware found in lm3s6965 
@@ -73,6 +82,12 @@ void ether_init()
 	NVIC->IPR[10] |= ((configMAX_SYSCALL_INTERRUPT_PRIORITY+2) << 16);
 	NVIC->ISER[1] |= (1 << 10); // Unmask ethernet interrupt
 
+	vSemaphoreCreateBinary(ether_receive_sem);
+	xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
+	xTaskCreate(ether_receive_task, (signed char *) "eth reeive", 100, NULL, tskIDLE_PRIORITY + 1, NULL);
+	vSemaphoreCreateBinary(ether_send_sem);
+	xSemaphoreTake(ether_send_sem, portMAX_DELAY);
+	xTaskCreate(ether_send_task, (signed char *) "eth send", 100, NULL, tskIDLE_PRIORITY + 1, NULL);
 }
 
 /**
@@ -115,7 +130,7 @@ void ether_disable()
 	ETH0->MACTCTL	&= ~0x00000001;
 
 	//mask interrupts
-	ETH0->MACIM	|= 0x0000007f;
+	ETH0->MACIM	&= ~0x0000007f;
 }
 
 /**
@@ -124,9 +139,15 @@ void ether_disable()
 void ether_handler()
 {
 	u16_t int_val	= ETH0->MACRIS;
+	static portBASE_TYPE resched_needed; 
+	resched_needed = pdFALSE;
 
 	if(int_val&RXINT)
-		ether_frame_received();
+	{
+		xSemaphoreGiveFromISR(ether_receive_sem, &resched_needed);
+		ETH0->MACRIS |= 0x1;
+		ETH0->MACIM	&= ~0x1;
+	}
 	if(int_val&TXEMP)
 		ether_txfifo_empty();
 	if(int_val&RXER)
@@ -139,6 +160,8 @@ void ether_handler()
 		ether_phy_int();
 	if(int_val&MDINT)
 		ether_mii_transaction_complete();
+		
+	portEND_SWITCHING_ISR(resched_needed);	
 }
 
 /**
@@ -146,34 +169,70 @@ void ether_handler()
  * copies a frame from the RX ring buffer to a loacl buffer.
  * 
  */
-void ether_frame_received()
+void ether_receive_task(void *param)
 {
-	//int frame[380]; //380 * 4bytes = 1520bytes
+	static int in_frame[380]; //380 * 4bytes = 1520bytes
 	int i;
 	int words_to_read;
-	struct ether_frame_t *eth_f = (struct ether_frame_t *) frame;
+	struct ether_frame_t *eth_f = (struct ether_frame_t *) in_frame;
+	
+	while(1)
+	{
+		//wait for the frame to be fully buffered
+		//while(!ETH0->MACNP);
+		xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
 
-	//wait for the frame to be fully buffered
-	//while(!ETH0->MACNP);
+		//read the first 4 bytes to get the frame length
+		in_frame[0]	= ETH0->MACDATA;
+		//convert the frame length (in bytes) to words (4 bytes)
+		words_to_read	= (eth_f->FRAME_LENGTH/4);
 
-	//read the first 4 bytes to get the frame length
-	frame[0]	= ETH0->MACDATA;
-	//convert the frame length (in bytes) to words (4 bytes)
-	words_to_read	= (eth_f->FRAME_LENGTH/4);
+		//we've read the first 4 bytes, now read FRAME_LENGTH/4 more words
+		i=1;
+		while((words_to_read-- > 0) 
+			&& (i < MAX_FRAME_SIZE))
+				in_frame[i++] = ETH0->MACDATA;
 
-	//we've read the first 4 bytes, now read FRAME_LENGTH/4 more words
-	i=1;
-	while((words_to_read-- > 0) 
-		&& (i < MAX_FRAME_SIZE))
-			frame[i++] = ETH0->MACDATA;
+		//got a v6 frame, pass it to the v6 stack
+		if(eth_f->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
+			esix_ip_process_packet(&eth_f->data,
+				(eth_f->FRAME_LENGTH-20));
 
-	//got a v6 frame, pass it to the v6 stack
-	if(eth_f->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
-		esix_ip_process_packet(&eth_f->data,
-			(eth_f->FRAME_LENGTH-20));
+		ETH0->MACIM	|= 0x1;
+	}
+}
 
-	//automatically cleared when the RX FIFO is empty.
-	//ETH0->MACRIS |= 0x00000001;
+void ether_send_task(void *param)
+{
+	int i;
+	int words_to_write;
+	
+	while(1)
+	{
+		//wait for the frame to be fully buffered
+		//while(!ETH0->MACNP);
+		xSemaphoreTake(ether_send_sem, portMAX_DELAY);
+
+		//send the header
+		for(i = 0; i < 4; i ++)
+			ETH0->MACDATA = *(((u32_t *)eth_f)+i);
+		//convert the frame length (in bytes) to words (4 bytes)
+		words_to_write	= (eth_f->FRAME_LENGTH/4 - 4);
+		
+		//we've write the first 4 bytes, now write FRAME_LENGTH/4 more words
+		for(i = 0; (words_to_write-- > 0) && (i < MAX_FRAME_SIZE-1); i++) 
+				ETH0->MACDATA = *(eth_f->data+i);	
+				
+		ETH0->MACTR |= 1; // now, start the transmission
+		while(ETH0->MACTR & 0x1); // waiting for the transmission to be complete
+		
+		vPortFree(eth_f->data);
+	}
+}
+
+void ether_send_start(void)
+{
+	xSemaphoreGive(ether_send_sem);
 }
 
 void ether_txfifo_empty()

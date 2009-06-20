@@ -32,7 +32,7 @@
 	#include <FreeRTOS.h>
 
 	#define MAX_FRAME_SIZE 380 //380 * 4 bytes = 1520 bytes
-
+	
 	void ether_init(void);
 	void ether_enable(void);
 	void ether_disable(void);
@@ -46,6 +46,7 @@
 	void ether_frame_received(void);
 	void ether_mii_request(u32_t, u32_t*, int);
 	void ether_get_mac_addr(u16_t *);
+	void ether_send_start(void);
 
 	/**
 	 * Ethernet frame (FCS is hardware generated/appended) 
@@ -59,8 +60,10 @@
 		u16_t SA_2;
 		u16_t SA_3;
 		u16_t ETHERTYPE;
-		u16_t data;
+		u32_t *data;
 	};
+	
+	struct ether_frame_t *eth_f;
 
 	#define MII_READ  1
 	#define MII_WRITE 0
@@ -72,5 +75,5 @@
 	#define TXEMP 	(1 << 2)
 	#define TXER 	(1 << 1)
 	#define RXINT 	(1 << 0)
-
+	
 #endif
