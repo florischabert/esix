@@ -61,7 +61,7 @@
 		u8_t	code;
 		u16_t	chksum;
 		u8_t	data;
-	};
+	} __attribute__((__packed__));
 
 	/**
 	 * ICMP option header
@@ -71,7 +71,27 @@
 		u8_t	type;
 		u8_t	length;
 		u8_t	payload;
-	};
+	} __attribute__((__packed__));
+	
+	/**
+	 * ICMP neighbor solicitation header.
+	 */	
+	struct icmp6_neighbor_sol
+	{
+		u32_t reserved;
+		struct ip6_addr target_addr;
+		u8_t option_hdr;
+	} __attribute__((__packed__));
+	
+	/**
+	 * ICMP neighbor advertisement header.
+	 */	
+	struct icmp6_neighbor_adv
+	{
+		u32_t reserved;
+		struct ip6_addr target_addr;
+		u8_t option_hdr;
+	} __attribute__((__packed__));
 
 	/**
 	 * ICMP Router Advertisement header.
@@ -83,7 +103,7 @@
 		u32_t	reachable_time;
 		u32_t	retransm_timer;
 		u8_t option_hdr;
-	};
+	} __attribute__((__packed__));
 	
 	/**
 	 * ICMP Echo Request header.
@@ -91,7 +111,7 @@
 	struct icmp6_echo_req {
 		u16_t	identifier;
 		u16_t	seq_num;
-	};
+	} __attribute__((__packed__));
 
 	/**
 	 * ICMP option, prefix info header.
@@ -103,41 +123,25 @@
 		u32_t	preferred_lifetime;
 		u16_t	reserved;
 		u8_t p[16];
-	};
+	} __attribute__((__packed__));
 
 	/**
 	 * ICMP option, MTU.
 	 */
 	struct icmp6_opt_mtu {
-		u16_t 	reserved;
+		u16_t reserved;
 		u32_t	mtu;
-	};
+	} __attribute__((__packed__));
 
-	/**
-	 * Handles icmp packets.
-	 */
-	void esix_icmp_process_packet(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr );
+	void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr );
+	void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u8_t len);
+	u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u8_t len);
 
-	/**
-	 * Sends a TTL expired message back to its source.
-	 */
 	void	esix_icmp_send_ttl_expired(struct ip6_hdr *hdr);
-
-	/**
-	 * Crafts and sends a router sollicitation
-	 * on the interface specified by index. 
-	 */
 	void	esix_icmp_send_router_sol(int intf_index);
-
-	/**
-	 * Parses RA messages, add/update a default route,
-	 * a prefix route and builds an IP address out of this prefix.
-	 */
+	void esix_icmp_send_neighbor_adv(struct ip6_addr *, struct ip6_addr *, int);
+	void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, struct ip6_hdr *hdr);
 	void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length, struct ip6_hdr *ip_hdr);
-	
-	/**
-	 * Process echo requests
-	 */
 	void esix_icmp_process_echo_req(struct icmp6_echo_req *echo_rq, int length, struct ip6_hdr *ip_hdr);
 	
 #endif

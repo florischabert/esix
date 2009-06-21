@@ -83,42 +83,18 @@ struct esix_route_table_row *routes[ESIX_MAX_RT];
 struct esix_neighbor_table_row *neighbors[ESIX_MAX_NB];
 
 
-void esix_intf_add_default_neighbors(struct esix_mac_addr addr);	
+void esix_intf_add_default_neighbors(struct esix_mac_addr addr);
+int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row);
+int esix_intf_add_neighbor(struct ip6_addr *, struct esix_mac_addr, u32_t, u8_t);
 
-/**
- * Adds a link local address/route based on the MAC address
- * and joins the all-nodes mcast group
- */
-void esix_intf_add_default_addresses(void);	
+void esix_intf_add_default_addresses(void);
+int esix_intf_add_address_row(struct esix_ipaddr_table_row *row);
+int esix_intf_add_address(struct ip6_addr *, u8_t, u32_t, u8_t);
+int esix_intf_remove_address(struct ip6_addr *, u8_t, u8_t);
+int esix_intf_get_address_index(struct ip6_addr *, u8_t, u8_t);
 
 void esix_intf_add_default_routes(int intf_index, int intf_mtu);	
-
-int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row);
-
-int esix_intf_add_neighbor(u32_t, u32_t, u32_t, u32_t, struct esix_mac_addr, u32_t, u8_t);
-
-/**
- * Adds the given IP address to the table.
- *
- * @return 1 on success.
- */
-int esix_intf_add_address_row(struct esix_ipaddr_table_row *row);
-
-/**
- * esix_add_to_active_routes : adds the given route to the routing table. Returns 1 on success.
- */
 int esix_intf_add_route_row(struct esix_route_table_row *row);
-
-/**
- * esix_new_addr : creates an addres with the passed arguments
- * and adds or updates it.
- */
-int esix_intf_add_address(u32_t, u32_t, u32_t, u32_t, u8_t, u32_t, int);
-
-int esix_intf_remove_address(u8_t, u32_t, u32_t, u32_t, u32_t, u8_t);
-
-
-int esix_intf_add_route(u32_t, u32_t, u32_t, u32_t, u8_t, u32_t, u32_t, u32_t, 
-	u32_t, u32_t, u8_t, u16_t, u8_t);
+int esix_intf_add_route(struct ip6_addr *, u8_t, struct ip6_addr *, u32_t, u8_t, u16_t, u8_t);
 
 #endif

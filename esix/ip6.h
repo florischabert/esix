@@ -55,7 +55,7 @@
 		u32_t	addr2;
 		u32_t	addr3;
 		u32_t	addr4;
-	};
+	} __attribute__((__packed__));
 	
 	/**
 	 * IPv6 header 
@@ -65,15 +65,12 @@
 		u16_t 	payload_len;	//payload length (next headers + upper protocols)
 		u8_t  	next_header;	//next header type
 		u8_t  	hlimit; 	//hop limit
-		u32_t	saddr1;		//first word of source address
-		u32_t	saddr2;		
-		u32_t	saddr3;	
-		u32_t	saddr4;
-		u32_t	daddr1;		//first word of destination address
-		u32_t	daddr2;		
-		u32_t	daddr3;	
-		u32_t	daddr4;
+		struct ip6_addr saddr;		//first word of source address
+		struct ip6_addr daddr;		//first word of destination address
 		u32_t	data;
-	};
+	} __attribute__((__packed__));
+	
+	void esix_ip_process_packet(void *, int);
+	void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len);
 	
 #endif

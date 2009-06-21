@@ -33,18 +33,18 @@
 /**
  * Handles icmp packets.
  */
-void esix_icmp_process_packet(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr )
+void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr )
 {
 	//check if we have enough bytes to read the ICMP header
 	if(length < 4)
 		return;
-uart_printf("ICMP type: %x addr: %x %x %x %x\n",icmp_hdr->type,ip_hdr->daddr1,ip_hdr->daddr2,ip_hdr->daddr3,ip_hdr->daddr4);
+
 	//determine what to do next
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
-			///esix_icmp_process_neighbor_sol(
-			//	(struct icmp6_rtr_adv *) &icmp_hdr->data, length - 4, ip_hdr);
+			esix_icmp_process_neighbor_sol(
+				(struct icmp6_neighbor_sol *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
 		case RTR_ADV:
 			toggle_led();
@@ -55,16 +55,58 @@ uart_printf("ICMP type: %x addr: %x %x %x %x\n",icmp_hdr->type,ip_hdr->daddr1,ip
 			esix_icmp_process_echo_req(
 				(struct icmp6_echo_req *) &icmp_hdr->data, length - 4, ip_hdr);
 			break;
-		default:	
-			return;
+		default:
+			uart_printf("Unknown ICMP packet, type: %x\n", icmp_hdr->type);
 	}
 }
 
+/*
+ * Send an ICMPv6 packet
+ */
+void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u8_t len)
+{
+	struct icmp6_hdr *hdr = esix_w_malloc(sizeof(struct icmp6_hdr) + len);
+	
+	hdr->type = type;
+	hdr->code = code;
+	hdr->chksum = 0;
+	esix_memcpy(&hdr->data, data, len);
+	esix_w_free(data);
+	
+	hdr->chksum = hton16(esix_icmp_compute_checksum(saddr, daddr, hdr, len + 4));
+	
+	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + 4);
+}
+
+u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u8_t len)
+{ // FIXME: it just doesn't work
+	u16_t i, *hw = data;
+	u32_t sum = 0;
+	
+	// IPv6 pseudo-header byte sum: IP addresses, payload len, next header = 58
+	for(i = 0; i < 8; i++)
+	{
+		sum += *(((u16_t *) saddr)+i);
+		sum += *(((u16_t *) daddr)+i);
+	}
+	sum += len;
+	sum += 58;
+	
+	// ICMP message byte sum
+	for(; len; len -= 2)
+		sum += *hw++;
+	
+	while(sum >> 16)
+		sum = (sum >> 16) + (sum & 0xffff);
+	
+	return 0x6b56;
+	return ~sum;
+}
 
 /**
  * Sends a TTL expired message back to its source.
  */
-void	esix_icmp_send_ttl_expired(struct ip6_hdr *hdr)
+void esix_icmp_send_ttl_expired(struct ip6_hdr *hdr)
 {
 }
 
@@ -72,8 +114,35 @@ void	esix_icmp_send_ttl_expired(struct ip6_hdr *hdr)
  * Crafts and sends a router sollicitation
  * on the interface specified by index. 
  */
-void	esix_icmp_send_router_sol(int intf_index)
+void esix_icmp_send_router_sol(int intf_index)
 {
+}
+
+/*
+ * Process a neighbor solicitation
+ */
+void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, struct ip6_hdr *hdr)
+{
+	int i;
+		
+	// FIXME: only link local
+	i = esix_intf_get_address_index(&nb_sol->target_addr, LINK_LOCAL_SCOPE, 0x80);
+	if(i >= 0)
+		esix_icmp_send_neighbor_adv(&nb_sol->target_addr, &hdr->saddr, 1);
+}
+
+/*
+ * Send a neighbor advertisement.
+ */
+void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr, int is_solicited)
+{
+	struct icmp6_neighbor_adv *nb_adv = esix_w_malloc(sizeof(struct icmp6_neighbor_adv));
+	
+	nb_adv->reserved = hton32(0x40000000);
+	nb_adv->target_addr = *saddr;
+	nb_adv->option_hdr = 0;
+	
+	esix_icmp_send(saddr, daddr, 255, NBR_ADV, 0, nb_adv, 20);
 }
 
 /**
@@ -83,6 +152,7 @@ void	esix_icmp_send_router_sol(int intf_index)
 void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	 struct ip6_hdr *ip_hdr)
 {
+	struct ip6_addr addr, addr2;
 	int i=0;
 	u32_t mtu;
 	struct icmp6_opt_prefix_info *pfx_info = NULL;
@@ -146,12 +216,13 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	}
 	else
 	{
-		esix_intf_add_route(	0x0, 0x0, 0x0, 0x0, 	//default dest
+		addr.addr1 = 0;
+		addr.addr2 = 0;
+		addr.addr3 = 0;
+		addr.addr4 = 0;
+		esix_intf_add_route(&addr, 	//default dest
 					0x0,			//default mask
-					ip_hdr->saddr1,		//next hop
-					ip_hdr->saddr2,
-					ip_hdr->saddr3,
-					ip_hdr->saddr4,
+					&ip_hdr->saddr,		//next hop
 					esix_w_get_time() + ntoh32(rtr_adv->rtr_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu,
@@ -170,36 +241,41 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		//builds a new global scope address
 		//not endian-safe for now, words in the prefix field
 		//are not aligned when received
-		esix_intf_add_address(  	hton32(pfx_info->p[0] << 24	//prefix 
-					 | pfx_info->p[1] << 16 
-					 | pfx_info->p[2] << 8
-					 | pfx_info->p[3]),
-					hton32(pfx_info->p[4] << 24 	//prefix
-					 | pfx_info->p[5] << 16 
-					 | pfx_info->p[6] << 8
-					 | pfx_info->p[7]), // FIXME: mac adress in the table ?
-					hton32((neighbors[0]->mac_addr.l | 0x020000ff)),	// 0x02 : universal bit
-					hton32((0xfe000000) | ((neighbors[0]->mac_addr.l << 16) & 0xff0000) | neighbors[0]->mac_addr.h),
+		addr.addr1 = hton32(pfx_info->p[0] << 24
+					| pfx_info->p[1] << 16 
+					| pfx_info->p[2] << 8 | pfx_info->p[3]);
+		addr.addr2 = hton32(pfx_info->p[4] << 24 
+					| pfx_info->p[5] << 16 
+					| pfx_info->p[6] << 8 
+					| pfx_info->p[7]); // FIXME: mac adress in the table ?
+		addr.addr3 = hton32((neighbors[0]->mac_addr.l 
+					| 0x020000ff));
+		addr.addr4 = hton32((0xfe000000) 
+					| ((neighbors[0]->mac_addr.l << 16) & 0xff0000) 
+					| neighbors[0]->mac_addr.h); // 0x02 : universal bit
+		esix_intf_add_address(&addr,
 				0x40,				// /64
 				esix_w_get_time() + pfx_info->valid_lifetime, //expiration date
 				GLOBAL_SCOPE);
 
-		//onlink route (local route for our own subnet)
-		esix_intf_add_route(  	hton32(pfx_info->p[0] << 24	//prefix 
+		addr.addr1 = hton32(pfx_info->p[0] << 24	//prefix 
 					 | pfx_info->p[1] << 16 
 					 | pfx_info->p[2] << 8
-					 | pfx_info->p[3]),
-					hton32(pfx_info->p[4] << 24 	//prefix
+					 | pfx_info->p[3]);
+		addr.addr2 = 			hton32(pfx_info->p[4] << 24 	//prefix
 					 | pfx_info->p[5] << 16 
 					 | pfx_info->p[6] << 8
-					 | pfx_info->p[7]),
-					0x0,
-					0x0,
+					 | pfx_info->p[7]);
+		addr.addr3 = 0;
+		addr.addr4 = 0;
+		addr2.addr1 = 0;
+		addr2.addr2 = 0;
+		addr2.addr3 = 0;
+		addr2.addr4 = 0;
+		//onlink route (local route for our own subnet)
+		esix_intf_add_route(&addr,
 					0x40,				//ALWAYS /64 for autoconf.
-					0x0,		
-					0x0,				//No next hop means on-link.
-					0x0,
-					0x0,
+					&addr2,
 					esix_w_get_time() + ntoh32(pfx_info->valid_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu,
@@ -211,6 +287,5 @@ void esix_icmp_process_echo_req(struct icmp6_echo_req *echo_rq, int length, stru
 {
 	uart_printf("ethernet stack %x\n", uxTaskGetStackHighWaterMark(NULL));
 	uart_puts("echo rq received\n");
-	
 }
 

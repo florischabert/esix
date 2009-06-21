@@ -65,24 +65,11 @@
 
 #define NULL ((void *) 0)
 
-/**
- * hton16 : converts host endianess to big endian (network order) 
- */
+void esix_memcpy(void *dst, void *src, int len);
+
 u16_t hton16(u16_t v);
-
-/**
- * hton32 : converts host endianess to big endian (network order) 
- */
 u32_t hton32(u32_t v);
-
-/**
- * ntoh16 : converts network order to host endianess
- */
 u16_t ntoh16(u16_t v);
-
-/**
- * ntoh32 : converts network order to host endianess 
- */
 u32_t ntoh32(u32_t v);
 
 

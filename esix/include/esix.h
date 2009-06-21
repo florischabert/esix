@@ -91,6 +91,6 @@
 	 * @param packet is a pointer to the packet.
 	 * @parmr length is the packet size.
 	 */
-	void esix_ip_process_packet(void *packet, int length);
+	void esix_ip_process(void *packet, int length);
 	
 #endif

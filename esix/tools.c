@@ -28,6 +28,23 @@
 
 #include "tools.h"
 
+/*
+ * Copy len bytes from src to dst.
+ */
+void esix_memcpy(void *dst, void *src, int len)
+{
+	char *bdst, *bsrc;
+	u32_t *wdst = dst;
+	u32_t *wsrc = src;
+	
+	for(; len >= 4; len -= 4) // TODO: optimize for other bus width
+		*wdst++ = *wsrc++;
+	bdst = (char *) wdst;
+	bsrc = (char *) wsrc;
+	while(len--)
+		*bdst++ = *bsrc++;
+}
+
 /**
  * hton16 : converts host endianess to big endian (network order) 
  */

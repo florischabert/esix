@@ -75,6 +75,8 @@ void ether_init()
 	//set leds to be controlled by hardware
 	GPIOF->AFSEL |= 0x0000000c;
 	GPIOF->ODR   |= 0x0000000c;
+	
+	ETH0->MACIM	&= ~0x0000007f;
 
 	//Unmask ethernet interrupt at the processor level and set
 	//a priority of configMAX_SYSCALL_INTERRUPT_PRIORITY+2
@@ -84,10 +86,10 @@ void ether_init()
 
 	vSemaphoreCreateBinary(ether_receive_sem);
 	xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
-	xTaskCreate(ether_receive_task, (signed char *) "eth reeive", 100, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(ether_receive_task, (signed char *) "eth reeive", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vSemaphoreCreateBinary(ether_send_sem);
 	xSemaphoreTake(ether_send_sem, portMAX_DELAY);
-	xTaskCreate(ether_send_task, (signed char *) "eth send", 100, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(ether_send_task, (signed char *) "eth send", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 }
 
 /**
@@ -103,7 +105,7 @@ void ether_enable()
 	ETH0->MACTCTL	|= 0x00000001;
 	//Unmask all ethernet interupts
 	//at the controller level
-	ETH0->MACIM	|= 0x0000007f;
+	ETH0->MACIM	|= 0x0000001;
 
 	//Unmask interrupts at the MII level
 
@@ -195,8 +197,7 @@ void ether_receive_task(void *param)
 
 		//got a v6 frame, pass it to the v6 stack
 		if(eth_f->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
-			esix_ip_process_packet(&eth_f->data,
-				(eth_f->FRAME_LENGTH-20));
+			esix_ip_process(&eth_f->data, (eth_f->FRAME_LENGTH-20));
 
 		ETH0->MACIM	|= 0x1;
 	}
@@ -219,14 +220,15 @@ void ether_send_task(void *param)
 		//convert the frame length (in bytes) to words (4 bytes)
 		words_to_write	= (eth_f->FRAME_LENGTH/4 - 4);
 		
-		//we've write the first 4 bytes, now write FRAME_LENGTH/4 more words
+		//we've write the ethernet header, now the data
 		for(i = 0; (words_to_write-- > 0) && (i < MAX_FRAME_SIZE-1); i++) 
-				ETH0->MACDATA = *(eth_f->data+i);	
+				ETH0->MACDATA = *(&eth_f->data+i);	
 				
 		ETH0->MACTR |= 1; // now, start the transmission
 		while(ETH0->MACTR & 0x1); // waiting for the transmission to be complete
+		toggle_led();
 		
-		vPortFree(eth_f->data);
+		vPortFree(eth_f);
 	}
 }
 

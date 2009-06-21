@@ -35,19 +35,19 @@
  * esix_received_frame : processes incoming packets, does sanity checks,
  * then passes the payload to the corresponding upper layer.
  */
-void esix_ip_process_packet(void *packet, int length)
+void esix_ip_process(void *packet, int len)
 {
 	struct ip6_hdr *hdr = packet;
 	int i, pkt_for_us;
-uart_puts("packet received\n");
+
 	//check if we have enough data to at least read the header
 	//and if we actually have an IPv6 packet
-	if((length < 40)  || 
+	if((len < 40)  || 
 		((hdr->ver_tc_flowlabel&hton32(0xf0000000)) !=  hton32(0x06 << 28)))
 		return; 
 
 	//now check if the ethernet frame is long enough to carry the entire ipv6 packet
-	if(length < (ntoh16(hdr->payload_len) + 40))
+	if(len < (ntoh16(hdr->payload_len) + 40))
 		return;
 	
 	//check if the packet belongs to us
@@ -57,10 +57,10 @@ uart_puts("packet received\n");
 	{
 		//go through every entry of our address table and check word by word
 		if( (addrs[i] != NULL) &&
-			( hdr->daddr1 == addrs[i]->addr.addr1 ) &&
-			( hdr->daddr2 == addrs[i]->addr.addr2 ) &&
-			( hdr->daddr3 == addrs[i]->addr.addr3 ) &&
-			( hdr->daddr4 == addrs[i]->addr.addr4 ))
+			( hdr->daddr.addr1 == addrs[i]->addr.addr1 ) &&
+			( hdr->daddr.addr2 == addrs[i]->addr.addr2 ) &&
+			( hdr->daddr.addr3 == addrs[i]->addr.addr3 ) &&
+			( hdr->daddr.addr4 == addrs[i]->addr.addr4 ))
 		{
 			pkt_for_us = 1;
 			break;
@@ -82,14 +82,35 @@ uart_puts("packet received\n");
 	switch(hdr->next_header)
 	{
 		case ICMP:
-			esix_icmp_process_packet((struct icmp6_hdr *) &hdr->data, 
+			esix_icmp_process((struct icmp6_hdr *) &hdr->data, 
 				ntoh16(hdr->payload_len), hdr);
 			break;
 
 		//unknown (unimplemented) IP type
 		default:
-			return;
+			uart_printf("Unknown packet received, type: %x\n", hdr->next_header);
 	}
 }
 
+/*
+ * Send an IPv6 packet.
+ */
+void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len)
+{
+	struct ip6_hdr *hdr = esix_w_malloc(sizeof(struct ip6_hdr) + len);
+	struct esix_mac_addr dmac;
+	
+	hdr->ver_tc_flowlabel = hton32(6 << 28);
+	hdr->payload_len = hton16(len);
+	hdr->next_header = type;
+	hdr->hlimit = hlimit;
+	hdr->saddr = *saddr;
+	hdr->daddr = *daddr;
+	esix_memcpy(&hdr->data, data, len);
+	esix_w_free(data);
+	
+	dmac.l = 0x0023df84;
+	dmac.h = 0x8fcc;
 
+	esix_w_send_packet(dmac, hdr, len + 40);
+}

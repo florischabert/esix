@@ -60,8 +60,8 @@
 		u16_t SA_2;
 		u16_t SA_3;
 		u16_t ETHERTYPE;
-		u32_t *data;
-	};
+		u32_t data;
+	} __attribute__((__packed__));
 	
 	struct ether_frame_t *eth_f;
 

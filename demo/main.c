@@ -60,6 +60,7 @@ void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed portCHAR *pcTaskN
 		GPIOF->DATA[1] = 1;
 }
 
+extern int mem_used;
 /**
  * Toggle the LED
  */
@@ -69,8 +70,8 @@ void led_task(void *param)
 	{
 	//	uart_printf("led %x\n", uxTaskGetStackHighWaterMark(NULL));
 	//	ether_handler();	
-	//	uart_puts("AHAH!\r\n");
-		vTaskDelay(1000);
+		//art_printf("mem_used: %x\n", mem_used);
+		vTaskDelay(200);
 	}
 }
 
