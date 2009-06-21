@@ -34,21 +34,17 @@
 /**
  * Sets up the esix stack.
  */
-void esix_init(void)
+void esix_init(u16_t lla[3])
 {
 	int i;
+	
 	for(i=0; i<ESIX_MAX_IPADDR; i++)
 		addrs[i] = NULL;
 
 	for(i=0; i<ESIX_MAX_RT; i++)
 		routes[i] = NULL;
 
-	//change here to get a dest mac address out of your ethernet
-	//driver if needed. Implementing ether_get_mac_addr() in your driver
-	//is the best way.
-	//output must be in network order (big endian)
-
-	esix_intf_add_default_neighbors(esix_w_get_mac_address());
+	esix_intf_add_default_neighbors(lla);
 	esix_intf_add_default_addresses();
 	esix_intf_add_default_routes(INTERFACE, 1500);
 	//esix_send_router_sol(INTERFACE);

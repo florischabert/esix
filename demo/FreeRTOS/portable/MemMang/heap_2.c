@@ -106,8 +106,7 @@ static const unsigned portSHORT  heapSTRUCT_SIZE	= ( sizeof( xBlockLink ) + ( si
 
 /* Create a couple of list links to mark the start and end of the list. */
 static xBlockLink xStart, xEnd;
-// FIXME
-int mem_used;
+
 /* STATIC FUNCTIONS ARE DEFINED AS MACROS TO MINIMIZE THE FUNCTION CALL DEPTH. */
 
 /*
@@ -143,7 +142,7 @@ xBlockLink *pxFirstFreeBlock;														\
 	/* blocks.  The void cast is used to prevent compiler warnings. */				\
 	xStart.pxNextFreeBlock = ( void * ) xHeap.ucHeap;								\
 	xStart.xBlockSize = ( size_t ) 0;												\
-	mem_used = 0;																	\
+	                      																	\
 	/* xEnd is used to mark the end of the list of free blocks. */					\
 	xEnd.xBlockSize = configTOTAL_HEAP_SIZE;										\
 	xEnd.pxNextFreeBlock = NULL;													\
@@ -189,9 +188,7 @@ void *pvReturn = NULL;
 		}
 
 		if( ( xWantedSize > 0 ) && ( xWantedSize < configTOTAL_HEAP_SIZE ) )
-		{
-			mem_used += xWantedSize; //FIXME
-			
+		{			
 			/* Blocks are stored in byte order - traverse the list from the start
 			(smallest) block until one of adequate size is found. */
 			pxPreviousBlock = &xStart;
@@ -251,7 +248,6 @@ xBlockLink *pxLink;
 
 		/* This casting is to keep the compiler from issuing warnings. */
 		pxLink = ( void * ) puc;
-		mem_used -= pxLink->pxNextFreeBlock-pxLink; //FIXME
 
 		vTaskSuspendAll();
 		{				

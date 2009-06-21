@@ -31,7 +31,7 @@
 #include "ip6.h"
 #include "include/esix.h"
 
-void esix_intf_add_default_neighbors(struct esix_mac_addr maddr)
+void esix_intf_add_default_neighbors(esix_ll_addr lla)
 {
 	struct ip6_addr addr;
 	
@@ -41,7 +41,7 @@ void esix_intf_add_default_neighbors(struct esix_mac_addr maddr)
 	addr.addr3 = 0;
 	addr.addr4 = hton32(1);
 	esix_intf_add_neighbor(&addr, // ip address FIXME: which one ?
-		maddr, // MAC address
+		lla, // MAC address
 		0, // never expires
 		INTERFACE);
 }
@@ -59,11 +59,12 @@ void esix_intf_add_default_addresses(void)
 	//unicast link local
 	addr.addr1 = hton32(0xfe800000); //0xfe80 
 	addr.addr2 = hton32(0x00000000);
-	addr.addr3 = hton32(neighbors[0]->mac_addr.l 
+	addr.addr3 = hton32(((neighbors[0]->lla[0] << 16) & 0xff0000)
+		| (neighbors[0]->lla[1] & 0xff00)
 		| 0x020000ff); //stateless autoconf, 0x02 : universal bit
 	addr.addr4 = hton32((0xfe000000) //0xfe here is OK
-		| ((neighbors[0]->mac_addr.l << 16) & 0xff0000) 
-		| neighbors[0]->mac_addr.h);
+		| ((neighbors[0]->lla[1] << 16) & 0xff0000) 
+		| neighbors[0]->lla[2]);
 	esix_intf_add_address(&addr,
 			0x80,			// /128
 			0x0,			//this one never expires
@@ -74,8 +75,8 @@ void esix_intf_add_default_addresses(void)
 	addr.addr2 = 0;
 	addr.addr3 = hton32(1);
 	addr.addr4 = hton32((0xff000000)
-		| ((neighbors[0]->mac_addr.l << 16) & 0xff0000) 
-		| neighbors[0]->mac_addr.h);
+		| ((neighbors[0]->lla[1] << 16) & 0xff0000) 
+		| neighbors[0]->lla[2]);
 	esix_intf_add_address(&addr,
 			0x80,			// /128
 			0x0,			//this one never expires
@@ -151,29 +152,18 @@ int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row)
 	return 0;
 }
 
-int esix_intf_add_neighbor(struct ip6_addr *addr, struct esix_mac_addr mac_addr, u32_t expiration_date, u8_t interface)
+int esix_intf_add_neighbor(struct ip6_addr *addr, esix_ll_addr lla, u32_t expiration_date, u8_t interface)
 {
-	int i = 0;
+	int j, i = 0;
 	struct esix_neighbor_table_row *nb;
-	
-	//try to look up this neighbor in the table
-	//to find if it already exists and only needs an update
-	while(i<ESIX_MAX_NB)
+
+	i = esix_intf_get_neighbor_index(addr, interface);
+	if(i >= 0)
 	{
-		if((neighbors[i] != NULL) &&
-			(neighbors[i]->addr.addr1		== addr->addr1) &&
-			(neighbors[i]->addr.addr2		== addr->addr2) &&
-			(neighbors[i]->addr.addr3		== addr->addr3) &&
-			(neighbors[i]->addr.addr4		== addr->addr4) &&
-			(neighbors[i]->interface		== interface))
-		{
-			//we found something, just update some variables
-				nb	= neighbors[i];
-				nb->expiration_date	= expiration_date;
-				nb->mac_addr			= mac_addr;
-				return 1;
-		}
-		i++;
+		neighbors[i]->expiration_date	= expiration_date;
+		for(j = 0; j < 3; j++)
+			neighbors[i]->lla[j] = lla[j];
+		return 1;
 	}
 
 	//we're still there, let's create the new neighbor.
@@ -188,7 +178,8 @@ int esix_intf_add_neighbor(struct ip6_addr *addr, struct esix_mac_addr mac_addr,
 	nb->addr.addr3	 		= addr->addr3;
 	nb->addr.addr4			= addr->addr4;
 	nb->expiration_date	= expiration_date;
-	nb->mac_addr			= mac_addr;
+	for(j = 0; j < 3; j++)
+		nb->lla[j] = lla[j];
 	nb->interface			= interface;
 	
 	//now try to add it
@@ -197,6 +188,7 @@ int esix_intf_add_neighbor(struct ip6_addr *addr, struct esix_mac_addr mac_addr,
 
 	//we're still here, clean our mess up.
 	esix_w_free(nb);
+	
 	return 0;
 }
 
@@ -246,7 +238,33 @@ int esix_intf_add_route_row(struct esix_route_table_row *row)
 }
 
 /*
- * Return the address row of the given address.
+ * Return the neighbor row index of the given address.
+ */
+int esix_intf_get_neighbor_index(struct ip6_addr *addr, u8_t interface)
+{
+	int j, i = 0;
+
+	//try to look up this neighbor in the table
+	//to find if it already exists and only needs an update
+	while(i<ESIX_MAX_NB)
+	{
+		if((neighbors[i] != NULL) &&
+			(neighbors[i]->addr.addr1		== addr->addr1) &&
+			(neighbors[i]->addr.addr2		== addr->addr2) &&
+			(neighbors[i]->addr.addr3		== addr->addr3) &&
+			(neighbors[i]->addr.addr4		== addr->addr4) &&
+			(neighbors[i]->interface		== interface))
+		{
+			//we found something, just update some variables
+			return i;
+		}
+		i++;
+	}
+	return -1;
+}
+
+/*
+ * Return the address row index of the given address.
  */
 int esix_intf_get_address_index(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 {

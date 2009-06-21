@@ -42,11 +42,16 @@ int led2h;
  */	
 void main(void)
 {
+	u16_t lla[3]; // MAC address
+	lla[0] = 0x003a;
+	lla[1] = 0xe967;
+	lla[2] = 0xc58d;
+	
 	hardware_init();
 	uart_init();
-	ether_init();
+	ether_init(lla);
 	ether_enable();
-	esix_init();
+	esix_init(lla);
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(led_task, (signed char *) "led", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
@@ -60,7 +65,6 @@ void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed portCHAR *pcTaskN
 		GPIOF->DATA[1] = 1;
 }
 
-extern int mem_used;
 /**
  * Toggle the LED
  */
@@ -70,7 +74,6 @@ void led_task(void *param)
 	{
 	//	uart_printf("led %x\n", uxTaskGetStackHighWaterMark(NULL));
 	//	ether_handler();	
-		//art_printf("mem_used: %x\n", mem_used);
 		vTaskDelay(200);
 	}
 }

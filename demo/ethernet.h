@@ -33,7 +33,7 @@
 
 	#define MAX_FRAME_SIZE 380 //380 * 4 bytes = 1520 bytes
 	
-	void ether_init(void);
+	void ether_init(u16_t lla[3]);
 	void ether_enable(void);
 	void ether_disable(void);
 	void ether_handler(void);
@@ -60,7 +60,6 @@
 		u16_t SA_2;
 		u16_t SA_3;
 		u16_t ETHERTYPE;
-		u32_t data;
 	} __attribute__((__packed__));
 	
 	struct ether_frame_t *eth_f;

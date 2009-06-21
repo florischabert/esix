@@ -34,9 +34,11 @@
 #include "config.h"
 #include "include/esix.h"
 
-//general purpose buffer, mainly used to build packets/
-//static int esix_buffer[ESIX_BUFFER_SIZE];
-
+/*
+ * Link-layer address (48 bits).
+ */
+typedef u16_t esix_ll_addr[3];
+	
 /**
  * IP address table entry
  */
@@ -67,7 +69,7 @@ struct esix_route_table_row {
 
 struct esix_neighbor_table_row {
 	struct ip6_addr addr;
-	struct esix_mac_addr mac_addr;
+	esix_ll_addr lla;
 	u32_t	expiration_date;
 	u8_t interface;
 };
@@ -83,9 +85,10 @@ struct esix_route_table_row *routes[ESIX_MAX_RT];
 struct esix_neighbor_table_row *neighbors[ESIX_MAX_NB];
 
 
-void esix_intf_add_default_neighbors(struct esix_mac_addr addr);
+void esix_intf_add_default_neighbors(esix_ll_addr);
 int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row);
-int esix_intf_add_neighbor(struct ip6_addr *, struct esix_mac_addr, u32_t, u8_t);
+int esix_intf_add_neighbor(struct ip6_addr *, esix_ll_addr, u32_t, u8_t);
+int esix_intf_get_neighbor_index(struct ip6_addr *, u8_t);
 
 void esix_intf_add_default_addresses(void);
 int esix_intf_add_address_row(struct esix_ipaddr_table_row *row);

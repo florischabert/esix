@@ -45,7 +45,7 @@ void ether_send_task(void *param);
 /**
  * ether_init : configures the ethernet hardware found in lm3s6965 
  */
-void ether_init()
+void ether_init(u16_t lla[3])
 {
 	SYSCTR->RCGC2	|= (1 << 30); //enable PHY clock 
 	SYSCTR->RCGC2	|= (1 << 28); //enable MAC clock
@@ -59,8 +59,8 @@ void ether_init()
 	ETH0->MACMDV	= 0x0000000a;
 
 	//program a MAC address (we should be reading this from somewhere...)
-	ETH0->MACIA0	= 0x003ae967;	//4 first MAC address bytes
-	ETH0->MACIA1	|= 0x0000c58d;  //the first 2 bytes are marked as reserved
+	ETH0->MACIA0	= (lla[0] << 16) | lla[1];	//4 first MAC address bytes
+	ETH0->MACIA1	= lla[2];  //the first 2 bytes are marked as reserved
 
 	//generate FCS in hardware, do autoneg, FD.
 	ETH0->MACTCTL	|= 0x00000016;
@@ -197,7 +197,7 @@ void ether_receive_task(void *param)
 
 		//got a v6 frame, pass it to the v6 stack
 		if(eth_f->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
-			esix_ip_process(&eth_f->data, (eth_f->FRAME_LENGTH-20));
+			esix_ip_process((eth_f + 1), (eth_f->FRAME_LENGTH-20));
 
 		ETH0->MACIM	|= 0x1;
 	}
@@ -218,15 +218,16 @@ void ether_send_task(void *param)
 		for(i = 0; i < 4; i ++)
 			ETH0->MACDATA = *(((u32_t *)eth_f)+i);
 		//convert the frame length (in bytes) to words (4 bytes)
-		words_to_write	= (eth_f->FRAME_LENGTH/4 - 4);
-		
+		words_to_write	= eth_f->FRAME_LENGTH/4;
+
 		//we've write the ethernet header, now the data
 		for(i = 0; (words_to_write-- > 0) && (i < MAX_FRAME_SIZE-1); i++) 
-				ETH0->MACDATA = *(&eth_f->data+i);	
+				ETH0->MACDATA = *(((u32_t *) (eth_f + 1)) + i);			
 				
 		ETH0->MACTR |= 1; // now, start the transmission
 		while(ETH0->MACTR & 0x1); // waiting for the transmission to be complete
 		toggle_led();
+		
 		
 		vPortFree(eth_f);
 	}

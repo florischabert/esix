@@ -31,6 +31,7 @@
 	#include "config.h"
 	#include "include/esix.h"
 	#include "ip6.h"
+	#include "intf.h"
 	
 	//list of ICMPv6 types
 	#define DST_UNR	0x01	//Destination Unreachable
@@ -60,7 +61,7 @@
 		u8_t	type;
 		u8_t	code;
 		u16_t	chksum;
-		u8_t	data;
+		// ICMPv6 data
 	} __attribute__((__packed__));
 
 	/**
@@ -80,7 +81,7 @@
 	{
 		u32_t reserved;
 		struct ip6_addr target_addr;
-		u8_t option_hdr;
+		// icmp6_opt_lla
 	} __attribute__((__packed__));
 	
 	/**
@@ -90,7 +91,16 @@
 	{
 		u32_t reserved;
 		struct ip6_addr target_addr;
-		u8_t option_hdr;
+		// icmp6_opt_lla
+	} __attribute__((__packed__));
+	
+	/**
+	 * ICMP option, link-layer address.
+	 */
+	struct icmp6_opt_lla {
+		u8_t type;
+		u8_t len8;
+		esix_ll_addr lla;
 	} __attribute__((__packed__));
 
 	/**
@@ -102,7 +112,6 @@
 		u16_t	rtr_lifetime;	//router lifetime
 		u32_t	reachable_time;
 		u32_t	retransm_timer;
-		u8_t option_hdr;
 	} __attribute__((__packed__));
 	
 	/**

@@ -49,7 +49,7 @@ void esix_ip_process(void *packet, int len)
 	//now check if the ethernet frame is long enough to carry the entire ipv6 packet
 	if(len < (ntoh16(hdr->payload_len) + 40))
 		return;
-	
+
 	//check if the packet belongs to us
 	pkt_for_us = 0;
 
@@ -65,13 +65,15 @@ void esix_ip_process(void *packet, int len)
 			pkt_for_us = 1;
 			break;
 		}
-
 	}
 
 	//drop the packet in case it doesn't
 	if(pkt_for_us==0)
+	{
+		uart_printf("packed received but not for us\n");
 		return;
-
+	}
+	
 	//check the hop limit value (should be > 0)
 	if(hdr->hlimit == 0)
 	{
@@ -81,14 +83,14 @@ void esix_ip_process(void *packet, int len)
 	//determine what to do next
 	switch(hdr->next_header)
 	{
-		case ICMP:
-			esix_icmp_process((struct icmp6_hdr *) &hdr->data, 
+		case ICMP:		
+			esix_icmp_process((struct icmp6_hdr *) (hdr + 1), 
 				ntoh16(hdr->payload_len), hdr);
 			break;
 
 		//unknown (unimplemented) IP type
 		default:
-			uart_printf("Unknown packet received, type: %x\n", hdr->next_header);
+			uart_printf("unknown packet received, type: %x\n", hdr->next_header);
 	}
 }
 
@@ -98,7 +100,7 @@ void esix_ip_process(void *packet, int len)
 void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len)
 {
 	struct ip6_hdr *hdr = esix_w_malloc(sizeof(struct ip6_hdr) + len);
-	struct esix_mac_addr dmac;
+	int i;
 	
 	hdr->ver_tc_flowlabel = hton32(6 << 28);
 	hdr->payload_len = hton16(len);
@@ -106,11 +108,19 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	hdr->hlimit = hlimit;
 	hdr->saddr = *saddr;
 	hdr->daddr = *daddr;
-	esix_memcpy(&hdr->data, data, len);
+	esix_memcpy(hdr + 1, data, len);
 	esix_w_free(data);
 	
-	dmac.l = 0x0023df84;
-	dmac.h = 0x8fcc;
-
-	esix_w_send_packet(dmac, hdr, len + 40);
+	// do we know the destination lla ?
+	i = esix_intf_get_neighbor_index(daddr, INTERFACE);
+	if(i >= 0)
+	{
+		//0x0023; 0xdf84; 0x8fcc;
+		esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
+	}
+	else
+	{
+		// we have to send a neighbor solicitation
+		uart_printf("packet ready to be sent, but don't now the lla\n");
+	}
 }

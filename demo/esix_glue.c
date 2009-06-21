@@ -50,30 +50,21 @@ u32_t esix_w_get_time(void)
 	return 0;
 }
 
-struct esix_mac_addr esix_w_get_mac_address()
-{
-	struct esix_mac_addr addr;
-	
-	addr.l = ETH0->MACIA0;
-	addr.h = ETH0->MACIA1;
-	
-	return addr;
-}
-
-void esix_w_send_packet(struct esix_mac_addr daddr, void *packet, int len)
+void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 {
 	int i;
 	eth_f = pvPortMalloc(sizeof(struct ether_frame_t) + len);
 	eth_f->FRAME_LENGTH = len;
-	eth_f->DA_1 = HTON16(daddr.l >> 16);
-	eth_f->DA_2 = HTON16(daddr.l);
-	eth_f->DA_3 = HTON16(daddr.h);
+	eth_f->DA_1 = HTON16(lla[0]);
+	eth_f->DA_2 = HTON16(lla[1]);
+	eth_f->DA_3 = HTON16(lla[2]);
 	eth_f->SA_1 = HTON16(ETH0->MACIA0 >> 16);
 	eth_f->SA_2 = HTON16(ETH0->MACIA0);
 	eth_f->SA_3 = HTON16(ETH0->MACIA1);
 	eth_f->ETHERTYPE = HTON16(0x86dd); // IPv6 packet
 	for(i = 0; i < len; i++)
-		*(((u32_t *) &eth_f->data) + i) =  *(((u32_t *) packet) + i);
+		*(((u32_t *) (eth_f + 1)) + i) =  *(((u32_t *) packet) + i);
+
 	vPortFree(packet);
 	ether_send_start();
 }

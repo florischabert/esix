@@ -67,7 +67,7 @@
 		u8_t  	hlimit; 	//hop limit
 		struct ip6_addr saddr;		//first word of source address
 		struct ip6_addr daddr;		//first word of destination address
-		u32_t	data;
+		// IPv6 data;
 	} __attribute__((__packed__));
 	
 	void esix_ip_process_packet(void *, int);

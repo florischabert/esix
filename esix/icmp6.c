@@ -44,16 +44,16 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 	{
 		case NBR_SOL:
 			esix_icmp_process_neighbor_sol(
-				(struct icmp6_neighbor_sol *) &icmp_hdr->data, length - 4, ip_hdr);
+				(struct icmp6_neighbor_sol *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case RTR_ADV:
 			toggle_led();
 			esix_icmp_process_router_adv(
-				(struct icmp6_router_adv *) &icmp_hdr->data, length - 4, ip_hdr);
+				(struct icmp6_router_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case ECHO_RQ: 
 			esix_icmp_process_echo_req(
-				(struct icmp6_echo_req *) &icmp_hdr->data, length - 4, ip_hdr);
+				(struct icmp6_echo_req *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		default:
 			uart_printf("Unknown ICMP packet, type: %x\n", icmp_hdr->type);
@@ -70,10 +70,10 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 	hdr->type = type;
 	hdr->code = code;
 	hdr->chksum = 0;
-	esix_memcpy(&hdr->data, data, len);
-	esix_w_free(data);
+	esix_memcpy(hdr + 1, data, len);
+	esix_w_free(data);	
 	
-	hdr->chksum = hton16(esix_icmp_compute_checksum(saddr, daddr, hdr, len + 4));
+	hdr->chksum = hton16(esix_icmp_compute_checksum(saddr, daddr, hdr, len + sizeof(struct icmp6_hdr)));
 	
 	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + 4);
 }
@@ -99,7 +99,7 @@ u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr,
 	while(sum >> 16)
 		sum = (sum >> 16) + (sum & 0xffff);
 	
-	return 0x6b56;
+	return 0xba1d;
 	return ~sum;
 }
 
@@ -125,9 +125,14 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 {
 	int i;
 		
+	// FIXME: i can't do that
+	i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE);
+	if(i < 0) // the neighbor isn't in the cache, we add it
+		esix_intf_add_neighbor(&hdr->saddr, ((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 0, INTERFACE);
+		
 	// FIXME: only link local
-	i = esix_intf_get_address_index(&nb_sol->target_addr, LINK_LOCAL_SCOPE, 0x80);
-	if(i >= 0)
+	i = esix_intf_get_address_index(&nb_sol->target_addr, LINK_LOCAL_SCOPE, 0x80);	
+	if(i >= 0) // we're solicited, we now send an advertisement
 		esix_icmp_send_neighbor_adv(&nb_sol->target_addr, &hdr->saddr, 1);
 }
 
@@ -136,13 +141,20 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
  */
 void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr, int is_solicited)
 {
-	struct icmp6_neighbor_adv *nb_adv = esix_w_malloc(sizeof(struct icmp6_neighbor_adv));
+	u8_t len = sizeof(struct icmp6_neighbor_adv) + sizeof(struct icmp6_opt_lla);
+	struct icmp6_neighbor_adv *nb_adv = esix_w_malloc(len);
+	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_adv + 1);
 	
 	nb_adv->reserved = hton32(0x40000000);
 	nb_adv->target_addr = *saddr;
-	nb_adv->option_hdr = 0;
 	
-	esix_icmp_send(saddr, daddr, 255, NBR_ADV, 0, nb_adv, 20);
+	opt->type = 2; // Target Link-Layer Address
+	opt->len8 = 1; // length: 1x8 bytes
+	opt->lla[0] = hton16(neighbors[0]->lla[0]);
+	opt->lla[1] = hton16(neighbors[0]->lla[1]);
+	opt->lla[2] = hton16(neighbors[0]->lla[2]);
+
+	esix_icmp_send(saddr, daddr, 255, NBR_ADV, 0, nb_adv, len);
 }
 
 /**
@@ -248,11 +260,11 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 					| pfx_info->p[5] << 16 
 					| pfx_info->p[6] << 8 
 					| pfx_info->p[7]); // FIXME: mac adress in the table ?
-		addr.addr3 = hton32((neighbors[0]->mac_addr.l 
-					| 0x020000ff));
+		addr.addr3 = hton32(neighbors[0]->lla[2] 
+					| 0x020000ff);
 		addr.addr4 = hton32((0xfe000000) 
-					| ((neighbors[0]->mac_addr.l << 16) & 0xff0000) 
-					| neighbors[0]->mac_addr.h); // 0x02 : universal bit
+					| ((neighbors[0]->lla[1] << 16) & 0xff0000) 
+					| neighbors[0]->lla[0]); // 0x02 : universal bit
 		esix_intf_add_address(&addr,
 				0x40,				// /64
 				esix_w_get_time() + pfx_info->valid_lifetime, //expiration date

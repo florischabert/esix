@@ -29,15 +29,31 @@
 #ifndef _ESIX_H
 #define _ESIX_H
 
+// Lib services
+
 	/**
 	 * Sets up the esix stack.
+	 *
+	 * @param lla is the 6 bytes link-layer address of the interface.
 	 */
-	void esix_init(void);
+	void esix_init(u16_t lla[3]);
+	
+	/*
+	 * Process a received IPv6 packet.
+	 * 
+	 * @param packet is a pointer to the packet.
+	 * @param len is the packet size.
+	 */
+	void esix_ip_process(void *packet, int len);
+	
+// The following has to be implemented by the user
 
 	/*
 	 * Malloc wrapper for esix.
 	 * 
 	 * Needs to be implemented by the user.
+	 *
+	 * @param size is the number of byte needed for the allocation.
 	 */
 	void *esix_w_malloc(size_t size);
 	
@@ -45,6 +61,8 @@
 	 * Free wrapper for esix.
 	 * 
 	 * Needs to be implemented by the user.
+	 *
+	 * @param is the a pointer to the zone to be freed.
 	 */
 	void esix_w_free(void *);
 
@@ -52,45 +70,20 @@
 	 * Give the current time in ms.
 	 *
 	 * Needs to be implemented by the user.
+	 *
+	 * @return the time in ms (only for relative delays)
 	 */
 	u32_t esix_w_get_time(void);
-	
-	/*
-	 * Log print wrapper for esix.
-	 * 
-	 * Needs to be implemented by the user.
-	 */
-	void esix_w_log(char *string);
-	
-	/*
-	 * MAC address (48 bits).
-	 */
-	struct esix_mac_addr
-	{
-		u16_t h;
-		u32_t l;
-	};
-	
-	/*
-	 * Give the interface MAC address.
-	 *
-	 * Needs to be implemented by the user.
-	 */
-	struct esix_mac_addr esix_w_get_mac_address(void);
-	
+
 	/*
 	 * Send an IPv6 packet.
 	 *
 	 * Needs to be implemented by the user.
+	 *
+	 * @param lla is the target 6 bytes link-layer address.
+	 * @param packet is a ptr to the IPV6 packet. should be freed after copy.
+	 * @param len is the len of the IPv6 packet in bytes.
 	 */
-	void esix_w_send_packet(struct esix_mac_addr daddr, void *packet, int length);
-	
-	/*
-	 * Process a received IPv6 packet.
-	 * 
-	 * @param packet is a pointer to the packet.
-	 * @parmr length is the packet size.
-	 */
-	void esix_ip_process(void *packet, int length);
+	void esix_w_send_packet(u16_t lla[3], void *packet, int len);
 	
 #endif
