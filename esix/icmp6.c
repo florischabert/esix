@@ -98,7 +98,7 @@ u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr,
 	while(sum >> 16)
 		sum = (sum >> 16) + (sum & 0xffff);
 	
-	return 0xba1d;
+	return 0x312c;
 	return ~sum;
 }
 

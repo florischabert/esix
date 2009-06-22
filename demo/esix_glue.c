@@ -70,5 +70,5 @@ void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 	eth_f.hdr.ETHERTYPE = HTON16(0x86dd);
 	eth_f.data = packet;
 
-	xQueueSend(ether_send_queue, &eth_f, 0);	
+	xQueueSend(ether_send_queue, &eth_f, portMAX_DELAY);	
 }

@@ -40,7 +40,6 @@ static xSemaphoreHandle ether_receive_sem;
 // Prototypes
 void ether_receive_task(void *param);
 void ether_send_task(void *param);
-void ip_process_task(struct ether_hdr_t *eth_f);
 
 /**
  * ether_init : configures the ethernet hardware found in lm3s6965 
@@ -200,8 +199,7 @@ void ether_receive_task(void *param)
 
 		//got a v6 frame, pass it to the v6 stack
 		if(((struct ether_hdr_t *) eth_buf)->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
-			//esix_ip_process((eth_buf + 4), len);
-			xTaskCreate(ip_process_task, (signed char *) "ip process", 200, eth_buf, tskIDLE_PRIORITY + 1, NULL);
+			esix_ip_process((eth_buf + 4), len);
 			
 		// read checksum
 		tmp = ETH0->MACDATA;
@@ -212,15 +210,6 @@ void ether_receive_task(void *param)
 		else
 			ETH0->MACIM	|= 0x1;
 	}
-}
-
-void ip_process_task(struct ether_hdr_t *eth_f)
-{
-	// we give the packet to the lib.	
-	esix_ip_process((eth_f + 1), (eth_f->FRAME_LENGTH-20));
-	// packet processed, this task is no longer needed.
-	esix_w_free(eth_f);
-	vTaskDelete(NULL);
 }
 
 /*
@@ -245,13 +234,11 @@ void ether_send_task(void *param)
 		//now we send the data
 		for(i = 0; (i < len4) && (i < MAX_FRAME_SIZE-5); i++) 
 				ETH0->MACDATA = *(eth_f.data + i);			
-	
-		//esix_w_free(packet);
-		
-		ETH0->MACTR |= 1; // now, start the transmission
-		while(ETH0->MACTR & 0x1); // waiting for the transmission to be complete	
 		
 		esix_w_free(eth_f.data);
+			
+		ETH0->MACTR |= 1; // now, start the transmission
+		while(ETH0->MACTR & 0x1); // waiting for the transmission to be complete	
 	}
 }
 
