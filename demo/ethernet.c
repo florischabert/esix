@@ -147,7 +147,7 @@ void ether_handler()
 	if(int_val&RXINT)
 	{
 		xSemaphoreGiveFromISR(ether_receive_sem, &resched_needed);
-		ETH0->MACRIS |= 0x1;
+		//ETH0->MACRIS |= 0x1;
 		ETH0->MACIM	&= ~0x1;
 	}
 	if(int_val&TXEMP)
