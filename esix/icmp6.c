@@ -47,7 +47,6 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 				(struct icmp6_neighbor_sol *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case RTR_ADV:
-			toggle_led();
 			esix_icmp_process_router_adv(
 				(struct icmp6_router_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
@@ -75,20 +74,20 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 	
 	hdr->chksum = hton16(esix_icmp_compute_checksum(saddr, daddr, hdr, len + sizeof(struct icmp6_hdr)));
 	
-	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + 4);
+	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + sizeof(struct icmp6_hdr));
 }
 
 u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u8_t len)
 { // FIXME: it just doesn't work
 	u16_t i, *hw = data;
-	u32_t sum = 0;
+	u16_t sum = 0;
 	
 	// IPv6 pseudo-header byte sum: IP addresses, payload len, next header = 58
-	for(i = 0; i < 8; i++)
+	/*for(i = 0; i < 8; i++)
 	{
 		sum += *(((u16_t *) saddr)+i);
 		sum += *(((u16_t *) daddr)+i);
-	}
+	}*/
 	sum += len;
 	sum += 58;
 	
@@ -137,6 +136,15 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 }
 
 /*
+ * Process an ICMPv6 Echo Request.
+ */
+void esix_icmp_process_echo_req(struct icmp6_echo_req *echo_rq, int length, struct ip6_hdr *ip_hdr)
+{
+	uart_printf("ethernet stack %x\n", uxTaskGetStackHighWaterMark(NULL));
+	uart_puts("echo rq received\n");
+}
+
+/*
  * Send a neighbor advertisement.
  */
 void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr, int is_solicited)
@@ -145,7 +153,7 @@ void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr,
 	struct icmp6_neighbor_adv *nb_adv = esix_w_malloc(len);
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_adv + 1);
 	
-	nb_adv->reserved = hton32(0x40000000);
+	nb_adv->r_s_o_reserved = hton32(is_solicited << 30);
 	nb_adv->target_addr = *saddr;
 	
 	opt->type = 2; // Target Link-Layer Address
@@ -255,7 +263,8 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		//are not aligned when received
 		addr.addr1 = hton32(pfx_info->p[0] << 24
 					| pfx_info->p[1] << 16 
-					| pfx_info->p[2] << 8 | pfx_info->p[3]);
+					| pfx_info->p[2] << 8
+					| pfx_info->p[3]);
 		addr.addr2 = hton32(pfx_info->p[4] << 24 
 					| pfx_info->p[5] << 16 
 					| pfx_info->p[6] << 8 
@@ -293,11 +302,5 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 					mtu,
 					INTERFACE);
 	}//else if (got_prefix_info)
-}
-
-void esix_icmp_process_echo_req(struct icmp6_echo_req *echo_rq, int length, struct ip6_hdr *ip_hdr)
-{
-	uart_printf("ethernet stack %x\n", uxTaskGetStackHighWaterMark(NULL));
-	uart_puts("echo rq received\n");
 }
 

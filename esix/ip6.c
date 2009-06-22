@@ -88,6 +88,14 @@ void esix_ip_process(void *packet, int len)
 				ntoh16(hdr->payload_len), hdr);
 			break;
 
+		case UDP:
+			esix_udp_parse((struct udp_hdr *) (hdr + 1),
+				ntoh16(hdr->payload_len), hdr);	
+		
+		case TCP:
+			esix_tcp_parse((struct tcp_hdr *) (hdr + 1),
+				ntoh16(hdr->payload_len), hdr);
+				
 		//unknown (unimplemented) IP type
 		default:
 			uart_printf("unknown packet received, type: %x\n", hdr->next_header);
@@ -114,13 +122,8 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	// do we know the destination lla ?
 	i = esix_intf_get_neighbor_index(daddr, INTERFACE);
 	if(i >= 0)
-	{
-		//0x0023; 0xdf84; 0x8fcc;
 		esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
-	}
 	else
-	{
 		// we have to send a neighbor solicitation
 		uart_printf("packet ready to be sent, but don't now the lla\n");
-	}
 }

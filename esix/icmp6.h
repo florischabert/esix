@@ -89,7 +89,7 @@
 	 */	
 	struct icmp6_neighbor_adv
 	{
-		u32_t reserved;
+		u32_t r_s_o_reserved;
 		struct ip6_addr target_addr;
 		// icmp6_opt_lla
 	} __attribute__((__packed__));
@@ -130,7 +130,7 @@
 		u8_t	flags;		//onlink, autoconf,...
 		u32_t	valid_lifetime;
 		u32_t	preferred_lifetime;
-		u16_t	reserved;
+		u32_t	reserved;
 		u8_t p[16];
 	} __attribute__((__packed__));
 

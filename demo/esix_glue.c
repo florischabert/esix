@@ -35,13 +35,17 @@
 
 #define HTON16(v) (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff))
 
+int alloc_count;
+
 void *esix_w_malloc(size_t size)
 {
+	alloc_count++;
 	return pvPortMalloc(size);
 }
 
 void esix_w_free(void *ptr)
 {
+	alloc_count--;
 	vPortFree(ptr);
 }
 
