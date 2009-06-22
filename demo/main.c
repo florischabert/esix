@@ -40,18 +40,24 @@ int led2h;
 /**
  * Main function.
  */	
+#define HTON16(v) (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff))
 void main(void)
 {
 	u16_t lla[3]; // MAC address
 	lla[0] = 0x003a;
 	lla[1] = 0xe967;
 	lla[2] = 0xc58d;
+
+	u16_t lla2[3];
+	lla2[0]	= HTON16(lla[0]);
+	lla2[1]	= HTON16(lla[1]);
+	lla2[2]	= HTON16(lla[2]);
 	
 	hardware_init();
 	uart_init();
 	ether_init(lla);
 	ether_enable();
-	esix_init(lla);
+	esix_init(lla2);
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(led_task, (signed char *) "led", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);

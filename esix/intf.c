@@ -349,7 +349,7 @@ int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 }
 
 int esix_intf_add_route(struct ip6_addr *daddr, u8_t mask, struct ip6_addr *next_addr, u32_t expiration_date,
-				u8_t ttl, u16_t mtu, u8_t interface)
+				u8_t ttl, u32_t mtu, u8_t interface)
 {
 	int i=0;
 	struct esix_route_table_row *rt	= NULL;

@@ -55,6 +55,7 @@
 	//list of ICMPv6 options
 	#define PRFX_INFO 	0x3
 	#define MTU		0x5
+	#define S_LLA		0x1;
 	
 	/**
 	 * ICMPv6 header
@@ -103,6 +104,13 @@
 		u8_t type;
 		u8_t len8;
 		esix_ll_addr lla;
+	} __attribute__((__packed__));
+
+	/**
+	 * ICMP Router Sollicitation header.
+	 */
+	struct icmp6_router_sol {
+		u32_t reserved;
 	} __attribute__((__packed__));
 
 	/**

@@ -46,7 +46,6 @@
 	void ether_txfifo_empty(void);
 	void ether_frame_received(void);
 	void ether_mii_request(u32_t, u32_t*, int);
-	void ether_get_mac_addr(u16_t *);
 	void ether_send(u16_t dlla1, u16_t dlla2, u16_t dlla3, u16_t type, void *data, int len);
 	
 	// Send queue (takes struct ether_frame_t)

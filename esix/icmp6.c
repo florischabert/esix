@@ -98,7 +98,7 @@ u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr,
 	while(sum >> 16)
 		sum = (sum >> 16) + (sum & 0xffff);
 	
-	return 0x312c;
+	return 0xd64f;
 	return ~sum;
 }
 
@@ -115,6 +115,23 @@ void esix_icmp_send_ttl_expired(struct ip6_hdr *hdr)
  */
 void esix_icmp_send_router_sol(int intf_index)
 {
+	int i;
+	struct ip6_addr dest;
+	dest.addr1	= hton32(0xff020000);
+	dest.addr2	= hton32(0x00000000);
+	dest.addr3	= hton32(0x00000000);
+	dest.addr4	= hton32(0x00000002);
+	
+	u8_t len = sizeof(struct icmp6_router_sol) + sizeof(struct icmp6_opt_lla);
+	struct icmp6_router_sol *ra_sol = esix_w_malloc(len);
+	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (ra_sol + 1);
+
+	opt->type	= S_LLA;
+	opt->len8	= 1; //1 * 8 bytes
+	for(i=0; i<3; i++)
+		opt->lla[i]	= neighbors[0]->lla[i];
+
+	esix_icmp_send(&addrs[0]->addr, &dest, 255, RTR_SOL, 0, ra_sol, len);
 }
 
 /*
@@ -211,7 +228,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 				mtu_info = (struct icmp6_opt_mtu *) &option_hdr->payload; 
 				if( (i+8) < ntoh16(length) )
 				{
-					mtu	= ntoh16(mtu_info->mtu);
+					mtu	= ntoh32(mtu_info->mtu);
 				}
 				i+=8;
 			break;
@@ -265,15 +282,20 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 					| pfx_info->p[1] << 16 
 					| pfx_info->p[2] << 8 
 					| pfx_info->p[3]);
+
 		addr.addr2 = hton32(pfx_info->p[4] << 24 
 					| pfx_info->p[5] << 16 
 					| pfx_info->p[6] << 8 
 					| pfx_info->p[7]); // FIXME: mac adress in the table ?
-		addr.addr3 = hton32(neighbors[0]->lla[2] 
-					| 0x020000ff);
-		addr.addr4 = hton32((0xfe000000) 
-					| ((neighbors[0]->lla[1] << 16) & 0xff0000) 
-					| neighbors[0]->lla[0]); // 0x02 : universal bit
+
+		addr.addr3 = hton32(((neighbors[0]->lla[0] << 16) & 0xff0000)
+			| (neighbors[0]->lla[1] & 0xff00)
+			| 0x020000ff); //stateless autoconf, 0x02 : universal bit
+
+		addr.addr4 = hton32((0xfe000000) //0xfe here is OK
+			| ((neighbors[0]->lla[1] << 16) & 0xff0000) 
+			| neighbors[0]->lla[2]);
+
 		esix_intf_add_address(&addr,
 				0x40,				// /64
 				esix_w_get_time() + pfx_info->valid_lifetime, //expiration date
