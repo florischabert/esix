@@ -264,11 +264,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		//are not aligned when received
 		addr.addr1 = hton32(pfx_info->p[0] << 24
 					| pfx_info->p[1] << 16 
-<<<<<<< HEAD:esix/icmp6.c
-					| pfx_info->p[2] << 8
-=======
 					| pfx_info->p[2] << 8 
->>>>>>> 69457285c1cb857c94255f9d8035ae8e8a3b8bf5:esix/icmp6.c
 					| pfx_info->p[3]);
 		addr.addr2 = hton32(pfx_info->p[4] << 24 
 					| pfx_info->p[5] << 16 

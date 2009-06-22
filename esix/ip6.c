@@ -90,21 +90,12 @@ void esix_ip_process(void *packet, int len)
 
 		case UDP:
 			esix_udp_parse((struct udp_hdr *) (hdr + 1),
-<<<<<<< HEAD:esix/ip6.c
 				ntoh16(hdr->payload_len), hdr);	
 		
 		case TCP:
 			esix_tcp_parse((struct tcp_hdr *) (hdr + 1),
 				ntoh16(hdr->payload_len), hdr);
-				
-=======
-					ntoh16(hdr->payload_len), hdr);
 
-		case TCP:
-			esix_tcp_parse((struct tcp_hdr *) (hdr + 1),
-					ntoh16(hdr->payload_len), hdr);
-
->>>>>>> 69457285c1cb857c94255f9d8035ae8e8a3b8bf5:esix/ip6.c
 		//unknown (unimplemented) IP type
 		default:
 			uart_printf("unknown packet received, type: %x\n", hdr->next_header);
