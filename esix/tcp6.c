@@ -28,6 +28,7 @@
 
 #include "tcp6.h"
 
-void esix_tcp_parse(void *payload)
+void esix_tcp_parse(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 {
+	return;
 }

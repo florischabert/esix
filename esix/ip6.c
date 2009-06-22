@@ -88,6 +88,14 @@ void esix_ip_process(void *packet, int len)
 				ntoh16(hdr->payload_len), hdr);
 			break;
 
+		case UDP:
+			esix_udp_parse((struct udp_hdr *) (hdr + 1),
+					ntoh16(hdr->payload_len), hdr);
+
+		case TCP:
+			esix_tcp_parse((struct tcp_hdr *) (hdr + 1),
+					ntoh16(hdr->payload_len), hdr);
+
 		//unknown (unimplemented) IP type
 		default:
 			uart_printf("unknown packet received, type: %x\n", hdr->next_header);

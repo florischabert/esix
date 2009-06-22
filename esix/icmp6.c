@@ -47,7 +47,6 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 				(struct icmp6_neighbor_sol *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case RTR_ADV:
-			toggle_led();
 			esix_icmp_process_router_adv(
 				(struct icmp6_router_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
@@ -200,6 +199,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 			break;
 
 			case MTU:
+				toggle_led();
 				mtu_info = (struct icmp6_opt_mtu *) &option_hdr->payload; 
 				if( (i+8) < ntoh16(length) )
 				{
@@ -255,7 +255,8 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		//are not aligned when received
 		addr.addr1 = hton32(pfx_info->p[0] << 24
 					| pfx_info->p[1] << 16 
-					| pfx_info->p[2] << 8 | pfx_info->p[3]);
+					| pfx_info->p[2] << 8 
+					| pfx_info->p[3]);
 		addr.addr2 = hton32(pfx_info->p[4] << 24 
 					| pfx_info->p[5] << 16 
 					| pfx_info->p[6] << 8 

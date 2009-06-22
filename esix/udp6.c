@@ -28,7 +28,7 @@
 
 #include "udp6.h"
 
-void esix_udp_parse(void *payload)
+void esix_udp_parse(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 {
-	
+	return;
 }
