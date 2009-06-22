@@ -273,12 +273,12 @@ int esix_intf_get_address_index(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 	{
 		//check if we already stored this address
 		if((addrs[j] != NULL) &&
-			(addrs[j]->scope	== scope) &&
-			(addrs[j]->addr.addr1	== addr->addr1) &&
-			(addrs[j]->addr.addr2	== addr->addr2) &&
-			(addrs[j]->addr.addr3	== addr->addr3) &&
-			(addrs[j]->addr.addr4	== addr->addr4) &&
-			(addrs[j]->mask		== masklen ))
+			((addrs[j]->scope	== scope) || (scope == ANY_SCOPE)) &&
+			(addrs[j]->addr.addr1 == addr->addr1) &&
+			(addrs[j]->addr.addr2 == addr->addr2) &&
+			(addrs[j]->addr.addr3 == addr->addr3) &&
+			(addrs[j]->addr.addr4 == addr->addr4) &&
+			((addrs[j]->mask == masklen) || (masklen == ANY_MASK)))
 		{
 			return j;
 		}

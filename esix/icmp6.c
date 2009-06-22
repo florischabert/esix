@@ -129,8 +129,7 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 	if(i < 0) // the neighbor isn't in the cache, we add it
 		esix_intf_add_neighbor(&hdr->saddr, ((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 0, INTERFACE);
 		
-	// FIXME: only link local
-	i = esix_intf_get_address_index(&nb_sol->target_addr, LINK_LOCAL_SCOPE, 0x80);	
+	i = esix_intf_get_address_index(&nb_sol->target_addr, ANY_SCOPE, ANY_MASK);	
 	if(i >= 0) // we're solicited, we now send an advertisement
 		esix_icmp_send_neighbor_adv(&nb_sol->target_addr, &hdr->saddr, 1);
 }
