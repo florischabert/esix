@@ -32,6 +32,8 @@
 	#include "include/esix.h"
 	#include "ip6.h"
 	#include "intf.h"
+	#include "tcp6.h"
+	#include "udp6.h"
 	
 	//list of ICMPv6 types
 	#define DST_UNR	0x01	//Destination Unreachable

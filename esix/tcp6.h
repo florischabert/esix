@@ -28,7 +28,21 @@
 
 #ifndef _TCP6_H
 #define _TCP6_H
+	#include "ip6.h"
 
-void esix_tcp_parse(void *payload);
+	struct tcp_hdr
+	{
+		u16_t 	s_port;	
+		u16_t 	d_port;	
+		u32_t	seq;
+		u32_t	ack;
+		u8_t	data_offset;
+		u8_t	flags;
+		u16_t	w_size;
+		u16_t	checksum;
+		u16_t	urg_pointer;
+	} __attribute__((__packed__));
+
+	void esix_tcp_parse(struct tcp_hdr*, int, struct ip6_hdr*);
 
 #endif
