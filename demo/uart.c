@@ -69,6 +69,7 @@ void uart_init(void)
 	NVIC->ISER[0] |= (1 << 5); // Unmask UART0 interrupt
 	
 	vSemaphoreCreateBinary(uart_send_sem);
+	xSemaphoreTake(uart_send_sem, portMAX_DELAY);
 	uart_send_queue = xQueueCreate(256, sizeof(char));
 	xTaskCreate(uart_send_task, (signed char *) "uart send task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
 }

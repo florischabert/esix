@@ -61,7 +61,7 @@ void main(void)
 
 void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed portCHAR *pcTaskName)
 {
-	//if(*pcTaskName == 'b')
+	//if(*pcTaskName == 'name')
 		GPIOF->DATA[1] = 1;
 }
 
@@ -75,7 +75,7 @@ void led_task(void *param)
 	{
 	//	uart_printf("task stack %x\n", uxTaskGetStackHighWaterMark(NULL));
 		uart_printf("alloc count: %x\n", alloc_count);
-		vTaskDelay(100);
+		vTaskDelay(10000);
 	}
 }
 

@@ -79,7 +79,7 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 
 u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u8_t len)
 { // FIXME: it just doesn't work
-	u16_t i, *hw = data;
+	u16_t *hw = data;
 	u16_t sum = 0;
 	
 	// IPv6 pseudo-header byte sum: IP addresses, payload len, next header = 58
@@ -123,7 +123,7 @@ void esix_icmp_send_router_sol(int intf_index)
 void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, struct ip6_hdr *hdr)
 {
 	int i;
-		
+
 	// FIXME: i can't do that
 	i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE);
 	if(i < 0) // the neighbor isn't in the cache, we add it

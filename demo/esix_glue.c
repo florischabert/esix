@@ -27,13 +27,13 @@
  */
 
 #include <FreeRTOS.h>
+#include "task.h"
+#include "queue.h"
 #include "types.h"
 #include <esix.h>
 #include "mmap.h"
 #include "uart.h"
 #include "ethernet.h"
-
-#define HTON16(v) (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff))
 
 int alloc_count;
 
@@ -54,21 +54,21 @@ u32_t esix_w_get_time(void)
 	return 0;
 }
 
+#define HTON16(v) (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff))
+
 void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 {
-	int i;
-	eth_f = pvPortMalloc(sizeof(struct ether_frame_t) + len);
-	eth_f->FRAME_LENGTH = len;
-	eth_f->DA_1 = HTON16(lla[0]);
-	eth_f->DA_2 = HTON16(lla[1]);
-	eth_f->DA_3 = HTON16(lla[2]);
-	eth_f->SA_1 = HTON16(ETH0->MACIA0 >> 16);
-	eth_f->SA_2 = HTON16(ETH0->MACIA0);
-	eth_f->SA_3 = HTON16(ETH0->MACIA1);
-	eth_f->ETHERTYPE = HTON16(0x86dd); // IPv6 packet
-	for(i = 0; i < len; i++)
-		*(((u32_t *) (eth_f + 1)) + i) =  *(((u32_t *) packet) + i);
+	struct ether_frame_t eth_f;
+	
+	eth_f.hdr.FRAME_LENGTH = len;
+	eth_f.hdr.DA_1 = lla[0];
+	eth_f.hdr.DA_2 = lla[1];
+	eth_f.hdr.DA_3 = lla[2];
+	eth_f.hdr.SA_1 = HTON16(ETH0->MACIA0 >> 16);
+	eth_f.hdr.SA_2 = HTON16(ETH0->MACIA0);
+	eth_f.hdr.SA_3 = HTON16(ETH0->MACIA1);
+	eth_f.hdr.ETHERTYPE = HTON16(0x86dd);
+	eth_f.data = packet;
 
-	vPortFree(packet);
-	ether_send_start();
+	xQueueSend(ether_send_queue, &eth_f, 0);	
 }

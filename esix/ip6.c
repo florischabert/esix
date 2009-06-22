@@ -66,7 +66,7 @@ void esix_ip_process(void *packet, int len)
 			break;
 		}
 	}
-
+	
 	//drop the packet in case it doesn't
 	if(pkt_for_us==0)
 	{
@@ -118,7 +118,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	hdr->daddr = *daddr;
 	esix_memcpy(hdr + 1, data, len);
 	esix_w_free(data);
-	
+
 	// do we know the destination lla ?
 	i = esix_intf_get_neighbor_index(daddr, INTERFACE);
 	if(i >= 0)

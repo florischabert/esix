@@ -30,6 +30,7 @@
 #define _ETHERNET_H
 	#include "types.h"
 	#include <FreeRTOS.h>
+	#include <queue.h>
 
 	#define MAX_FRAME_SIZE 380 //380 * 4 bytes = 1520 bytes
 	
@@ -46,12 +47,15 @@
 	void ether_frame_received(void);
 	void ether_mii_request(u32_t, u32_t*, int);
 	void ether_get_mac_addr(u16_t *);
-	void ether_send_start(void);
-
+	void ether_send(u16_t dlla1, u16_t dlla2, u16_t dlla3, u16_t type, void *data, int len);
+	
+	// Send queue (takes struct ether_frame_t)
+	xQueueHandle ether_send_queue;
+	
 	/**
 	 * Ethernet frame (FCS is hardware generated/appended) 
 	 */
-	struct ether_frame_t {
+	struct ether_hdr_t {
 		u16_t FRAME_LENGTH; //this field is added by the eth controller
 		u16_t DA_1;
 		u16_t DA_2;
@@ -62,8 +66,11 @@
 		u16_t ETHERTYPE;
 	} __attribute__((__packed__));
 	
-	struct ether_frame_t *eth_f;
-
+	struct ether_frame_t {
+		struct ether_hdr_t hdr;
+		u32_t *data;
+	} __attribute__((__packed__));
+	
 	#define MII_READ  1
 	#define MII_WRITE 0
 

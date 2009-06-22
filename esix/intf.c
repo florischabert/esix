@@ -242,7 +242,7 @@ int esix_intf_add_route_row(struct esix_route_table_row *row)
  */
 int esix_intf_get_neighbor_index(struct ip6_addr *addr, u8_t interface)
 {
-	int j, i = 0;
+	int i = 0;
 
 	//try to look up this neighbor in the table
 	//to find if it already exists and only needs an update

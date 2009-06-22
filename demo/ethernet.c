@@ -36,11 +36,11 @@
 
 // Mutexes
 static xSemaphoreHandle ether_receive_sem;
-static xSemaphoreHandle ether_send_sem;
 
 // Prototypes
 void ether_receive_task(void *param);
 void ether_send_task(void *param);
+void ip_process_task(struct ether_hdr_t *eth_f);
 
 /**
  * ether_init : configures the ethernet hardware found in lm3s6965 
@@ -56,7 +56,7 @@ void ether_init(u16_t lla[3])
 	//set the MAC Management frequency (must be <2.5MHz,
 	//Fmfq = Fcpu/(2*(MACDVR+1)) )
 	//still dunno at what speed we're running. 50MHz now?
-	ETH0->MACMDV	= 0x0000000a;
+	ETH0->MACMDV	= 0x00000009;
 
 	//program a MAC address (we should be reading this from somewhere...)
 	ETH0->MACIA0	= (lla[0] << 16) | lla[1];	//4 first MAC address bytes
@@ -86,10 +86,9 @@ void ether_init(u16_t lla[3])
 
 	vSemaphoreCreateBinary(ether_receive_sem);
 	xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
-	xTaskCreate(ether_receive_task, (signed char *) "eth reeive", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
-	vSemaphoreCreateBinary(ether_send_sem);
-	xSemaphoreTake(ether_send_sem, portMAX_DELAY);
-	xTaskCreate(ether_send_task, (signed char *) "eth send", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	ether_send_queue = xQueueCreate(3, sizeof(struct ether_frame_t));
+	xTaskCreate(ether_receive_task, (signed char *) "eth receive", 100, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(ether_send_task, (signed char *) "eth send", 100, NULL, tskIDLE_PRIORITY + 1, NULL);
 }
 
 /**
@@ -147,7 +146,6 @@ void ether_handler()
 	if(int_val&RXINT)
 	{
 		xSemaphoreGiveFromISR(ether_receive_sem, &resched_needed);
-		//ETH0->MACRIS |= 0x1;
 		ETH0->MACIM	&= ~0x1;
 	}
 	if(int_val&TXEMP)
@@ -173,10 +171,10 @@ void ether_handler()
  */
 void ether_receive_task(void *param)
 {
-	static int in_frame[380]; //380 * 4bytes = 1520bytes
 	int i;
-	int words_to_read;
-	struct ether_frame_t *eth_f = (struct ether_frame_t *) in_frame;
+	int len;
+	u32_t tmp;
+	u32_t *eth_buf;
 	
 	while(1)
 	{
@@ -185,57 +183,76 @@ void ether_receive_task(void *param)
 		xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
 
 		//read the first 4 bytes to get the frame length
-		in_frame[0]	= ETH0->MACDATA;
-		//convert the frame length (in bytes) to words (4 bytes)
-		words_to_read	= (eth_f->FRAME_LENGTH/4);
+		tmp = ETH0->MACDATA;
+		len = (tmp & 0xffff) - 20;
+		
+		// allocate memory for the frame
+ 		eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len);
 
-		//we've read the first 4 bytes, now read FRAME_LENGTH/4 more words
-		i=1;
-		while((words_to_read-- > 0) 
-			&& (i < MAX_FRAME_SIZE))
-				in_frame[i++] = ETH0->MACDATA;
+		// read the header (16 bytes)
+		*eth_buf = tmp;
+		for(i = 1; i < 4; i++)
+			*(eth_buf + i) = ETH0->MACDATA;
+		
+		// read the payload
+		for(i = 0; (i < len/4) && (i < MAX_FRAME_SIZE-5); i++)
+			*(eth_buf+4+i) = ETH0->MACDATA;
 
 		//got a v6 frame, pass it to the v6 stack
-		if(eth_f->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
-			esix_ip_process((eth_f + 1), (eth_f->FRAME_LENGTH-20));
-
-		ETH0->MACIM	|= 0x1;
+		if(((struct ether_hdr_t *) eth_buf)->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
+			//esix_ip_process((eth_buf + 4), len);
+			xTaskCreate(ip_process_task, (signed char *) "ip process", 200, eth_buf, tskIDLE_PRIORITY + 1, NULL);
+			
+		// read checksum
+		tmp = ETH0->MACDATA;
+		
+		// is the RX FIFO empty ?
+		if(ETH0->MACRIS & 0x1)
+			xSemaphoreGive(ether_receive_sem);
+		else
+			ETH0->MACIM	|= 0x1;
 	}
 }
 
+void ip_process_task(struct ether_hdr_t *eth_f)
+{
+	// we give the packet to the lib.	
+	esix_ip_process((eth_f + 1), (eth_f->FRAME_LENGTH-20));
+	// packet processed, this task is no longer needed.
+	esix_w_free(eth_f);
+	vTaskDelete(NULL);
+}
+
+/*
+ * Send an ethernet frame.
+ */
 void ether_send_task(void *param)
 {
 	int i;
-	int words_to_write;
+	int len4;
+	struct ether_frame_t eth_f;
 	
-	while(1)
+	while(1)	
 	{
-		//wait for the frame to be fully buffered
-		//while(!ETH0->MACNP);
-		xSemaphoreTake(ether_send_sem, portMAX_DELAY);
+		xQueueReceive(ether_send_queue, &eth_f, portMAX_DELAY);
+
+		len4 = eth_f.hdr.FRAME_LENGTH/4;
 
 		//send the header
-		for(i = 0; i < 4; i ++)
-			ETH0->MACDATA = *(((u32_t *)eth_f)+i);
-		//convert the frame length (in bytes) to words (4 bytes)
-		words_to_write	= eth_f->FRAME_LENGTH/4;
+		for(i = 0; i < 4; i++)
+			ETH0->MACDATA = *(((u32_t *) &eth_f.hdr) + i);			
 
-		//we've write the ethernet header, now the data
-		for(i = 0; (words_to_write-- > 0) && (i < MAX_FRAME_SIZE-1); i++) 
-				ETH0->MACDATA = *(((u32_t *) (eth_f + 1)) + i);			
-				
+		//now we send the data
+		for(i = 0; (i < len4) && (i < MAX_FRAME_SIZE-5); i++) 
+				ETH0->MACDATA = *(eth_f.data + i);			
+	
+		//esix_w_free(packet);
+		
 		ETH0->MACTR |= 1; // now, start the transmission
-		while(ETH0->MACTR & 0x1); // waiting for the transmission to be complete
-		toggle_led();
+		while(ETH0->MACTR & 0x1); // waiting for the transmission to be complete	
 		
-		
-		vPortFree(eth_f);
+		esix_w_free(eth_f.data);
 	}
-}
-
-void ether_send_start(void)
-{
-	xSemaphoreGive(ether_send_sem);
 }
 
 void ether_txfifo_empty()

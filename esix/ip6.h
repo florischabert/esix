@@ -61,7 +61,7 @@
 	 * IPv6 header 
 	 */
 	struct ip6_hdr {
-		u32_t 	ver_tc_flowlabel; //version (4bits), trafic class (8 bits), flow label (20 bytes)
+		u32_t 	ver_tc_flowlabel; //version (4bits), trafic class (8 bits), flow label (20 bytes)		
 		u16_t 	payload_len;	//payload length (next headers + upper protocols)
 		u8_t  	next_header;	//next header type
 		u8_t  	hlimit; 	//hop limit
