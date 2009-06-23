@@ -163,16 +163,13 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 }
 
 /*
- * Process an ICMPv6 Echo Request.
+ * Process an ICMPv6 Echo Request and send an echo reply.
  */
-void esix_icmp_process_echo_req(struct icmp6_echo *echo_rq, int length, struct ip6_hdr *ip_hdr)
+void esix_icmp_process_echo_req(struct icmp6_echo *echo_req, int len, struct ip6_hdr *ip_hdr)
 {
-	u8_t len = ntoh16(ip_hdr->payload_len);
-	//uart_printf("ethernet stack %x\n", uxTaskGetStackHighWaterMark(NULL));
-	//uart_puts("echo rq received\n");
 	struct icmp6_echo *echo_rep = esix_w_malloc(len);
 	//copying the whole packet and sending it back to it's source should do the trick.
-	esix_memcpy(echo_rq, echo_rep, len);
+	esix_memcpy(echo_rep, echo_req, len);
 
 	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, ECHO_RP, 0, echo_rep, len);
 }

@@ -62,9 +62,9 @@ void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 	eth_f.hdr.DA_1 = (lla[0]);
 	eth_f.hdr.DA_2 = (lla[1]);
 	eth_f.hdr.DA_3 = (lla[2]);
-	eth_f.hdr.SA_1 = HTON16(ETH0->MACIA0 >> 16);
-	eth_f.hdr.SA_2 = HTON16(ETH0->MACIA0);
-	eth_f.hdr.SA_3 = HTON16(ETH0->MACIA1);
+	eth_f.hdr.SA_1 = ETH0->MACIA0;
+	eth_f.hdr.SA_2 = (ETH0->MACIA0 >> 16);
+	eth_f.hdr.SA_3 = ETH0->MACIA1;
 	eth_f.hdr.ETHERTYPE = HTON16(0x86dd);
 	eth_f.data = packet;
 
