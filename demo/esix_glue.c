@@ -61,9 +61,9 @@ void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 	struct ether_frame_t eth_f;
 	
 	eth_f.hdr.FRAME_LENGTH = len;
-	eth_f.hdr.DA_1 = lla[0];
-	eth_f.hdr.DA_2 = lla[1];
-	eth_f.hdr.DA_3 = lla[2];
+	eth_f.hdr.DA_1 = (lla[0]);
+	eth_f.hdr.DA_2 = (lla[1]);
+	eth_f.hdr.DA_3 = (lla[2]);
 	eth_f.hdr.SA_1 = HTON16(ETH0->MACIA0 >> 16);
 	eth_f.hdr.SA_2 = HTON16(ETH0->MACIA0);
 	eth_f.hdr.SA_3 = HTON16(ETH0->MACIA1);
