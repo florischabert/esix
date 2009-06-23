@@ -137,9 +137,10 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 			esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
 		else
 		{
+			
 			// we have to send a neighbor solicitation
 			uart_printf("packet ready to be sent, but don't now the lla\n");
-			esix_icmp_send_neighbor_sol(saddr, daddr);
+			esix_icmp_send_neighbor_sol(&addrs[0]->addr, daddr);
 		}
 	}	
 

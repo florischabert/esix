@@ -43,10 +43,13 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
-			toggle_led();
+			//toggle_led();
 			esix_icmp_process_neighbor_sol(
 				(struct icmp6_neighbor_sol *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
+		case NBR_ADV:
+			esix_icmp_process_neighbor_adv(
+				(struct icmp6_neighbor_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
 		case RTR_ADV:
 			esix_icmp_process_router_adv(
 				(struct icmp6_router_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
@@ -162,6 +165,26 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 }
 
 /*
+ * Process a neighbor advertisement
+ */
+void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, struct ip6_hdr *ip_hdr)
+{
+	toggle_led();
+	int i;
+
+	//we shouldn't trust anyone sending an advertisement from anything else than a link local address
+	if(ntoh32(ip_hdr->saddr.addr1) != 0xfe800000)
+		return;
+
+	// FIXME: should be added in REACHABLE 
+	i = esix_intf_get_neighbor_index(&ip_hdr->saddr, INTERFACE);
+	if(i < 0) // the neighbor isn't in the cache, add it
+		esix_intf_add_neighbor(&nb_adv->target_addr, 
+			((struct icmp6_opt_lla *) (nb_adv + 1))->lla, 0, INTERFACE);
+}
+
+
+/*
  * Process an ICMPv6 Echo Request and send an echo reply.
  */
 void esix_icmp_process_echo_req(struct icmp6_echo *echo_req, int len, struct ip6_hdr *ip_hdr)
@@ -210,7 +233,7 @@ void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
 	mcast_dst.addr1	= hton32(0xff020000);
 	mcast_dst.addr2	= hton32(0x00000000);
 	mcast_dst.addr3	= hton32(0x00000001);
-	mcast_dst.addr4	= hton32(0xff | (ntoh32(daddr->addr4) & 0x00ffffff));
+	mcast_dst.addr4	= hton32(0xff << 24 | (ntoh32(daddr->addr4) & 0x00ffffff));
 	
 	opt->type = 2; // Target Link-Layer Address
 	opt->len8 = 1; // length: 1x8 bytes
@@ -218,7 +241,11 @@ void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
 	opt->lla[1] = neighbors[0]->lla[1];
 	opt->lla[2] = neighbors[0]->lla[2];
 
-	esix_icmp_send(saddr, daddr, 255, NBR_SOL, 0, nb_sol, len);
+	//do we know it already? then send an unicast sollicitation
+	if( esix_intf_get_neighbor_index(saddr, INTERFACE) > 0)
+		esix_icmp_send(saddr, daddr, 255, NBR_SOL, 0, nb_sol, len);
+	else 
+		esix_icmp_send(saddr, &mcast_dst, 255, NBR_SOL, 0, nb_sol, len);
 }
 
 /**

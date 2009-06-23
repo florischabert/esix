@@ -187,10 +187,11 @@ void ether_receive_task(void *param)
 			*((u32_t*) &hdr + i) = ETH0->MACDATA;
 
 		len =	hdr.FRAME_LENGTH - 20;
-		if(hdr.ETHERTYPE == 0xdd86)
+		if(hdr.ETHERTYPE == 0xdd86 && len < 1550)
 		{
 			// allocate memory for the frame
  			eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len);
+
 			// read the payload
 			for(i = 0; (i < len/4) && (i < MAX_FRAME_SIZE-5); i++)
 				*(eth_buf+4+i) = ETH0->MACDATA;
@@ -200,8 +201,13 @@ void ether_receive_task(void *param)
 			esix_w_free(eth_buf);
 		}
 		else
+		{
+			i=0;
 			while(i++ < len)
 				(u32_t) ETH0->MACDATA;
+		}
+
+		toggle_led();
 
 		// read checksum
 		(u32_t) ETH0->MACDATA;
