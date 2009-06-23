@@ -89,8 +89,8 @@ void ether_init(u16_t lla[3])
 	vSemaphoreCreateBinary(ether_receive_sem);
 	xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
 	ether_send_queue = xQueueCreate(3, sizeof(struct ether_frame_t));
-	xTaskCreate(ether_receive_task, (signed char *) "eth receive", 100, NULL, tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(ether_send_task, (signed char *) "eth send", 100, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(ether_receive_task, (signed char *) "eth receive", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(ether_send_task, (signed char *) "eth send", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 }
 
 /**
@@ -175,40 +175,36 @@ void ether_receive_task(void *param)
 {
 	int i;
 	int len;
-	u32_t tmp;
 	u32_t *eth_buf;
+	struct ether_hdr_t hdr;
 	
 	while(1)
 	{
-		//wait for the frame to be fully buffered
-		//while(!ETH0->MACNP);
 		xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
-		uart_printf("PACKEZT\n");
-
-		//read the first 4 bytes to get the frame length
-		tmp = ETH0->MACDATA;
-		len = (tmp & 0xffff) - 20;
-		
-		// allocate memory for the frame
- 		eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len);
 
 		// read the header (16 bytes)
-		*eth_buf = tmp;
 		for(i = 1; i < 4; i++)
-			*(eth_buf + i) = ETH0->MACDATA;
-		
-		// read the payload
-		for(i = 0; (i < len/4) && (i < MAX_FRAME_SIZE-5); i++)
-			*(eth_buf+4+i) = ETH0->MACDATA;
+			*((u32_t*) &hdr + i) = ETH0->MACDATA;
 
-		//got a v6 frame, pass it to the v6 stack
-		if(((struct ether_hdr_t *) eth_buf)->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
+		len =	hdr.FRAME_LENGTH - 20;
+		if(hdr.ETHERTYPE == 0xdd86)
+		{
+			// allocate memory for the frame
+ 			eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len);
+			// read the payload
+			for(i = 0; (i < len/4) && (i < MAX_FRAME_SIZE-5); i++)
+				*(eth_buf+4+i) = ETH0->MACDATA;
+			//got a v6 frame, pass it to the v6 stack
 			esix_ip_process((eth_buf + 4), len);
-		
-		esix_w_free(eth_buf);
 			
+			esix_w_free(eth_buf);
+		}
+		else
+			while(i++ < len)
+				(u32_t) ETH0->MACDATA;
+
 		// read checksum
-		tmp = ETH0->MACDATA;
+		(u32_t) ETH0->MACDATA;
 		
 		// is the RX FIFO empty ?
 		if(ETH0->MACRIS & 0x1)

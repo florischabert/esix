@@ -52,7 +52,6 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 				(struct icmp6_router_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case ECHO_RQ: 
-			toggle_led();
 			esix_icmp_process_echo_req(
 				(struct icmp6_echo *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
@@ -64,7 +63,7 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 /*
  * Send an ICMPv6 packet
  */
-void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u8_t len)
+void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len)
 {
 	struct icmp6_hdr *hdr = esix_w_malloc(sizeof(struct icmp6_hdr) + len);
 	
@@ -79,7 +78,7 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + sizeof(struct icmp6_hdr));
 }
 
-u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u8_t len)
+u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u16_t len)
 {
 	u32_t sum = 0;
 	u64_t sum64 = 0;
@@ -133,7 +132,7 @@ void esix_icmp_send_router_sol(int intf_index)
 	dest.addr3	= hton32(0x00000000);
 	dest.addr4	= hton32(0x00000002);
 	
-	u8_t len = sizeof(struct icmp6_router_sol) + sizeof(struct icmp6_opt_lla);
+	u16_t len = sizeof(struct icmp6_router_sol) + sizeof(struct icmp6_opt_lla);
 	struct icmp6_router_sol *ra_sol = esix_w_malloc(len);
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (ra_sol + 1);
 
@@ -179,7 +178,7 @@ void esix_icmp_process_echo_req(struct icmp6_echo *echo_req, int len, struct ip6
  */
 void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr, int is_solicited)
 {
-	u8_t len = sizeof(struct icmp6_neighbor_adv) + sizeof(struct icmp6_opt_lla);
+	u16_t len = sizeof(struct icmp6_neighbor_adv) + sizeof(struct icmp6_opt_lla);
 	struct icmp6_neighbor_adv *nb_adv = esix_w_malloc(len);
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_adv + 1);
 	
@@ -200,7 +199,7 @@ void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr,
  */
 void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
 {
-	u8_t len = sizeof(struct icmp6_neighbor_sol) + sizeof(struct icmp6_opt_lla);
+	u16_t len = sizeof(struct icmp6_neighbor_sol) + sizeof(struct icmp6_opt_lla);
 	struct icmp6_neighbor_sol *nb_sol = esix_w_malloc(len);
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_sol + 1);
 	struct ip6_addr	mcast_dst;
