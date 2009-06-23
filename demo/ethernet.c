@@ -200,6 +200,8 @@ void ether_receive_task(void *param)
 		//got a v6 frame, pass it to the v6 stack
 		if(((struct ether_hdr_t *) eth_buf)->ETHERTYPE == 0xdd86) // we are litle endian. In network order (big endian), it reads 0x86dd
 			esix_ip_process((eth_buf + 4), len);
+		
+		esix_w_free(eth_buf);
 			
 		// read checksum
 		tmp = ETH0->MACDATA;

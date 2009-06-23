@@ -36,7 +36,8 @@
 
 #define INTERFACE	0 //default interface # until we have a proper intf
 				//management system.
-
+				
+typedef unsigned long long u64_t;
 typedef unsigned int u32_t;
 typedef unsigned short u16_t;
 typedef unsigned char u8_t; 

@@ -74,7 +74,6 @@ void led_task(void *param)
 	while(1)
 	{
 	//	uart_printf("task stack %x\n", uxTaskGetStackHighWaterMark(NULL));
-		uart_printf("alloc count: %x\n", alloc_count);
 		vTaskDelay(10000);
 	}
 }

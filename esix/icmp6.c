@@ -72,35 +72,44 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 	esix_memcpy(hdr + 1, data, len);
 	esix_w_free(data);	
 	
-	hdr->chksum = hton16(esix_icmp_compute_checksum(saddr, daddr, hdr, len + sizeof(struct icmp6_hdr)));
+	hdr->chksum = esix_icmp_compute_checksum(saddr, daddr, hdr, len + sizeof(struct icmp6_hdr));
 	
 	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + sizeof(struct icmp6_hdr));
 }
 
 u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u8_t len)
-{ // FIXME: it just doesn't work
-	u16_t *hw = data;
-	u16_t sum = 0;
+{
+	u32_t sum = 0;
+	u64_t sum64 = 0;
+	u16_t *payload = data;
 	
-	// IPv6 pseudo-header byte sum: IP addresses, payload len, next header = 58
-	/*for(i = 0; i < 8; i++)
-	{
-		sum += *(((u16_t *) saddr)+i);
-		sum += *(((u16_t *) daddr)+i);
-	}*/
-	sum += len;
-	sum += 58;
+	// IPv6 pseudo-header sum : saddr, daddr, type and payload lenght`
+	sum64 += saddr->addr1;
+	sum64 += saddr->addr2;
+	sum64 += saddr->addr3;
+	sum64 += saddr->addr4;
+	sum64 += daddr->addr1;
+	sum64 += daddr->addr2;
+	sum64 += daddr->addr3;
+	sum64 += daddr->addr4;
+	sum64 += hton32(58);
+	sum64 += hton32(len);
 	
-	// ICMP message byte sum
+	while(sum64 >> 32)
+		sum64 = (sum64 >> 32) + (sum64 & 0xffffffff);
+	
+	sum += sum64;
+	
+	// payload sum
 	for(; len; len -= 2)
-		sum += *hw++;
-	
+		sum += *payload++;
+
 	while(sum >> 16)
 		sum = (sum >> 16) + (sum & 0xffff);
-	
-	return 0x312c;
+		
 	return ~sum;
 }
+
 
 /**
  * Sends a TTL expired message back to its source.
@@ -225,7 +234,6 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 			break; 	
 		}
 	}
-
 	//now add the routes (we needed the MTU value first)
 
 	//default route
