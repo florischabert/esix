@@ -43,6 +43,7 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
+			toggle_led();
 			esix_icmp_process_neighbor_sol(
 				(struct icmp6_neighbor_sol *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
@@ -51,8 +52,9 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 				(struct icmp6_router_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case ECHO_RQ: 
+			toggle_led();
 			esix_icmp_process_echo_req(
-				(struct icmp6_echo_req *) (icmp_hdr + 1), length - 4, ip_hdr);
+				(struct icmp6_echo *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		default:
 			uart_printf("Unknown ICMP packet, type: %x\n", icmp_hdr->type);
@@ -150,7 +152,7 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 {
 	int i;
 
-	// FIXME: i can't do that
+	// FIXME: we should be adding it in STALE state
 	i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE);
 	if(i < 0) // the neighbor isn't in the cache, we add it
 		esix_intf_add_neighbor(&hdr->saddr, ((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 0, INTERFACE);
@@ -163,10 +165,16 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 /*
  * Process an ICMPv6 Echo Request.
  */
-void esix_icmp_process_echo_req(struct icmp6_echo_req *echo_rq, int length, struct ip6_hdr *ip_hdr)
+void esix_icmp_process_echo_req(struct icmp6_echo *echo_rq, int length, struct ip6_hdr *ip_hdr)
 {
-	uart_printf("ethernet stack %x\n", uxTaskGetStackHighWaterMark(NULL));
-	uart_puts("echo rq received\n");
+	u8_t len = ntoh16(ip_hdr->payload_len);
+	//uart_printf("ethernet stack %x\n", uxTaskGetStackHighWaterMark(NULL));
+	//uart_puts("echo rq received\n");
+	struct icmp6_echo *echo_rep = esix_w_malloc(len);
+	//copying the whole packet and sending it back to it's source should do the trick.
+	esix_memcpy(echo_rq, echo_rep, len);
+
+	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, ECHO_RP, 0, echo_rep, len);
 }
 
 /*
@@ -188,6 +196,33 @@ void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr,
 	opt->lla[2] = hton16(neighbors[0]->lla[2]);
 
 	esix_icmp_send(saddr, daddr, 255, NBR_ADV, 0, nb_adv, len);
+}
+
+/*
+ * Send a neighbor sollicitation.
+ */
+void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
+{
+	u8_t len = sizeof(struct icmp6_neighbor_sol) + sizeof(struct icmp6_opt_lla);
+	struct icmp6_neighbor_sol *nb_sol = esix_w_malloc(len);
+	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_sol + 1);
+	struct ip6_addr	mcast_dst;
+	
+	nb_sol->target_addr = *daddr;
+
+	//build the ipv6 multicast dest address
+	mcast_dst.addr1	= hton32(0xff020000);
+	mcast_dst.addr2	= hton32(0x00000000);
+	mcast_dst.addr3	= hton32(0x00000001);
+	mcast_dst.addr4	= hton32(0xff | (ntoh32(daddr->addr4) & 0x00ffffff));
+	
+	opt->type = 2; // Target Link-Layer Address
+	opt->len8 = 1; // length: 1x8 bytes
+	opt->lla[0] = neighbors[0]->lla[0];
+	opt->lla[1] = neighbors[0]->lla[1];
+	opt->lla[2] = neighbors[0]->lla[2];
+
+	esix_icmp_send(saddr, daddr, 255, NBR_SOL, 0, nb_sol, len);
 }
 
 /**
@@ -286,34 +321,35 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		//builds a new global scope address
 		//not endian-safe for now, words in the prefix field
 		//are not aligned when received
-		addr.addr1 = hton32(pfx_info->p[0] << 24
-					| pfx_info->p[1] << 16 
-					| pfx_info->p[2] << 8 
+		addr.addr1 = 	hton32(	pfx_info->p[0] << 24
+					| pfx_info->p[1] << 16
+					| pfx_info->p[2] << 8
 					| pfx_info->p[3]);
 
-		addr.addr2 = hton32(pfx_info->p[4] << 24 
-					| pfx_info->p[5] << 16 
-					| pfx_info->p[6] << 8 
+		addr.addr2 = 	hton32(	pfx_info->p[4] << 24
+					| pfx_info->p[5] << 16
+					| pfx_info->p[6] << 8
 					| pfx_info->p[7]); // FIXME: mac adress in the table ?
 
-		addr.addr3 = hton32(((neighbors[0]->lla[0] << 16) & 0xff0000)
-			| (neighbors[0]->lla[1] & 0xff00)
-			| 0x020000ff); //stateless autoconf, 0x02 : universal bit
+		addr.addr3 = 	hton32(	(ntoh16(neighbors[0]->lla[0]) << 16 & 0xff0000)
+					| (ntoh16(neighbors[0]->lla[1]) & 0xff00)
+					| (0x020000ff) ); //stateless autoconf, 0x02 : universal bit
 
-		addr.addr4 = hton32((0xfe000000) //0xfe here is OK
-			| ((neighbors[0]->lla[1] << 16) & 0xff0000) 
-			| neighbors[0]->lla[2]);
+		addr.addr4 = 	hton32(	(0xfe000000) //0xfe here is OK
+			 		| (ntoh16(neighbors[0]->lla[1]) << 16 & 0xff0000) 
+			 		| (ntoh16(neighbors[0]->lla[2])) );
 
 		esix_intf_add_address(&addr,
 				0x40,				// /64
 				esix_w_get_time() + pfx_info->valid_lifetime, //expiration date
 				GLOBAL_SCOPE);
 
-		addr.addr1 = hton32(pfx_info->p[0] << 24	//prefix 
+		addr.addr1 = 	hton32(	pfx_info->p[0] << 24	//prefix 
 					 | pfx_info->p[1] << 16 
 					 | pfx_info->p[2] << 8
 					 | pfx_info->p[3]);
-		addr.addr2 = 			hton32(pfx_info->p[4] << 24 	//prefix
+
+		addr.addr2 = 	hton32(	pfx_info->p[4] << 24 	//prefix
 					 | pfx_info->p[5] << 16 
 					 | pfx_info->p[6] << 8
 					 | pfx_info->p[7]);

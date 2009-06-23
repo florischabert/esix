@@ -57,26 +57,29 @@ void esix_intf_add_default_addresses(void)
 	//from the MAC address given by the L2 layer.
 	
 	//unicast link local
-	addr.addr1 = hton32(0xfe800000); //0xfe80 
-	addr.addr2 = hton32(0x00000000);
-	addr.addr3 = hton32(((neighbors[0]->lla[0] << 16) & 0xff0000)
-		| (neighbors[0]->lla[1] & 0xff00)
-		| 0x020000ff); //stateless autoconf, 0x02 : universal bit
-	addr.addr4 = hton32((0xfe000000) //0xfe here is OK
-		| ((neighbors[0]->lla[1] << 16) & 0xff0000) 
-		| neighbors[0]->lla[2]);
+	addr.addr1 = 	hton32(0xfe800000); //0xfe80 
+	addr.addr2 = 	hton32(0x00000000);
+	addr.addr3 = 	hton32(	(ntoh16(neighbors[0]->lla[0]) << 16 & 0xff0000)
+				| (ntoh16(neighbors[0]->lla[1]) & 0xff00)
+				| 0x020000ff ); //stateless autoconf, 0x02 : universal bit
+
+	addr.addr4 = 	hton32(	(0xfe000000) //0xfe here is OK
+				| (ntoh16(neighbors[0]->lla[1])<< 16 & 0xff0000)
+				| (ntoh16(neighbors[0]->lla[2])) );
+
 	esix_intf_add_address(&addr,
 			0x80,			// /128
 			0x0,			//this one never expires
 			LINK_LOCAL_SCOPE);
 
 	//multicast solicited-node address (for neighbor discovery)
-	addr.addr1 = hton32(0xff020000); 	//0xff02 
-	addr.addr2 = 0;
-	addr.addr3 = hton32(1);
-	addr.addr4 = hton32((0xff000000)
-		| ((neighbors[0]->lla[1] << 16) & 0xff0000) 
-		| neighbors[0]->lla[2]);
+	addr.addr1 = 	hton32(0xff020000); 	//0xff02 
+	addr.addr2 = 	0;
+	addr.addr3 = 	hton32(1);
+	addr.addr4 = 	hton32(	(0xff000000)
+				| (ntoh16(neighbors[0]->lla[1]) << 16 & 0xff0000)
+				| (ntoh16(neighbors[0]->lla[2])) );
+
 	esix_intf_add_address(&addr,
 			0x80,			// /128
 			0x0,			//this one never expires
@@ -84,10 +87,10 @@ void esix_intf_add_default_addresses(void)
 
 
 	//multicast all-nodes (for router advertisements)
-	addr.addr1 = hton32(0xff020000); 	//ff02::1 
-	addr.addr2 = 0;
-	addr.addr3 = 0;
-	addr.addr4 = hton32(1);
+	addr.addr1 = 	hton32(0xff020000); 	//ff02::1 
+	addr.addr2 = 	0;
+	addr.addr3 = 	0;
+	addr.addr4 = 	hton32(1);
 	esix_intf_add_address(&addr,
 			0x80, 			// /128
 			0x0,			//this one never expires

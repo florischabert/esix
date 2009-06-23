@@ -98,7 +98,7 @@ void esix_ip_process(void *packet, int len)
 
 		//unknown (unimplemented) IP type
 		default:
-			uart_printf("unknown packet received, type: %x\n", hdr->next_header);
+			uart_printf("unknown packet received, next_header: %x\n", hdr->next_header);
 	}
 }
 
@@ -136,8 +136,11 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 		if(i >= 0)
 			esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
 		else
+		{
 			// we have to send a neighbor solicitation
 			uart_printf("packet ready to be sent, but don't now the lla\n");
+			esix_icmp_send_neighbor_sol(saddr, daddr);
+		}
 	}	
 
 }
