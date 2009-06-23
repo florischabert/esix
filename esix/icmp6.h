@@ -55,7 +55,7 @@
 	//list of ICMPv6 options
 	#define PRFX_INFO 	0x3
 	#define MTU		0x5
-	#define S_LLA		0x1;
+	#define S_LLA		0x1
 	
 	/**
 	 * ICMPv6 header

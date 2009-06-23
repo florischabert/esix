@@ -34,6 +34,14 @@
 #include "config.h"
 #include "include/esix.h"
 
+
+#define ND_SOLLICITED 	1
+#define ND_UNSOLLICITED 0
+#define	ND_REACHABLE	0
+#define ND_STALE	1
+#define ND_DELAY	2
+#define ND_UNREACHABLE	3
+
 /*
  * Link-layer address (48 bits).
  */
@@ -67,11 +75,17 @@ struct esix_route_table_row {
 	u8_t 	interface;	//interface index
 };
 
+struct nb_flags {
+	unsigned sollicited : 1; //1 if we sent a neighbor 
+	unsigned status	    : 3; //0 = REACHABLE, 1 = STALE, 2 = DELAY, 3 = UNREACHABLE
+};
+
 struct esix_neighbor_table_row {
 	struct ip6_addr addr;
 	esix_ll_addr lla;
 	u32_t	expiration_date;
-	u8_t interface;
+	u8_t 	interface;
+	struct nb_flags flags;
 };
 
 

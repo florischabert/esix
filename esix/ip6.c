@@ -108,6 +108,10 @@ void esix_ip_process(void *packet, int len)
 void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len)
 {
 	struct ip6_hdr *hdr = esix_w_malloc(sizeof(struct ip6_hdr) + len);
+
+	//hmmm... I smell gas...
+	if(hdr == NULL)
+		return;
 	int i;
 	esix_ll_addr lla;
 	
@@ -120,7 +124,14 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	esix_memcpy(hdr + 1, data, len);
 	esix_w_free(data);
 
-	//if we're sending it to a multicast address, we don't need to look up a lla.
+	//don't allow a multicast source address.
+	if(	(saddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
+	{
+		esix_w_free(hdr);
+		return;
+	}
+
+	//if we're sending it to a multicast address, we don't need to look up the lla.
 	if(	(daddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
 	{
 		lla[0]	=	0x3333;
@@ -133,14 +144,24 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	{
 		// do we know the destination lla ?
 		i = esix_intf_get_neighbor_index(daddr, INTERFACE);
-		if(i >= 0)
-			esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
+		if(i >= 0) 
+		{
+			//is it reachable?
+			if(neighbors[i]->flags.status == ND_REACHABLE ||
+				neighbors[i]->flags.status == ND_STALE)
+			{
+				esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
+			}
+			else
+				esix_w_free(hdr);
+		}
 		else
 		{
 			
 			// we have to send a neighbor solicitation
 			uart_printf("packet ready to be sent, but don't now the lla\n");
 			esix_icmp_send_neighbor_sol(&addrs[0]->addr, daddr);
+			esix_w_free(hdr);
 		}
 	}	
 

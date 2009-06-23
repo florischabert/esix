@@ -137,6 +137,11 @@ void esix_icmp_send_router_sol(int intf_index)
 	
 	u16_t len = sizeof(struct icmp6_router_sol) + sizeof(struct icmp6_opt_lla);
 	struct icmp6_router_sol *ra_sol = esix_w_malloc(len);
+
+	//hmm, I smell gas...
+	if(ra_sol == NULL)
+		return;
+
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (ra_sol + 1);
 
 	opt->type	= S_LLA;
@@ -156,8 +161,19 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 
 	// FIXME: we should be adding it in STALE state
 	i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE);
-	if(i < 0) // the neighbor isn't in the cache, we add it
+	if(i < 0) // the neighbor isn't in the cache, add it
+	{
 		esix_intf_add_neighbor(&hdr->saddr, ((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 0, INTERFACE);
+		//try again, to set some flags.
+		//note that even if it wasn't added (e.g. due to a full table),
+		//we still need to send an advertisement.
+		i=0;
+		if((i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE)) >0)
+		{
+			neighbors[i]->flags.sollicited	= ND_UNSOLLICITED;
+			neighbors[i]->flags.status	= ND_STALE;
+		}
+	}
 		
 	i = esix_intf_get_address_index(&nb_sol->target_addr, ANY_SCOPE, ANY_MASK);	
 	if(i >= 0) // we're solicited, we now send an advertisement
@@ -169,20 +185,39 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
  */
 void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, struct ip6_hdr *ip_hdr)
 {
-	toggle_led();
 	int i;
 
 	//we shouldn't trust anyone sending an advertisement from anything else than a link local address
-	if(ntoh32(ip_hdr->saddr.addr1) != 0xfe800000)
+	//hmmm.. actually anyone coming from outside our own subnet.
+	//TODO: implement a proper check.
+	/*if(ntoh32(ip_hdr->saddr.addr1) != 0xfe800000)
 		return;
+	*/
 
-	// FIXME: should be added in REACHABLE 
-	i = esix_intf_get_neighbor_index(&ip_hdr->saddr, INTERFACE);
+	i = esix_intf_get_neighbor_index(&nb_adv->target_addr, INTERFACE);
+
 	if(i < 0) // the neighbor isn't in the cache, add it
+	{
 		esix_intf_add_neighbor(&nb_adv->target_addr, 
 			((struct icmp6_opt_lla *) (nb_adv + 1))->lla, 0, INTERFACE);
-}
+		//now find it again to set some flags
+		i=0;
+		i = esix_intf_get_neighbor_index(&nb_adv->target_addr, INTERFACE);
+		if(i<0)
+			return;
+	}
+	else
+	{
+		//check that we actually asked for this advertisement
+		//(aka make sure nobody is messing with our cache)
+		if(neighbors[i]->flags.sollicited != ND_SOLLICITED)
+			return;
+	}
 
+	neighbors[i]->flags.sollicited	= ND_UNSOLLICITED;
+	neighbors[i]->flags.status	= ND_REACHABLE;
+	neighbors[i]->expiration_date	= esix_w_get_time() + 180;
+}
 
 /*
  * Process an ICMPv6 Echo Request and send an echo reply.
@@ -226,6 +261,7 @@ void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
 	struct icmp6_neighbor_sol *nb_sol = esix_w_malloc(len);
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_sol + 1);
 	struct ip6_addr	mcast_dst;
+	int i=0;
 	
 	nb_sol->target_addr = *daddr;
 
@@ -242,8 +278,12 @@ void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
 	opt->lla[2] = neighbors[0]->lla[2];
 
 	//do we know it already? then send an unicast sollicitation
-	if( esix_intf_get_neighbor_index(saddr, INTERFACE) > 0)
+	if( (i=esix_intf_get_neighbor_index(saddr, INTERFACE)) > 0)
+	{
+		neighbors[i]->flags.sollicited	= ND_SOLLICITED;
+		neighbors[i]->flags.status	= ND_STALE;
 		esix_icmp_send(saddr, daddr, 255, NBR_SOL, 0, nb_sol, len);
+	}
 	else 
 		esix_icmp_send(saddr, &mcast_dst, 255, NBR_SOL, 0, nb_sol, len);
 }
