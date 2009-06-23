@@ -54,8 +54,6 @@ u32_t esix_w_get_time(void)
 	return 0;
 }
 
-#define HTON16(v) (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff))
-
 void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 {
 	struct ether_frame_t eth_f;

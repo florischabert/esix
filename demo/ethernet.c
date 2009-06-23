@@ -57,9 +57,12 @@ void ether_init(u16_t lla[3])
 	//still dunno at what speed we're running. 50MHz now?
 	ETH0->MACMDV	= 0x00000009;
 
-	//program a MAC address (we should be reading this from somewhere...)
-	ETH0->MACIA0	= (lla[0] << 16) | lla[1];	//4 first MAC address bytes
-	ETH0->MACIA1	= lla[2];  //the first 2 bytes are marked as reserved
+/*
+	003a e967 c58d;
+*/
+	//program a MAC address 
+	ETH0->MACIA0 = HTON32(0x003ae967);	//4 first MAC address bytes
+	ETH0->MACIA1 = HTON16(lla[2]); //the first 2 bytes are marked as reserved
 
 	//generate FCS in hardware, do autoneg, FD.
 	ETH0->MACTCTL	|= 0x00000016;
@@ -180,6 +183,7 @@ void ether_receive_task(void *param)
 		//wait for the frame to be fully buffered
 		//while(!ETH0->MACNP);
 		xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
+		uart_printf("PACKEZT\n");
 
 		//read the first 4 bytes to get the frame length
 		tmp = ETH0->MACDATA;

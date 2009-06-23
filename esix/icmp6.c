@@ -191,9 +191,9 @@ void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr,
 	
 	opt->type = 2; // Target Link-Layer Address
 	opt->len8 = 1; // length: 1x8 bytes
-	opt->lla[0] = hton16(neighbors[0]->lla[0]);
-	opt->lla[1] = hton16(neighbors[0]->lla[1]);
-	opt->lla[2] = hton16(neighbors[0]->lla[2]);
+	opt->lla[0] = neighbors[0]->lla[0];
+	opt->lla[1] = neighbors[0]->lla[1];
+	opt->lla[2] = neighbors[0]->lla[2];
 
 	esix_icmp_send(saddr, daddr, 255, NBR_ADV, 0, nb_adv, len);
 }

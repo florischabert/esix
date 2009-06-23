@@ -34,6 +34,10 @@
 
 	#define MAX_FRAME_SIZE 380 //380 * 4 bytes = 1520 bytes
 	
+	#define HTON16(v) (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff))
+	#define HTON32(v) (((v << 24) & 0xff000000) | ((v << 8) & 0x00ff0000) \
+	       | ((v >> 8) & 0x0000ff00) | ((v >> 24) & 0x000000ff))
+	
 	void ether_init(u16_t lla[3]);
 	void ether_enable(void);
 	void ether_disable(void);

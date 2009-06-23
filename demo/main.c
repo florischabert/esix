@@ -36,11 +36,10 @@
 void hardware_init(void);
 void led_task(void *param);
 void led_task2(void *param);
-int led2h;
+
 /**
  * Main function.
  */	
-#define HTON16(v) (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff))
 void main(void)
 {
 	u16_t lla[3]; // MAC address
