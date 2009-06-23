@@ -183,7 +183,7 @@ void ether_receive_task(void *param)
 		xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
 
 		// read the header (16 bytes)
-		for(i = 1; i < 4; i++)
+		for(i = 0; i < 4; i++)
 			*((u32_t*) &hdr + i) = ETH0->MACDATA;
 
 		len =	hdr.FRAME_LENGTH - 20;
