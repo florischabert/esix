@@ -124,13 +124,6 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	esix_memcpy(hdr + 1, data, len);
 	esix_w_free(data);
 
-	//don't allow a multicast source address.
-	if(	(saddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
-	{
-		esix_w_free(hdr);
-		return;
-	}
-
 	//if we're sending it to a multicast address, we don't need to look up the lla.
 	if(	(daddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
 	{
