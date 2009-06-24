@@ -267,6 +267,22 @@ int esix_intf_get_neighbor_index(struct ip6_addr *addr, u8_t interface)
 }
 
 /*
+ * Returns any address of specified scope.
+ */
+int esix_intf_get_scope_address(u8_t scope)
+{
+	int i;
+	for(i=0; i<ESIX_MAX_IPADDR;i++)
+	{
+		if( (addrs[i] != NULL) &&
+			((addrs[i]->scope == scope) || (scope = ANY_SCOPE)) )
+			return i;
+	}
+
+	return -1;
+}
+
+/*
  * Return the address row index of the given address.
  */
 int esix_intf_get_address_index(struct ip6_addr *addr, u8_t scope, u8_t masklen)
@@ -414,3 +430,26 @@ int esix_intf_add_route(struct ip6_addr *daddr, u8_t mask, struct ip6_addr *next
 	return 0;
 } 
 
+/*
+ * esix_intf_check_source_addr : make sure that the source address isn't multicast
+ */
+int esix_intf_check_source_addr(struct ip6_addr *saddr, struct ip6_addr *daddr)
+{
+	int i = -1;
+
+	if(	(saddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
+	{
+		//try to chose an address of the correct scope to replace it.
+		if((daddr->addr1 & hton32(0xffff0000)) == hton32(0xfe800000))
+			i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
+		
+		if( (i < 0 ) && (i = esix_intf_get_scope_address(GLOBAL_SCOPE)) < 0)
+		{
+			toggle_led();
+			return -1;
+		}
+			
+			*saddr	= addrs[i]->addr; 
+	}
+	return 1;
+}

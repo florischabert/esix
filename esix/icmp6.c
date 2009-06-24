@@ -43,7 +43,6 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
-			//toggle_led();
 			esix_icmp_process_neighbor_sol(
 				(struct icmp6_neighbor_sol *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
@@ -76,6 +75,15 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 	esix_memcpy(hdr + 1, data, len);
 	esix_w_free(data);	
 	
+	//check the source address. If it's multicast, replace it.
+	//If we can't replace it (no adress available, which should never happen),
+	//abort and destroy the packet.
+	if(esix_intf_check_source_addr(saddr, daddr) < 0)
+	{
+		esix_w_free(hdr);
+		return;
+	}
+	
 	hdr->chksum = esix_icmp_compute_checksum(saddr, daddr, hdr, len + sizeof(struct icmp6_hdr));
 	
 	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + sizeof(struct icmp6_hdr));
@@ -87,7 +95,7 @@ u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr,
 	u64_t sum64 = 0;
 	u16_t *payload = data;
 	
-	// IPv6 pseudo-header sum : saddr, daddr, type and payload lenght`
+	// IPv6 pseudo-header sum : saddr, daddr, type and payload length
 	sum64 += saddr->addr1;
 	sum64 += saddr->addr2;
 	sum64 += saddr->addr3;
@@ -225,7 +233,7 @@ void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, 
 void esix_icmp_process_echo_req(struct icmp6_echo *echo_req, int len, struct ip6_hdr *ip_hdr)
 {
 	struct icmp6_echo *echo_rep = esix_w_malloc(len);
-	//copying the whole packet and sending it back to it's source should do the trick.
+	//copying the whole packet and sending it back to its source should do the trick.
 	esix_memcpy(echo_rep, echo_req, len);
 
 	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, ECHO_RP, 0, echo_rep, len);
