@@ -83,6 +83,7 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 
 u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u16_t len)
 {
+	int i;
 	u32_t sum = 0;
 	u64_t sum64 = 0;
 	u16_t *payload = data;
@@ -105,9 +106,15 @@ u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr,
 	sum += sum64;
 	
 	// payload sum
-	for(; len; len -= 2)
+	for(; len > 1; len -= 2)
 		sum += *payload++;
-
+	if(len)
+	{
+		uart_printf("hell!\n");
+		for(i = 0; i < 100000; i++) asm("nop");
+	}
+//		sum += *((u8_t *) payload);
+		
 	while(sum >> 16)
 		sum = (sum >> 16) + (sum & 0xffff);
 

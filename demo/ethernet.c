@@ -185,36 +185,36 @@ void ether_receive_task(void *param)
 		// read the header (16 bytes)
 		for(i = 0; i < 4; i++)
 			*((u32_t*) &hdr + i) = ETH0->MACDATA;
-
-		len =	hdr.FRAME_LENGTH - 20;
-		if(hdr.ETHERTYPE == 0xdd86 && len < 1550)
-		{
-			// allocate memory for the frame
- 			//eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len);
-			
-			//I know, this is kina gory, but I got some work to do :)
- 			eth_buf = esix_w_malloc(1550);
-
-			// read the payload
-			for(i = 0; (i < len/4) && (i < MAX_FRAME_SIZE-5); i++)
-				*(eth_buf+4+i) = ETH0->MACDATA;
-			//got a v6 frame, pass it to the v6 stack
-			esix_ip_process((eth_buf + 4), len);
-			
-			esix_w_free(eth_buf);
-		}
-		else
+		
+		// we process the packet only if it's not too big and if it contains IPv6
+		if((len > MAX_FRAME_SIZE) || (hdr.ETHERTYPE != 0xdd86))
 		{
 			i=0;
 			while(i++ < len)
 				(u32_t) ETH0->MACDATA;
 		}
+		else
+		{
+			len =	hdr.FRAME_LENGTH - 20;
+			
+			// allocate memory for the frame
+ 			eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len);			
 
+			// read the payload
+			for(i = 0; i < len; i += 4)
+				*(eth_buf+4+i/4) = ETH0->MACDATA;
+				
+			//got a v6 frame, pass it to the v6 stack
+			esix_ip_process((eth_buf + 4), len);
+			
+			esix_w_free(eth_buf);
+		}
+		
 		// read checksum
 		(u32_t) ETH0->MACDATA;
 		
 		// is the RX FIFO empty ?
-		if(ETH0->MACRIS & 0x1)
+		if(ETH0->MACRIS & RXINT)
 			xSemaphoreGive(ether_receive_sem);
 		else
 			ETH0->MACIM	|= 0x1;
