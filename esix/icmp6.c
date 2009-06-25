@@ -192,7 +192,6 @@ void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, 
 	neighbors[i]->expiration_date	= esix_w_get_time() + 180;
 }
 
-#include "udp6.h"
 /*
  * Process an ICMPv6 Echo Request and send an echo reply.
  */

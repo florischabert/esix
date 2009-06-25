@@ -43,6 +43,6 @@
 		u16_t	urg_pointer;
 	} __attribute__((__packed__));
 
-	void esix_tcp_process(struct tcp_hdr*, int, struct ip6_hdr*);
+	void esix_tcp_parse(struct tcp_hdr*, int, struct ip6_hdr*);
 
 #endif
