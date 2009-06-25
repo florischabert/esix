@@ -156,8 +156,8 @@
 	void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len);
 	u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u16_t len);
 
-	void	esix_icmp_send_ttl_expired(struct ip6_hdr *hdr);
-	void	esix_icmp_send_router_sol(int intf_index);
+	void esix_icmp_send_ttl_expired(struct ip6_hdr *hdr);
+	void esix_icmp_send_router_sol(int intf_index);
 	void esix_icmp_send_neighbor_adv(struct ip6_addr *, struct ip6_addr *, int);
 	void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, struct ip6_hdr *hdr);
 	void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length, struct ip6_hdr *ip_hdr);
