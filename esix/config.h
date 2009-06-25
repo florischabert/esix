@@ -33,6 +33,7 @@
 #define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
 #define ESIX_MAX_RT	8 	//max number of routes the node can have
 #define ESIX_MAX_NB 8 //max number of neighbors in the table
+#define ESIX_MAX_SOCK 8 // max number of sockets
 
 #define INTERFACE	0 //default interface # until we have a proper intf
 				//management system.

@@ -89,11 +89,11 @@ void esix_ip_process(void *packet, int len)
 			break;
 
 		case UDP:
-			esix_udp_parse((struct udp_hdr *) (hdr + 1),
+			esix_udp_process((struct udp_hdr *) (hdr + 1),
 				ntoh16(hdr->payload_len), hdr);	
 		
 		case TCP:
-			esix_tcp_parse((struct tcp_hdr *) (hdr + 1),
+			esix_tcp_process((struct tcp_hdr *) (hdr + 1),
 				ntoh16(hdr->payload_len), hdr);
 
 		//unknown (unimplemented) IP type
@@ -141,7 +141,6 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	if(hdr == NULL)
 		return;
 	int i, route_index, dest_onlink;
-	int d;
 	esix_ll_addr lla;
 	
 	hdr->ver_tc_flowlabel = hton32(6 << 28);

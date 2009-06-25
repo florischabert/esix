@@ -31,11 +31,12 @@
 /*
  * Copy len bytes from src to dst.
  */
-void esix_memcpy(void *dst, void *src, int len)
+void esix_memcpy(void *dst, const void *src, int len)
 {
-	char *bdst, *bsrc;
+	char *bdst;
+	const char *bsrc;
 	u32_t *wdst = dst;
-	u32_t *wsrc = src;
+	const u32_t *wsrc = src;
 	
 	for(; len >= 4; len -= 4) // TODO: optimize for other bus width
 		*wdst++ = *wsrc++;
