@@ -103,6 +103,34 @@ void esix_ip_process(void *packet, int len)
 }
 
 /*
+ * Compute upper-level checksum
+ */
+u16_t esix_ip_upper_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t proto, void *payload, u16_t len)
+{
+	u32_t sum = 0;
+	u16_t *data;
+	
+	// IPv6 pseudo-header sum : saddr, daddr, type and payload lenght
+	for(data = (u16_t *) saddr; data < (u16_t *) (saddr+1); data++)
+		sum += *data;
+	for(data = (u16_t *) daddr; data < (u16_t *) (daddr+1); data++)
+		sum += *data;
+	sum += hton16(len);
+	sum += hton16(proto);
+
+	// payload sum
+	for(data = payload; len > 1; len -= 2)
+		sum += *data++;
+	if(len)
+		sum += *((u8_t *) data);
+
+	while(sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+	
+	return (u16_t) ~sum;
+}
+
+/*
  * Send an IPv6 packet.
  */
 void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len)
@@ -156,6 +184,5 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 			esix_icmp_send_neighbor_sol(&addrs[0]->addr, daddr);
 			esix_w_free(hdr);
 		}
-	}	
-
+	}
 }

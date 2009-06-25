@@ -57,7 +57,7 @@ u32_t esix_w_get_time(void)
 void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 {
 	struct ether_frame_t eth_f;
-	
+		
 	eth_f.hdr.FRAME_LENGTH = len;
 	eth_f.hdr.DA_1 = (lla[0]);
 	eth_f.hdr.DA_2 = (lla[1]);

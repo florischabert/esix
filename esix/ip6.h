@@ -75,5 +75,6 @@
 	
 	void esix_ip_process_packet(void *, int);
 	void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len);
+	u16_t esix_ip_upper_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t proto, void *data, u16_t len);
 	
 #endif

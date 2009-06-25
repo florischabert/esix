@@ -186,17 +186,17 @@ void ether_receive_task(void *param)
 		for(i = 0; i < 4; i++)
 			*((u32_t*) &hdr + i) = ETH0->MACDATA;
 		
+		len =	hdr.FRAME_LENGTH - 20;
+		
 		// we process the packet only if it's not too big and if it contains IPv6
-		if((len > MAX_FRAME_SIZE) || (hdr.ETHERTYPE != 0xdd86))
+		if((len > MAX_FRAME_SIZE - 20) || (hdr.ETHERTYPE != 0xdd86))
 		{
 			i=0;
 			while(i++ < len)
 				(u32_t) ETH0->MACDATA;
 		}
 		else
-		{
-			len =	hdr.FRAME_LENGTH - 20;
-			
+		{	
 			// allocate memory for the frame
  			eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len);			
 
@@ -234,7 +234,10 @@ void ether_send_task(void *param)
 	{
 		xQueueReceive(ether_send_queue, &eth_f, portMAX_DELAY);
 
+		// get the packet length
 		len4 = eth_f.hdr.FRAME_LENGTH/4;
+		if(eth_f.hdr.FRAME_LENGTH % 4)
+			len4++;
 
 		//send the header
 		for(i = 0; i < 4; i++)
@@ -242,8 +245,8 @@ void ether_send_task(void *param)
 
 		//now we send the data
 		for(i = 0; (i < len4) && (i < MAX_FRAME_SIZE-5); i++) 
-				ETH0->MACDATA = *(eth_f.data + i);			
-		
+				ETH0->MACDATA = *(eth_f.data + i);
+				
 		esix_w_free(eth_f.data);
 			
 		ETH0->MACTR |= 1; // now, start the transmission
