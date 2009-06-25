@@ -67,10 +67,10 @@
 
 void esix_memcpy(void *dst, void *src, int len);
 
-u16_t hton16(u16_t v);
-u32_t hton32(u32_t v);
-u16_t ntoh16(u16_t v);
-u32_t ntoh32(u32_t v);
+inline u16_t hton16(u16_t v);
+inline u32_t hton32(u32_t v);
+inline u16_t ntoh16(u16_t v);
+inline u32_t ntoh32(u32_t v);
 
 
 #endif

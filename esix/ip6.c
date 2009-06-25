@@ -141,7 +141,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	if(hdr == NULL)
 		return;
 	int i, route_index, dest_onlink;
-	int d;
+	//int d;
 	esix_ll_addr lla;
 	
 	hdr->ver_tc_flowlabel = hton32(6 << 28);
@@ -157,11 +157,13 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	//routing
 	for(i=0; i < 4; i++)
 	{
-		/*if(routes[i] != NULL)
+		/*
+		if(routes[i] != NULL)
 			uart_printf("\n\ndaddr : %x %x %x %x\nroute : %x %x %x %x\n", 
 				daddr->addr1, daddr->addr2 , daddr->addr3 , daddr->addr4,
 				routes[i]->mask.addr1, routes[i]->mask.addr2 , routes[i]->mask.addr3 , routes[i]->mask.addr4);
 		*/
+		
 		if(	(routes[i] != NULL ) &&
 			((daddr->addr1 & routes[i]->mask.addr1) == routes[i]->addr.addr1) &&
 			((daddr->addr2 & routes[i]->mask.addr2) == routes[i]->addr.addr2) &&
@@ -171,10 +173,9 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 			route_index = i;
 			break;
 		}
-		/*
-		for(d=0; d<1000000; d++)
+	/*	for(d=0; d<1000000; d++)
 			asm("nop");
-		*/
+	*/
 	}
 
 	//sorry dude, we didn't find any matching route...

@@ -34,8 +34,7 @@
 #include <esix.h>
 // Prototypes
 void hardware_init(void);
-void led_task(void *param);
-void led_task2(void *param);
+void main_task(void *param);
 
 /**
  * Main function.
@@ -56,10 +55,11 @@ void main(void)
 	uart_init();
 	ether_init(lla);
 	ether_enable();
+	
 	esix_init(lla2);
 	
 	// FreeRTOS tasks scheduling
-	xTaskCreate(led_task, (signed char *) "led", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(main_task, (signed char *) "main", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
 	while(1);
 }
@@ -74,12 +74,13 @@ extern int alloc_count;
 /**
  * Toggle the LED
  */
-void led_task(void *param)
+void main_task(void *param)
 {
 	while(1)
 	{
-	//	uart_printf("task stack %x\n", uxTaskGetStackHighWaterMark(NULL));
-		vTaskDelay(10000);
+		//uart_printf("task stack %x\n", uxTaskGetStackHighWaterMark(NULL));
+		vTaskDelay(1000);
+		esix_periodic_callback();
 	}
 }
 
