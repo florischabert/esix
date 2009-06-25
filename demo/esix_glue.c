@@ -39,8 +39,16 @@ int alloc_count;
 
 void *esix_w_malloc(size_t size)
 {
+	int i;
+	u32_t *ptr;
 	alloc_count++;
-	return pvPortMalloc(size);
+ 	ptr = pvPortMalloc(size);
+	if(ptr == NULL)
+	{
+		uart_printf("ERROR: malloc failed (size=%x)\n", size);
+		for(i = 0; i < 100000; i++) asm("nop");
+	}
+	return ptr;
 }
 
 void esix_w_free(void *ptr)
@@ -57,7 +65,7 @@ u32_t esix_w_get_time(void)
 void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 {
 	struct ether_frame_t eth_f;
-		
+
 	eth_f.hdr.FRAME_LENGTH = len;
 	eth_f.hdr.DA_1 = (lla[0]);
 	eth_f.hdr.DA_2 = (lla[1]);
