@@ -556,13 +556,8 @@ int esix_intf_check_source_addr(struct ip6_addr *saddr, struct ip6_addr *daddr)
 		
 		if( (i < 0 ) && (i = esix_intf_get_scope_address(GLOBAL_SCOPE)) < 0)
 			return -1;
-<<<<<<< HEAD:esix/intf.c
-								
+							
 		*saddr	= addrs[i]->addr; 
-=======
-			
-			*saddr	= addrs[i]->addr; 
->>>>>>> d359b9a370dc848d834303767c8211e20186fbe4:esix/intf.c
 	}
 	return 1;
 }

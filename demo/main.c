@@ -37,10 +37,7 @@
 // Prototypes
 void hardware_init(void);
 void main_task(void *param);
-<<<<<<< HEAD:demo/main.c
 void client_task(void *param);
-=======
->>>>>>> d359b9a370dc848d834303767c8211e20186fbe4:demo/main.c
 
 /**
  * Main function.
@@ -66,12 +63,8 @@ void main(void)
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(main_task, (signed char *) "main", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
-<<<<<<< HEAD:demo/main.c
 	xTaskCreate(client_task, (signed char *) "client", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
-=======
->>>>>>> d359b9a370dc848d834303767c8211e20186fbe4:demo/main.c
 	vTaskStartScheduler();
-	while(1);
 }
 
 void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed portCHAR *pcTaskName)

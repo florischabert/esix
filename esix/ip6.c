@@ -136,16 +136,12 @@ u16_t esix_ip_upper_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_
 void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len)
 {
 	struct ip6_hdr *hdr = esix_w_malloc(sizeof(struct ip6_hdr) + len);
-
+	int i, route_index, dest_onlink;
+	esix_ll_addr lla;
+	
 	//hmmm... I smell gas...
 	if(hdr == NULL)
 		return;
-	int i, route_index, dest_onlink;
-<<<<<<< HEAD:esix/ip6.c
-=======
-	//int d;
->>>>>>> d359b9a370dc848d834303767c8211e20186fbe4:esix/ip6.c
-	esix_ll_addr lla;
 	
 	hdr->ver_tc_flowlabel = hton32(6 << 28);
 	hdr->payload_len = hton16(len);
@@ -176,9 +172,6 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 			route_index = i;
 			break;
 		}
-	/*	for(d=0; d<1000000; d++)
-			asm("nop");
-	*/
 	}
 
 	//sorry dude, we didn't find any matching route...
