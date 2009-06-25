@@ -137,12 +137,12 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 	i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE);
 	if(i < 0) // the neighbor isn't in the cache, add it
 	{
-		esix_intf_add_neighbor(&hdr->saddr, ((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 
-			esix_get_time() + NEW_NEIGHBOR_TIMEOUT, INTERFACE);
+		esix_intf_add_neighbor(&hdr->saddr, ((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 0, INTERFACE);
 		//try again, to set some flags.
 		//note that even if it wasn't added (e.g. due to a full table),
 		//we still need to send an advertisement.
-		if((i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE)) >= 0)
+		i=0;
+		if((i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE)) >0)
 		{
 			neighbors[i]->flags.sollicited	= ND_UNSOLLICITED;
 			neighbors[i]->flags.status	= ND_STALE;
@@ -160,19 +160,20 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, struct ip6_hdr *ip_hdr)
 {
 	int i;
+
 	//we shouldn't trust anyone sending an advertisement from anything else than a link local address
 	//hmmm.. actually anyone coming from outside our own subnet.
 	//TODO: implement a proper check.
 	/*if(ntoh32(ip_hdr->saddr.addr1) != 0xfe800000)
 		return;
 	*/
+
 	i = esix_intf_get_neighbor_index(&nb_adv->target_addr, INTERFACE);
 
 	if(i < 0) // the neighbor isn't in the cache, add it
 	{
 		esix_intf_add_neighbor(&nb_adv->target_addr, 
-			((struct icmp6_opt_lla *) (nb_adv + 1))->lla, 
-			esix_get_time() + NEIGHBOR_TIMEOUT, INTERFACE);
+			((struct icmp6_opt_lla *) (nb_adv + 1))->lla, 0, INTERFACE);
 		//now find it again to set some flags
 		i = esix_intf_get_neighbor_index(&nb_adv->target_addr, INTERFACE);
 		if(i<0)
@@ -188,7 +189,7 @@ void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, 
 
 	neighbors[i]->flags.sollicited	= ND_UNSOLLICITED;
 	neighbors[i]->flags.status	= ND_REACHABLE;
-	neighbors[i]->expiration_date	= esix_get_time() + NEIGHBOR_TIMEOUT;
+	neighbors[i]->expiration_date	= esix_w_get_time() + 180;
 }
 
 #include "udp6.h"
@@ -251,7 +252,7 @@ void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
 	opt->lla[2] = neighbors[0]->lla[2];
 
 	//do we know it already? then send an unicast sollicitation
-	if( (i=esix_intf_get_neighbor_index(daddr, INTERFACE)) >= 0)
+	if( (i=esix_intf_get_neighbor_index(saddr, INTERFACE)) > 0)
 	{
 		neighbors[i]->flags.sollicited	= ND_SOLLICITED;
 		neighbors[i]->flags.status	= ND_STALE;
@@ -356,7 +357,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 
 		esix_intf_add_address(&addr,
 				0x40,				// /64
-				esix_get_time() + ntoh32(pfx_info->valid_lifetime), //expiration date
+				esix_w_get_time() + pfx_info->valid_lifetime, //expiration date
 				GLOBAL_SCOPE);
 
 		addr.addr1 = 	hton32(	pfx_info->p[0] << 24	//prefix 
@@ -383,7 +384,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		esix_intf_add_route(&addr,
 					&mask,				
 					&addr2,
-					esix_get_time() + ntoh32(pfx_info->valid_lifetime), //exp. date
+					esix_w_get_time() + ntoh32(pfx_info->valid_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu,
 					INTERFACE);
@@ -408,7 +409,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		esix_intf_add_route(&addr, 	//default dest
 					&mask,			//default mask
 					&ip_hdr->saddr,		//next hop
-					esix_get_time() + ntoh32(rtr_adv->rtr_lifetime), //exp. date
+					esix_w_get_time() + ntoh32(rtr_adv->rtr_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu,
 					INTERFACE);

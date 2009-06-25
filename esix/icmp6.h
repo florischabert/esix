@@ -29,17 +29,11 @@
 #ifndef _ICMP6_H
 #define _ICMP6_H
 	#include "config.h"
-	#include "esix.h"
 	#include "include/esix.h"
 	#include "ip6.h"
 	#include "intf.h"
 	#include "tcp6.h"
 	#include "udp6.h"
-
-	//neighbor discovery settings
-	#define NEW_NEIGHBOR_TIMEOUT 	5
-	#define NEIGHBOR_TIMEOUT	180	
-	#define STALE_DURATION 		3
 	
 	//list of ICMPv6 types
 	#define DST_UNR	0x01	//Destination Unreachable

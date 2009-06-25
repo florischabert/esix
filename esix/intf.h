@@ -114,10 +114,5 @@ void esix_intf_add_default_routes(int intf_index, int intf_mtu);
 int esix_intf_add_route_row(struct esix_route_table_row *row);
 int esix_intf_add_route(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, u32_t, u8_t, u32_t, u8_t);
 int esix_intf_check_source_addr(struct ip6_addr *, struct ip6_addr *);
-int esix_intf_get_route_index(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, u8_t);
-int esix_intf_remove_neighbor(struct ip6_addr *, u8_t);
-int esix_intf_remove_route(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, u8_t);
-int esix_intf_get_route_index(struct ip6_addr *, struct ip6_addr *, struct ip6_addr*, u8_t);
-
 
 #endif

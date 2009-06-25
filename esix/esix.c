@@ -27,25 +27,16 @@
  */
 
 #include "config.h"
-#include "esix.h"
-#include "icmp6.h"
 #include "include/esix.h"
 #include "intf.h"
 #include "tools.h"
-
-static u32_t	current_time;
 
 /**
  * Sets up the esix stack.
  */
 void esix_init(u16_t lla[3])
 {
-	//big fat wait loop...
 	int i;
-	for(i=0; i<15000000;i++)
-		asm("nop");
-
-	current_time = 1;	// 0 means "infinite lifetime" in our table/caches
 	
 	for(i=0; i<ESIX_MAX_IPADDR; i++)
 		addrs[i] = NULL;
@@ -53,74 +44,10 @@ void esix_init(u16_t lla[3])
 	for(i=0; i<ESIX_MAX_RT; i++)
 		routes[i] = NULL;
 
-	for(i=0; i<ESIX_MAX_NB; i++)
-		neighbors[i] = NULL;
-
 	esix_intf_add_default_neighbors(lla);
 	esix_intf_add_default_addresses();
 	esix_intf_add_default_routes(INTERFACE, 1500);
+	for(i=0; i<10000000;i++)
+		asm("nop");
 	esix_icmp_send_router_sol(INTERFACE);
-}
-
-u32_t esix_get_time()
-{
-	return current_time;
-}
-
-/*
- * esix_periodic_callback : must be called every second by the OS.
- */
-void esix_periodic_callback()
-{
-	current_time++;
-	esix_housekeep();
-}
-
-
-/*
- * esix_housekeep : takes care of cache entries expiration.
- */
-void esix_housekeep()
-{
-	int i;
-	//loop through the routing table
-	for(i=0; i<ESIX_MAX_RT; i++)
-	{
-		if(routes[i] != NULL)
-		{
-			if(routes[i]->expiration_date != 0 && 
-			   routes[i]->expiration_date < current_time)
-				esix_intf_remove_route(&routes[i]->addr, &routes[i]->mask,
-				&routes[i]->next_hop, INTERFACE);
-		}
-	}
-
-	//loop through the address table
-	for(i=0; i<ESIX_MAX_IPADDR; i++)
-	{
-		if(addrs[i] != NULL)
-			if(addrs[i]->expiration_date != 0 && 
-			   addrs[i]->expiration_date < current_time)
-				esix_intf_remove_address(&addrs[i]->addr, addrs[i]->scope, addrs[i]->mask);
-	}
-
-	//loop through the neighbor table
-	for(i=0; i<ESIX_MAX_NB; i++)
-	{
-		if(neighbors[i] != NULL && neighbors[i]->expiration_date != 0)
-		{
-			
-			//don't delete the entry immediately. Put it in STALE state and
-			//send an unicast neighbor advertisement to refresh it.
-			if((neighbors[i]->expiration_date - STALE_DURATION) < current_time)
-				esix_icmp_send_neighbor_sol(&addrs[0]->addr, &neighbors[i]->addr);
-	
-			//if it hasn't been refreshed after STALE_DURATION seconds,
-			//the neighbor might be gone. Remove the entry.
-			if(neighbors[i]->expiration_date < current_time)
-				esix_intf_remove_neighbor(&neighbors[i]->addr, INTERFACE);
-			
-		}
-	}
-	return;
 }

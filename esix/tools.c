@@ -49,53 +49,49 @@ void esix_memcpy(void *dst, const void *src, int len)
 /**
  * hton16 : converts host endianess to big endian (network order) 
  */
-inline u16_t hton16(u16_t v)
+u16_t hton16(u16_t v)
 {
-#ifdef LITTLE_ENDIAN
+	if(ENDIANESS)
+		return v;
+
 	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
-#else
-	return v;
-#endif
 }
 
 /**
  * hton32 : converts host endianess to big endian (network order) 
  */
-inline u32_t hton32(u32_t v)
+u32_t hton32(u32_t v)
 {
-#ifdef LITTLE_ENDIAN
+	if(ENDIANESS)
+		return v;
+
 	return ((v << 24) & 0xff000000) |
 	       ((v << 8) & 0x00ff0000) |
 	       ((v >> 8) & 0x0000ff00) |
 	       ((v >> 24) & 0x000000ff);
-#else
-	return v;
-#endif
 }
 
 /**
  * ntoh16 : converts network order to host endianess
  */
-inline u16_t ntoh16(u16_t v)
+u16_t ntoh16(u16_t v)
 {
-#ifdef LITTLE_ENDIAN
+	if(ENDIANESS)
+		return v;
+
 	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
-#else
-	return v;
-#endif
 }
 
 /**
  * ntoh32 : converts network order to host endianess 
  */
-inline u32_t ntoh32(u32_t v)
+u32_t ntoh32(u32_t v)
 {
-#ifdef LITTLE_ENDIAN
+	if(ENDIANESS)
+		return v;
+
 	return ((v << 24) & 0xff000000) |
 	       ((v << 8) & 0x00ff0000) |
 	       ((v >> 8) & 0x0000ff00) |
 	       ((v >> 24) & 0x000000ff);
-#else
-	return v;
-#endif
 }
