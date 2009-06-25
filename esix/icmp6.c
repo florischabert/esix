@@ -68,11 +68,11 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len)
 {
 	struct icmp6_hdr *hdr = esix_w_malloc(sizeof(struct icmp6_hdr) + len);
-	
 	hdr->type = type;
 	hdr->code = code;
 	hdr->chksum = 0;
 	esix_memcpy(hdr + 1, data, len);
+	
 	esix_w_free(data);	
 	
 	//check the source address. If it's multicast, replace it.
@@ -84,51 +84,10 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 		return;
 	}
 	
-	hdr->chksum = esix_icmp_compute_checksum(saddr, daddr, hdr, len + sizeof(struct icmp6_hdr));
+	hdr->chksum = esix_ip_upper_checksum(saddr, daddr, ICMP, hdr, len + sizeof(struct icmp6_hdr));
 	
 	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + sizeof(struct icmp6_hdr));
 }
-
-u16_t esix_icmp_compute_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, void *data, u16_t len)
-{
-	int i;
-	u32_t sum = 0;
-	u64_t sum64 = 0;
-	u16_t *payload = data;
-	
-	// IPv6 pseudo-header sum : saddr, daddr, type and payload length
-	sum64 += saddr->addr1;
-	sum64 += saddr->addr2;
-	sum64 += saddr->addr3;
-	sum64 += saddr->addr4;
-	sum64 += daddr->addr1;
-	sum64 += daddr->addr2;
-	sum64 += daddr->addr3;
-	sum64 += daddr->addr4;
-	sum64 += hton32(58);
-	sum64 += hton32(len);
-	
-	while(sum64 >> 32)
-		sum64 = (sum64 >> 32) + (sum64 & 0xffffffff);
-	
-	sum += sum64;
-	
-	// payload sum
-	for(; len > 1; len -= 2)
-		sum += *payload++;
-	if(len)
-	{
-		uart_printf("hell!\n");
-		for(i = 0; i < 100000; i++) asm("nop");
-	}
-//		sum += *((u8_t *) payload);
-		
-	while(sum >> 16)
-		sum = (sum >> 16) + (sum & 0xffff);
-
-	return ~sum;
-}
-
 
 /**
  * Sends a TTL expired message back to its source.
@@ -239,7 +198,7 @@ void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, 
 void esix_icmp_process_echo_req(struct icmp6_echo *echo_req, int len, struct ip6_hdr *ip_hdr)
 {
 	struct icmp6_echo *echo_rep = esix_w_malloc(len);
-	//copying the whole packet and sending it back to its source should do the trick.
+	//copying the whole packet and sending it back to its source should do the trick.	
 	esix_memcpy(echo_rep, echo_req, len);
 
 	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, ECHO_RP, 0, echo_rep, len);

@@ -103,6 +103,34 @@ void esix_ip_process(void *packet, int len)
 }
 
 /*
+ * Compute upper-level checksum
+ */
+u16_t esix_ip_upper_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t proto, void *payload, u16_t len)
+{
+	u32_t sum = 0;
+	u16_t *data;
+	
+	// IPv6 pseudo-header sum : saddr, daddr, type and payload lenght
+	for(data = (u16_t *) saddr; data < (u16_t *) (saddr+1); data++)
+		sum += *data;
+	for(data = (u16_t *) daddr; data < (u16_t *) (daddr+1); data++)
+		sum += *data;
+	sum += hton16(len);
+	sum += hton16(proto);
+
+	// payload sum
+	for(data = payload; len > 1; len -= 2)
+		sum += *data++;
+	if(len)
+		sum += *((u8_t *) data);
+
+	while(sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+	
+	return (u16_t) ~sum;
+}
+
+/*
  * Send an IPv6 packet.
  */
 void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len)
@@ -129,22 +157,24 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	//routing
 	for(i=0; i < 4; i++)
 	{
-		if(routes[i] != NULL)
+		/*if(routes[i] != NULL)
 			uart_printf("\n\ndaddr : %x %x %x %x\nroute : %x %x %x %x\n", 
 				daddr->addr1, daddr->addr2 , daddr->addr3 , daddr->addr4,
 				routes[i]->mask.addr1, routes[i]->mask.addr2 , routes[i]->mask.addr3 , routes[i]->mask.addr4);
+		*/
 		if(	(routes[i] != NULL ) &&
-			((daddr->addr1 & routes[i]->mask.addr1) == routes[i]->mask.addr1) &&
-			((daddr->addr2 & routes[i]->mask.addr2) == routes[i]->mask.addr2) &&
-			((daddr->addr3 & routes[i]->mask.addr3) == routes[i]->mask.addr3) &&
-			((daddr->addr4 & routes[i]->mask.addr4) == routes[i]->mask.addr4))
+			((daddr->addr1 & routes[i]->mask.addr1) == routes[i]->addr.addr1) &&
+			((daddr->addr2 & routes[i]->mask.addr2) == routes[i]->addr.addr2) &&
+			((daddr->addr3 & routes[i]->mask.addr3) == routes[i]->addr.addr3) &&
+			((daddr->addr4 & routes[i]->mask.addr4) == routes[i]->addr.addr4))
 		{
-			uart_printf("SELECTED\n");
 			route_index = i;
 			break;
 		}
+		/*
 		for(d=0; d<1000000; d++)
 			asm("nop");
+		*/
 	}
 
 	//sorry dude, we didn't find any matching route...
@@ -152,7 +182,6 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	{
 		uart_printf("esix_ip_send : no matching route found\n");
 		esix_w_free(hdr);
-		toggle_led();
 		return;
 	}
 	// try to find our next hop lla
