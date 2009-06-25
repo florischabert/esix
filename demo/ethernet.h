@@ -32,7 +32,7 @@
 	#include <FreeRTOS.h>
 	#include <queue.h>
 
-	#define MAX_FRAME_SIZE 380 //380 * 4 bytes = 1520 bytes
+	#define MAX_FRAME_SIZE 1520
 	
 	#define HTON16(v) (((v << 8) & 0xff00) | ((v >> 8) & 0x00ff))
 	#define HTON32(v) (((v << 24) & 0xff000000) | ((v << 8) & 0x00ff0000) \
