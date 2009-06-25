@@ -175,7 +175,6 @@ void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, 
 		esix_intf_add_neighbor(&nb_adv->target_addr, 
 			((struct icmp6_opt_lla *) (nb_adv + 1))->lla, 0, INTERFACE);
 		//now find it again to set some flags
-		i=0;
 		i = esix_intf_get_neighbor_index(&nb_adv->target_addr, INTERFACE);
 		if(i<0)
 			return;
@@ -245,7 +244,7 @@ void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
 	mcast_dst.addr3	= hton32(0x00000001);
 	mcast_dst.addr4	= hton32(0xff << 24 | (ntoh32(daddr->addr4) & 0x00ffffff));
 	
-	opt->type = 2; // Target Link-Layer Address
+	opt->type = 1; // Source Link-Layer Address
 	opt->len8 = 1; // length: 1x8 bytes
 	opt->lla[0] = neighbors[0]->lla[0];
 	opt->lla[1] = neighbors[0]->lla[1];
@@ -269,7 +268,7 @@ void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
 void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	 struct ip6_hdr *ip_hdr)
 {
-	struct ip6_addr addr, addr2;
+	struct ip6_addr addr, addr2, mask;
 	int i=0;
 	u32_t mtu;
 	struct icmp6_opt_prefix_info *pfx_info = NULL;
@@ -325,27 +324,6 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	}
 	//now add the routes (we needed the MTU value first)
 
-	//default route
-	//a lifetime of 0 means remove the route
-	if(ntoh32(rtr_adv->rtr_lifetime) == 0x0)
-	{
-		//TODO delete the default route here.
-	}
-	else
-	{
-		addr.addr1 = 0;
-		addr.addr2 = 0;
-		addr.addr3 = 0;
-		addr.addr4 = 0;
-		esix_intf_add_route(&addr, 	//default dest
-					0x0,			//default mask
-					&ip_hdr->saddr,		//next hop
-					esix_w_get_time() + ntoh32(rtr_adv->rtr_lifetime), //exp. date
-					rtr_adv->cur_hlim,	//TTL
-					mtu,
-					INTERFACE);
-	}
-
 
 	//global address && onlink route
 	//a lifetime of 0 means remove the address/route
@@ -396,14 +374,45 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		addr2.addr2 = 0;
 		addr2.addr3 = 0;
 		addr2.addr4 = 0;
+		mask.addr1  = 0xffffffff;
+		mask.addr2  = 0xffffffff;
+		mask.addr3  = 0;
+		mask.addr4  = 0;
+
 		//onlink route (local route for our own subnet)
 		esix_intf_add_route(&addr,
-					0x40,				//ALWAYS /64 for autoconf.
+					&mask,				
 					&addr2,
 					esix_w_get_time() + ntoh32(pfx_info->valid_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu,
 					INTERFACE);
 	}//else if (got_prefix_info)
+
+	//default route
+	//a lifetime of 0 means remove the route
+	if(ntoh32(rtr_adv->rtr_lifetime) == 0x0)
+	{
+		//TODO delete the default route here.
+	}
+	else
+	{
+		addr.addr1 = 0;
+		addr.addr2 = 0;
+		addr.addr3 = 0;
+		addr.addr4 = 0;
+		mask.addr1 = 0;
+		mask.addr2 = 0;
+		mask.addr3 = 0;
+		mask.addr4 = 0;
+		esix_intf_add_route(&addr, 	//default dest
+					&mask,			//default mask
+					&ip_hdr->saddr,		//next hop
+					esix_w_get_time() + ntoh32(rtr_adv->rtr_lifetime), //exp. date
+					rtr_adv->cur_hlim,	//TTL
+					mtu,
+					INTERFACE);
+	}
+
 }
 

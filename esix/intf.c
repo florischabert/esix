@@ -106,7 +106,10 @@ void esix_intf_add_default_routes(int intf_index, int intf_mtu)
 	ll_rt->addr.addr2	= 0x0;
 	ll_rt->addr.addr3	= 0x0;
 	ll_rt->addr.addr4	= 0x0;
-	ll_rt->mask		= 64;
+	ll_rt->mask.addr1	= 0xffffffff;
+	ll_rt->mask.addr2	= 0xffffffff;
+	ll_rt->mask.addr3	= 0x0;
+	ll_rt->mask.addr4	= 0x0;
 	ll_rt->next_hop.addr1	= 0x0; //a value of 0 means no next hop 
 	ll_rt->next_hop.addr2	= 0x0; 
 	ll_rt->next_hop.addr3	= 0x0; 
@@ -123,7 +126,10 @@ void esix_intf_add_default_routes(int intf_index, int intf_mtu)
 	mcast_rt->addr.addr2		= 0x0;
 	mcast_rt->addr.addr3		= 0x0;
 	mcast_rt->addr.addr4		= 0x0;
-	mcast_rt->mask			= 8;
+	mcast_rt->mask.addr1		= hton32(0xff000000); // /8
+	mcast_rt->mask.addr2		= 0x0;
+	mcast_rt->mask.addr3		= 0x0;
+	mcast_rt->mask.addr4		= 0x0;
 	mcast_rt->next_hop.addr1	= 0x0; //a value of 0 means no next hop 
 	mcast_rt->next_hop.addr2	= 0x0; 
 	mcast_rt->next_hop.addr3	= 0x0; 
@@ -180,7 +186,7 @@ int esix_intf_add_neighbor(struct ip6_addr *addr, esix_ll_addr lla, u32_t expira
 	nb->addr.addr2			= addr->addr2;
 	nb->addr.addr3	 		= addr->addr3;
 	nb->addr.addr4			= addr->addr4;
-	nb->expiration_date	= expiration_date;
+	nb->expiration_date		= expiration_date;
 	for(j = 0; j < 3; j++)
 		nb->lla[j] = lla[j];
 	nb->interface			= interface;
@@ -219,25 +225,68 @@ int esix_intf_add_address_row(struct esix_ipaddr_table_row *row)
 }
 
 /**
- * esix_add_to_active_routes : adds the given route to the routing table. 
+ *  ix_intf_add_route_row: adds the given route to the routing table. 
  *
  * @return 1 on success.
  */
+
 int esix_intf_add_route_row(struct esix_route_table_row *row)
 {
-	int i=0;
+	int i;
+	int j=-1;
+	int unsorted,k;
+	struct esix_route_table_row *tmp;
 
-	while(i<ESIX_MAX_RT)
+	for(i=0;i<ESIX_MAX_RT;i++)
 	{
 		if(routes[i]	== NULL)
 		{
 			routes[i] = row;
-			return 1;
+			j = i;
+			break;
 		}
-		i++;
 	}	
+
 	//sorry dude, table was full.
-	return 0;
+	if(j < 0)
+		return 0;
+
+	//sort the table to ease the routing process
+	//routes are sorted by ascending netmask.
+
+	//FIXME: this definitely looks like hell... (4am code)
+	i=0;
+	unsorted = 1;
+/*
+	while(unsorted)
+	{
+		unsorted = 0;
+		for(i=0; i<ESIX_MAX_RT-1; i++)
+		{
+			if(routes[i] == NULL)
+				continue;
+			j=i+1;
+
+			while(routes[j] == NULL && j < ESIX_MAX_RT)
+				j++;
+
+			if(routes[j] == NULL)
+				continue;
+
+			for(k=0; k<4; k++)
+			{
+				if( *((u32_t*) (&routes[i]->mask.addr1)+k) < *((u32_t*) (&routes[j]->mask.addr1)+k) )
+				{
+					unsorted = 1;
+					tmp 		= routes[i];
+					routes[i]	= routes[j];
+					routes[j]	= tmp;
+					break;
+				}
+			}
+		}
+	}*/
+	return 1;
 }
 
 /*
@@ -367,7 +416,7 @@ int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 	return 0;
 }
 
-int esix_intf_add_route(struct ip6_addr *daddr, u8_t mask, struct ip6_addr *next_addr, u32_t expiration_date,
+int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_addr, u32_t expiration_date,
 				u8_t ttl, u32_t mtu, u8_t interface)
 {
 	int i=0;
@@ -386,7 +435,10 @@ int esix_intf_add_route(struct ip6_addr *daddr, u8_t mask, struct ip6_addr *next
 			(routes[i]->next_hop.addr2	== next_addr->addr2) &&
 			(routes[i]->next_hop.addr3	== next_addr->addr3) &&
 			(routes[i]->next_hop.addr4	== next_addr->addr4) &&
-			(routes[i]->mask		== mask)     &&
+			(routes[i]->mask.addr1		== mask->addr1)     &&
+			(routes[i]->mask.addr2		== mask->addr2)     &&
+			(routes[i]->mask.addr3		== mask->addr3)     &&
+			(routes[i]->mask.addr4		== mask->addr4)     &&
 			(routes[i]->interface		== interface))
 			
 			{
@@ -411,7 +463,10 @@ int esix_intf_add_route(struct ip6_addr *daddr, u8_t mask, struct ip6_addr *next
 	rt->addr.addr2		= daddr->addr2;
 	rt->addr.addr3		= daddr->addr3;
 	rt->addr.addr4		= daddr->addr4;
-	rt->mask		= mask;
+	rt->mask.addr1		= mask->addr1;
+	rt->mask.addr2		= mask->addr2;
+	rt->mask.addr3		= mask->addr3;
+	rt->mask.addr4		= mask->addr4;
 	rt->next_hop.addr1	= next_addr->addr1;
 	rt->next_hop.addr2	= next_addr->addr2;
 	rt->next_hop.addr3	= next_addr->addr3;

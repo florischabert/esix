@@ -140,7 +140,8 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	//hmmm... I smell gas...
 	if(hdr == NULL)
 		return;
-	int i;
+	int i, route_index, dest_onlink;
+	int d;
 	esix_ll_addr lla;
 	
 	hdr->ver_tc_flowlabel = hton32(6 << 28);
@@ -152,37 +153,92 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	esix_memcpy(hdr + 1, data, len);
 	esix_w_free(data);
 
-	//if we're sending it to a multicast address, we don't need to look up the lla.
-	if(	(daddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
+	route_index = -1;
+	//routing
+	for(i=0; i < 4; i++)
 	{
-		lla[0]	=	0x3333;
-		lla[1]	=	(u16_t) daddr->addr4;
-		lla[2]	= 	(u16_t) (daddr->addr4 >> 16);
+		/*if(routes[i] != NULL)
+			uart_printf("\n\ndaddr : %x %x %x %x\nroute : %x %x %x %x\n", 
+				daddr->addr1, daddr->addr2 , daddr->addr3 , daddr->addr4,
+				routes[i]->mask.addr1, routes[i]->mask.addr2 , routes[i]->mask.addr3 , routes[i]->mask.addr4);
+		*/
+		if(	(routes[i] != NULL ) &&
+			((daddr->addr1 & routes[i]->mask.addr1) == routes[i]->addr.addr1) &&
+			((daddr->addr2 & routes[i]->mask.addr2) == routes[i]->addr.addr2) &&
+			((daddr->addr3 & routes[i]->mask.addr3) == routes[i]->addr.addr3) &&
+			((daddr->addr4 & routes[i]->mask.addr4) == routes[i]->addr.addr4))
+		{
+			route_index = i;
+			break;
+		}
+		/*
+		for(d=0; d<1000000; d++)
+			asm("nop");
+		*/
+	}
 
-		esix_w_send_packet(lla, hdr, len + sizeof(struct ip6_hdr));
+	//sorry dude, we didn't find any matching route...
+	if(route_index < 0)
+	{
+		uart_printf("esix_ip_send : no matching route found\n");
+		esix_w_free(hdr);
+		return;
+	}
+	// try to find our next hop lla
+	if(routes[route_index]->next_hop.addr1 == 0 && routes[route_index]->next_hop.addr2 == 0 &&
+		routes[route_index]->next_hop.addr3 == 0 && routes[route_index]->next_hop.addr4 == 0)
+	{
+		//onlink route (next hop is destination addr)
+		dest_onlink	= 1;
+
+		//if we're sending out a multicast address, don't try to look up a lla,
+		//we can compute it
+		if(	(daddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
+		{
+			lla[0]	=	0x3333;
+			lla[1]	=	(u16_t) daddr->addr4;
+			lla[2]	= 	(u16_t) (daddr->addr4 >> 16);
+
+			esix_w_send_packet(lla, hdr, len + sizeof(struct ip6_hdr));
+			return;
+		}
+		else
+			//it must be unicast, use the neighbor table.
+			i = esix_intf_get_neighbor_index(daddr, INTERFACE);
 	}
 	else
 	{
-		// do we know the destination lla ?
-		i = esix_intf_get_neighbor_index(daddr, INTERFACE);
-		if(i >= 0) 
+		//use a router
+		dest_onlink	= 0;
+		i = esix_intf_get_neighbor_index(&routes[route_index]->next_hop, INTERFACE);
+	}
+
+	if(i >= 0) 
+	{
+		//is it reachable?
+		if(neighbors[i]->flags.status == ND_REACHABLE ||
+			neighbors[i]->flags.status == ND_STALE)
 		{
-			//is it reachable?
-			if(neighbors[i]->flags.status == ND_REACHABLE ||
-				neighbors[i]->flags.status == ND_STALE)
-			{
-				esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
-			}
-			else
-				esix_w_free(hdr);
+			esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
 		}
 		else
 		{
-			
-			// we have to send a neighbor solicitation
-			uart_printf("packet ready to be sent, but don't now the lla\n");
-			esix_icmp_send_neighbor_sol(&addrs[0]->addr, daddr);
+			uart_printf("esix_ip_send : neighbor is unreachable\n");
 			esix_w_free(hdr);
+			return;
 		}
 	}
+	else
+	{
+		// we have to send a neighbor solicitation
+		uart_printf("packet ready to be sent, but don't now the lla\n");
+
+		if(dest_onlink)
+			esix_icmp_send_neighbor_sol(&addrs[0]->addr, daddr);
+		else
+			esix_icmp_send_neighbor_sol(&addrs[0]->addr, &routes[route_index]->next_hop);
+
+		esix_w_free(hdr);
+	}
+	return;
 }
