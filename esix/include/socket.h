@@ -1,7 +1,7 @@
 /**
  * @file
- * useful stuff.
- *
+ * Standard API for UDP and TCP.
+ * 
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
  * 
@@ -26,76 +26,64 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "tools.h"
+#ifndef _SOCKET_USER_H
+#define _SOCKET_USER_H
+
+#define AF_INET6 10
+
+#define SOCK_STREAM 1
+#define SOCK_DGRAM 2
+
+#define MSG_PEEK 1
 
 /*
- * Copy len bytes from src to dst.
+ * IPv6 address.
  */
-void esix_memcpy(void *dst, const void *src, int len)
+struct in6_addr
 {
-	char *bdst;
-	const char *bsrc;
-	u32_t *wdst = dst;
-	const u32_t *wsrc = src;
-	
-	for(; len >= 4; len -= 4) // TODO: optimize for other bus width
-		*wdst++ = *wsrc++;
-	bdst = (char *) wdst;
-	bsrc = (char *) wsrc;
-	while(len--)
-		*bdst++ = *bsrc++;
-}
+	union
+	{
+		u8_t u6_addr8[16];
+		u16_t u6_addr16[8];
+		u32_t u6_addr32[4];
+	};
+};
 
-/**
- * hton16 : converts host endianess to big endian (network order) 
+/*
+ * IPv6 sockaddr.
  */
-inline u16_t hton16(u16_t v)
+struct sockaddr_in6
 {
-#ifdef LITTLE_ENDIAN
-	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
-#else
-	return v;
-#endif
-}
+	u16_t sin6_family; // AF_INET6
+	u16_t sin6_port; // Transport layer port
+	u32_t sin6_flowinfo; // IPv6 flow information
+	struct in6_addr sin6_addr; // IPv6 address
+	u32_t sin6_scope_id; // Scope ID
+};
 
-/**
- * hton32 : converts host endianess to big endian (network order) 
+/*
+ * Create a socket.
+ *
+ * @param family must be AF_INET6 (IPv6)
+ * @param type is the protocol type used: SOCK_DGRAM (UDP) or SOCK_STREAM (TCP)
+ * @param proto. wait... what ?
+ * @return the socket identifier.
  */
-inline u32_t hton32(u32_t v)
-{
-#ifdef LITTLE_ENDIAN
-	return ((v << 24) & 0xff000000) |
-	       ((v << 8) & 0x00ff0000) |
-	       ((v >> 8) & 0x0000ff00) |
-	       ((v >> 24) & 0x000000ff);
-#else
-	return v;
-#endif
-}
+u32_t socket(u16_t family, u8_t type, u8_t proto);
 
-/**
- * ntoh16 : converts network order to host endianess
+/*
+ * Receive data from the socket.
+ * 
+ * @param socket is the socket idenfier.
+ * @param buff is a pointer to the received data.
+ * @param nbytes is the number of byte received.
+ * @param flags could contain the following flags: MSG_PEEK
+ * @param from is a pointer to an IPv6 sockaddr struct.
+ * @param fromaddrlen is a pointer to the size of from.
+ * @return the number of bytes read.
  */
-inline u16_t ntoh16(u16_t v)
-{
-#ifdef LITTLE_ENDIAN
-	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
-#else
-	return v;
-#endif
-}
+u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_in6* from, u32_t *fromaddrlen);
 
-/**
- * ntoh32 : converts network order to host endianess 
- */
-inline u32_t ntoh32(u32_t v)
-{
-#ifdef LITTLE_ENDIAN
-	return ((v << 24) & 0xff000000) |
-	       ((v << 8) & 0x00ff0000) |
-	       ((v >> 8) & 0x0000ff00) |
-	       ((v >> 24) & 0x000000ff);
-#else
-	return v;
+u32_t sendto(u32_t socket, const void *buff, u16_t len, u8_t flags, const struct sockaddr_in6 *to, u32_t toaddrlen);
+
 #endif
-}

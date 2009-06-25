@@ -37,7 +37,10 @@
 // Prototypes
 void hardware_init(void);
 void main_task(void *param);
+<<<<<<< HEAD:demo/main.c
 void client_task(void *param);
+=======
+>>>>>>> d359b9a370dc848d834303767c8211e20186fbe4:demo/main.c
 
 /**
  * Main function.
@@ -58,11 +61,15 @@ void main(void)
 	uart_init();
 	ether_init(lla);
 	ether_enable();
+	
 	esix_init(lla2);
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(main_task, (signed char *) "main", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+<<<<<<< HEAD:demo/main.c
 	xTaskCreate(client_task, (signed char *) "client", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+=======
+>>>>>>> d359b9a370dc848d834303767c8211e20186fbe4:demo/main.c
 	vTaskStartScheduler();
 	while(1);
 }
@@ -80,8 +87,9 @@ void main_task(void *param)
 {
 	while(1)
 	{
-	//	uart_printf("task stack %x\n", uxTaskGetStackHighWaterMark(NULL));
-		vTaskDelay(10000);
+		//uart_printf("task stack %x\n", uxTaskGetStackHighWaterMark(NULL));
+		vTaskDelay(1000);
+		esix_periodic_callback();
 	}
 }
 

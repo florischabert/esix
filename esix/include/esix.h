@@ -45,6 +45,14 @@
 	 * @param len is the packet size.
 	 */
 	void esix_ip_process(void *packet, int len);
+
+	/*
+	 * ipv6 stack clock signal.
+	 *
+	 * Needs to be called every second by the user.
+	 *
+	 */
+	void esix_periodic_callback();
 	
 // The following has to be implemented by the user
 
@@ -85,5 +93,4 @@
 	 * @param len is the len of the IPv6 packet in bytes.
 	 */
 	void esix_w_send_packet(u16_t lla[3], void *packet, int len);
-	
 #endif

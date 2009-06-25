@@ -1,7 +1,7 @@
 /**
  * @file
- * useful stuff.
- *
+ * Standard API for UDP and TCP.
+ * 
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
  * 
@@ -26,76 +26,23 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "tools.h"
+#ifndef _SOCKET_H
+#define _SOCKET_H
 
-/*
- * Copy len bytes from src to dst.
- */
-void esix_memcpy(void *dst, const void *src, int len)
-{
-	char *bdst;
-	const char *bsrc;
-	u32_t *wdst = dst;
-	const u32_t *wsrc = src;
-	
-	for(; len >= 4; len -= 4) // TODO: optimize for other bus width
-		*wdst++ = *wsrc++;
-	bdst = (char *) wdst;
-	bsrc = (char *) wsrc;
-	while(len--)
-		*bdst++ = *bsrc++;
-}
+#include "config.h"
 
-/**
- * hton16 : converts host endianess to big endian (network order) 
- */
-inline u16_t hton16(u16_t v)
+struct socket_table_row
 {
-#ifdef LITTLE_ENDIAN
-	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
-#else
-	return v;
+	u32_t socket;
+	u8_t type;
+	u16_t port;
+	u8_t *received;
+};
+
+struct socket_table_row *sockets[ESIX_MAX_SOCK];
+
+int esix_socket_add_row(struct socket_table_row *row);
+int esix_socket_add(u32_t socket, u8_t type, u16_t port);
+int esix_socket_get_socket_index(u32_t socket);
+
 #endif
-}
-
-/**
- * hton32 : converts host endianess to big endian (network order) 
- */
-inline u32_t hton32(u32_t v)
-{
-#ifdef LITTLE_ENDIAN
-	return ((v << 24) & 0xff000000) |
-	       ((v << 8) & 0x00ff0000) |
-	       ((v >> 8) & 0x0000ff00) |
-	       ((v >> 24) & 0x000000ff);
-#else
-	return v;
-#endif
-}
-
-/**
- * ntoh16 : converts network order to host endianess
- */
-inline u16_t ntoh16(u16_t v)
-{
-#ifdef LITTLE_ENDIAN
-	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
-#else
-	return v;
-#endif
-}
-
-/**
- * ntoh32 : converts network order to host endianess 
- */
-inline u32_t ntoh32(u32_t v)
-{
-#ifdef LITTLE_ENDIAN
-	return ((v << 24) & 0xff000000) |
-	       ((v << 8) & 0x00ff0000) |
-	       ((v >> 8) & 0x0000ff00) |
-	       ((v >> 24) & 0x000000ff);
-#else
-	return v;
-#endif
-}
