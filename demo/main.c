@@ -106,7 +106,7 @@ void client_task(void *param)
 	while(1)
 	{
 		sendto(soc, txt, 14, 0, &to, sizeof(struct sockaddr_in6));
-		vTaskDelay(5000)
+		vTaskDelay(5000);
 		//while(!(len = recvfrom(soc, buff, 1000, 0, &from, &sockaddrlen)));
 		buff[len] = 0;
 		//uart_puts(buff);
