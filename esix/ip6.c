@@ -91,11 +91,13 @@ void esix_ip_process(void *packet, int len)
 		case UDP:
 			esix_udp_process((struct udp_hdr *) (hdr + 1),
 				ntoh16(hdr->payload_len), hdr);	
+			break;
 		
 		case TCP:
 			esix_tcp_process((struct tcp_hdr *) (hdr + 1),
 				ntoh16(hdr->payload_len), hdr);
-
+			break;
+			
 		//unknown (unimplemented) IP type
 		default:
 			uart_printf("unknown packet received, next_header: %x\n", hdr->next_header);

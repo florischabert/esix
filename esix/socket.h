@@ -36,7 +36,7 @@ struct socket_table_row
 	u32_t socket;
 	u8_t type;
 	u16_t port;
-	void *received;
+	void * volatile received;
 };
 
 struct socket_table_row *sockets[ESIX_MAX_SOCK];

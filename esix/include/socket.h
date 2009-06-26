@@ -35,6 +35,7 @@
 #define SOCK_DGRAM 2
 
 #define MSG_PEEK 1
+#define MSG_DONTWAIT 2
 
 /*
  * IPv6 address.
@@ -71,13 +72,15 @@ struct sockaddr_in6
  */
 u32_t socket(u16_t family, u8_t type, u8_t proto);
 
+u32_t bind(u32_t socket, const struct sockaddr_in6 *address, u32_t addrlen);
+
 /*
  * Receive data from the socket.
  * 
  * @param socket is the socket idenfier.
  * @param buff is a pointer to the received data.
  * @param nbytes is the number of byte received.
- * @param flags could contain the following flags: MSG_PEEK
+ * @param flags could contain the following flags: MSG_PEEK, MSG_DONTWAIT
  * @param from is a pointer to an IPv6 sockaddr struct.
  * @param fromaddrlen is a pointer to the size of from.
  * @return the number of bytes read.

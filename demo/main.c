@@ -34,10 +34,12 @@
 #include <esix.h>
 #include <socket.h>
 
+#include <string.h>
+
 // Prototypes
 void hardware_init(void);
 void main_task(void *param);
-void client_task(void *param);
+void server_task(void *param);
 
 /**
  * Main function.
@@ -63,7 +65,7 @@ void main(void)
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(main_task, (signed char *) "main", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(client_task, (signed char *) "client", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(server_task, (signed char *) "server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
 }
 
@@ -86,30 +88,25 @@ void main_task(void *param)
 	}
 }
 
-void client_task(void *param)
+void server_task(void *param)
 {
+	static char buff[100];
 	int soc;
-	char *txt = "hello world!\r\n";
-	char buff[1000];
-	int len;
-	struct sockaddr_in6 to, from;
+	struct sockaddr_in6 serv, from;
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
 	
-	to.sin6_port = 2009;
-	to.sin6_addr.u6_addr32[0] = HTON32(0xfe800000);
-	to.sin6_addr.u6_addr32[1] = HTON32(0x00000000);
-	to.sin6_addr.u6_addr32[2] = HTON32(0x0223dfff);
-	to.sin6_addr.u6_addr32[3] = HTON32(0xfe848fcc);
+	serv.sin6_port = 2009;
 	
 	soc = socket(AF_INET6, SOCK_DGRAM, 0);
+	soc = bind(soc, &serv, sizeof(serv));
 	
 	while(1)
 	{
-		sendto(soc, txt, 14, 0, &to, sizeof(struct sockaddr_in6));
-		vTaskDelay(5000);
-		//while(!(len = recvfrom(soc, buff, 1000, 0, &from, &sockaddrlen)));
-		buff[len] = 0;
-		//uart_puts(buff);
+		recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
+		if(!strncmp(buff, "help\n", 5))
+			sendto(soc, "it seems you need help.\n", 24, 0, &from, sizeof(struct sockaddr_in6));
+		else
+			sendto(soc, "commands: help\n", 15, 0, &from, sizeof(struct sockaddr_in6));
 	}
 }
 

@@ -89,8 +89,8 @@ void ether_init(u16_t lla[3])
 	vSemaphoreCreateBinary(ether_receive_sem);
 	xSemaphoreTake(ether_receive_sem, portMAX_DELAY);
 	ether_send_queue = xQueueCreate(3, sizeof(struct ether_frame_t));
-	xTaskCreate(ether_receive_task, (signed char *) "eth receive", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(ether_send_task, (signed char *) "eth send", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(ether_receive_task, (signed char *) "eth receive", 200, NULL, tskIDLE_PRIORITY + 4, NULL);
+	xTaskCreate(ether_send_task, (signed char *) "eth send", 200, NULL, tskIDLE_PRIORITY + 3, NULL);
 }
 
 /**

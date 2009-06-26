@@ -37,8 +37,7 @@ void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 	int i;
 	struct udp_packet *packet;
 	
-	uart_printf("socket : port %x type %x\n", sockets[0]->port, sockets[0]->type);
-	i = esix_socket_get_port_index(ntoh16(u_hdr->d_port), SOCK_DGRAM);
+	i = esix_socket_get_port_index(ntoh16(u_hdr->d_port), SOCK_DGRAM);	
 	if(i < 0)
 		// esix_icmp_send_unreachable
 		uart_printf("UDP port %x unreachable\n", ntoh16(u_hdr->d_port)); // FIXME
@@ -48,12 +47,13 @@ void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 		if(sockets[i]->received == NULL)
 		{
 			packet = esix_w_malloc(sizeof(struct udp_packet));
-			packet->s_port = u_hdr->s_port;
+			packet->s_port = ntoh16(u_hdr->s_port);
 			esix_memcpy(&packet->s_addr, &ip_hdr->saddr, 16);
-			packet->len = u_hdr->len - sizeof(struct udp_hdr);
+			packet->len = ntoh16(u_hdr->len) - sizeof(struct udp_hdr);
 			packet->data = esix_w_malloc(packet->len);
 			esix_memcpy(packet->data, u_hdr + 1, packet->len);
-			packet->next = 0;
+			packet->next = NULL;
+			sockets[i]->received = packet;
 		}
 		else
 			uart_printf("An UDP packet is already in the queue.\n"); // FIXME
