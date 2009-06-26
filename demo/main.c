@@ -32,10 +32,12 @@
 #include "uart.h"
 #include "ethernet.h"
 #include <esix.h>
+#include <socket.h>
+
 // Prototypes
 void hardware_init(void);
-void led_task(void *param);
-void led_task2(void *param);
+void main_task(void *param);
+void client_task(void *param);
 
 /**
  * Main function.
@@ -56,12 +58,13 @@ void main(void)
 	uart_init();
 	ether_init(lla);
 	ether_enable();
+	
 	esix_init(lla2);
 	
 	// FreeRTOS tasks scheduling
-	xTaskCreate(led_task, (signed char *) "led", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(main_task, (signed char *) "main", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(client_task, (signed char *) "client", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
-	while(1);
 }
 
 void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed portCHAR *pcTaskName)
@@ -70,16 +73,37 @@ void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed portCHAR *pcTaskN
 		GPIOF->DATA[1] = 1;
 }
 
-extern int alloc_count;
 /**
  * Toggle the LED
  */
-void led_task(void *param)
+void main_task(void *param)
 {
 	while(1)
 	{
-	//	uart_printf("task stack %x\n", uxTaskGetStackHighWaterMark(NULL));
-		vTaskDelay(10000);
+		//uart_printf("task stack %x\n", uxTaskGetStackHighWaterMark(NULL));
+		vTaskDelay(1000);
+		esix_periodic_callback();
+	}
+}
+
+void client_task(void *param)
+{
+	int soc;
+	char *txt = "hello world!\r\n";
+	struct sockaddr_in6 to;
+	
+	to.sin6_port = 2009;
+	to.sin6_addr.u6_addr32[0] = HTON32(0xfe800000);
+	to.sin6_addr.u6_addr32[1] = HTON32(0x00000000);
+	to.sin6_addr.u6_addr32[2] = HTON32(0x0223dfff);
+	to.sin6_addr.u6_addr32[3] = HTON32(0xfe848fcc);
+	
+	soc = socket(AF_INET6, SOCK_DGRAM, 0);
+	
+	while(1)
+	{
+		sendto(soc, txt, 14, 0, &to, sizeof(struct sockaddr_in6));
+		vTaskDelay(5000);
 	}
 }
 

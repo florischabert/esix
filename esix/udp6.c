@@ -26,9 +26,34 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "tools.h"
 #include "udp6.h"
+#include "intf.h"
 
-void esix_udp_parse(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
+void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 {
+	uart_printf("UDP: %x\n", *(u_hdr+1));
 	return;
+}
+
+void esix_udp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, const void *data, u16_t len)
+{
+	u8_t i;
+	struct ip6_addr saddr;
+	struct udp_hdr *hdr = esix_w_malloc(sizeof(struct udp_hdr) + len);
+	hdr->d_port = hton16(d_port);
+	hdr->s_port = hton16(s_port);
+	hdr->len = hton16(len + sizeof(struct udp_hdr));
+	hdr->chksum = 0;
+	esix_memcpy(hdr + 1, data, len);
+	
+	// get the source address
+	i = esix_intf_get_scope_address(GLOBAL_SCOPE);
+	if(i < 0)
+		i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
+	saddr = addrs[i]->addr;
+	
+	hdr->chksum = esix_ip_upper_checksum(&saddr, daddr, UDP, hdr, len + sizeof(struct udp_hdr));
+	
+	esix_ip_send(&saddr, daddr, 64, UDP, hdr, len + sizeof(struct udp_hdr));
 }

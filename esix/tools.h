@@ -31,46 +31,14 @@
 
 #include "config.h"
 
-//this is only for debug purposes
-/**
- * GPIO register.
- */
-	struct gpio_t
-{
-	u32_t DATA[256];
-	u32_t DIR;
-	u32_t IS;
-	u32_t IBE;
-	u32_t IEV;
-	u32_t IM;
-	u32_t RIS;
-	u32_t MIS;
-	u32_t ICR;
-	u32_t AFSEL;
-	u32_t Reserved0[55];
-	u32_t DR2R;
-	u32_t DR4R;
-	u32_t DR8R;
-	u32_t ODR;
-	u32_t PUR;
-	u32_t PDR;
-	u32_t SLR;
-	u32_t DEN;
-	u32_t LOCK;
-	u32_t CR;
-};
-#define GPIOF        ((volatile struct  gpio_t *) 0x40025000)
-//debug
-
-
 #define NULL ((void *) 0)
 
-void esix_memcpy(void *dst, void *src, int len);
+void esix_memcpy(void *dst, const void *src, int len);
 
-u16_t hton16(u16_t v);
-u32_t hton32(u32_t v);
-u16_t ntoh16(u16_t v);
-u32_t ntoh32(u32_t v);
+inline u16_t hton16(u16_t v);
+inline u32_t hton32(u32_t v);
+inline u16_t ntoh16(u16_t v);
+inline u32_t ntoh32(u32_t v);
 
 
 #endif

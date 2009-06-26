@@ -89,11 +89,11 @@ void esix_ip_process(void *packet, int len)
 			break;
 
 		case UDP:
-			esix_udp_parse((struct udp_hdr *) (hdr + 1),
+			esix_udp_process((struct udp_hdr *) (hdr + 1),
 				ntoh16(hdr->payload_len), hdr);	
 		
 		case TCP:
-			esix_tcp_parse((struct tcp_hdr *) (hdr + 1),
+			esix_tcp_process((struct tcp_hdr *) (hdr + 1),
 				ntoh16(hdr->payload_len), hdr);
 
 		//unknown (unimplemented) IP type
@@ -136,13 +136,12 @@ u16_t esix_ip_upper_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_
 void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len)
 {
 	struct ip6_hdr *hdr = esix_w_malloc(sizeof(struct ip6_hdr) + len);
-
+	int i, route_index, dest_onlink;
+	esix_ll_addr lla;
+	
 	//hmmm... I smell gas...
 	if(hdr == NULL)
 		return;
-	int i, route_index, dest_onlink;
-	int d;
-	esix_ll_addr lla;
 	
 	hdr->ver_tc_flowlabel = hton32(6 << 28);
 	hdr->payload_len = hton16(len);
@@ -157,11 +156,13 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	//routing
 	for(i=0; i < 4; i++)
 	{
-		/*if(routes[i] != NULL)
+		/*
+		if(routes[i] != NULL)
 			uart_printf("\n\ndaddr : %x %x %x %x\nroute : %x %x %x %x\n", 
 				daddr->addr1, daddr->addr2 , daddr->addr3 , daddr->addr4,
 				routes[i]->mask.addr1, routes[i]->mask.addr2 , routes[i]->mask.addr3 , routes[i]->mask.addr4);
 		*/
+		
 		if(	(routes[i] != NULL ) &&
 			((daddr->addr1 & routes[i]->mask.addr1) == routes[i]->addr.addr1) &&
 			((daddr->addr2 & routes[i]->mask.addr2) == routes[i]->addr.addr2) &&
@@ -171,10 +172,6 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 			route_index = i;
 			break;
 		}
-		/*
-		for(d=0; d<1000000; d++)
-			asm("nop");
-		*/
 	}
 
 	//sorry dude, we didn't find any matching route...
