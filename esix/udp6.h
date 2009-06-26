@@ -40,6 +40,15 @@
 		// UDP data
 	} __attribute__((__packed__));
 
+	struct udp_packet
+	{
+		u16_t s_port;
+		struct ip6_addr s_addr;
+		u16_t	len;
+		u8_t *data;
+		struct udp_packet *next;
+	} __attribute__((__packed__));
+	
 	void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr);
 	void esix_udp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, const void *data, u16_t len);
 

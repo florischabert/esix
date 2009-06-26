@@ -29,6 +29,7 @@
 #include "config.h"
 #include "esix.h"
 #include "icmp6.h"
+#include "socket.h"
 #include "include/esix.h"
 #include "intf.h"
 #include "tools.h"
@@ -55,6 +56,9 @@ void esix_init(u16_t lla[3])
 
 	for(i=0; i<ESIX_MAX_NB; i++)
 		neighbors[i] = NULL;
+	
+	for(i=0; i<ESIX_MAX_SOCK; i++)
+		sockets[i] = NULL;
 
 	esix_intf_add_default_neighbors(lla);
 	esix_intf_add_default_addresses();

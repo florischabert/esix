@@ -42,7 +42,7 @@ u32_t socket(u16_t family, u8_t type, u8_t proto)
 	
 	if(type == SOCK_DGRAM)
 	{
-		if(esix_socket_add(socket, UDP, port) < 0)
+		if(esix_socket_add(socket, SOCK_DGRAM, port) < 0)
 			return -1;
 	}
 	return socket;
@@ -55,12 +55,43 @@ u32_t bind(u32_t socket, const struct sockaddr_in6 *address, u32_t len)
 
 u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_in6* from, u32_t *fromaddrlen)
 {
-	return 0;
+	int i;
+	u32_t plen;
+	struct udp_packet *packet;
+	
+	i = esix_socket_get_index(socket);
+	if(i < 0)
+		return 0; // TODO: error, how to check ? errno style ?
+	
+	if(sockets[i]->received == NULL)
+	{
+		plen = 0; // nothing received
+	}
+	else
+	{
+		packet = sockets[i]->received;
+		plen = packet->len;
+		if(plen <= len)
+			esix_memcpy(buff, packet->data, plen);
+		else
+			esix_memcpy(buff, packet->data, len);
+		
+		from->sin6_port = packet->s_port;
+		esix_memcpy(&from->sin6_addr, &packet->s_addr, 16);
+		
+		if(!(flags & MSG_PEEK))
+		{
+			esix_w_free(packet->data);
+			esix_w_free(sockets[i]->received);
+			sockets[i]->received = NULL;
+		}
+	}
+	return plen;
 }
 
 u32_t sendto(u32_t socket, const void *buff, u16_t len, u8_t flags, const struct sockaddr_in6 *to, u32_t toaddrlen)
 {
-	int i = esix_socket_get_socket_index(socket);
+	int i = esix_socket_get_index(socket);
 	
 	esix_udp_send((struct ip6_addr *) &to->sin6_addr, sockets[i]->port, to->sin6_port, buff, len);
 	
@@ -95,7 +126,7 @@ int esix_socket_add(u32_t socket, u8_t type, u16_t port)
 	return esix_socket_add_row(row);
 }
 
-int esix_socket_get_socket_index(u32_t socket)
+int esix_socket_get_index(u32_t socket)
 {
 	int j;
 	for(j = 0; j<ESIX_MAX_SOCK; j++)
@@ -103,6 +134,22 @@ int esix_socket_get_socket_index(u32_t socket)
 		//check if we already stored this address
 		if((sockets[j] != NULL) &&
 			((sockets[j]->socket == socket)))
+		{
+			return j;
+		}
+	}
+	return -1;
+}
+
+int esix_socket_get_port_index(u16_t port, u8_t type)
+{
+	int j;
+	for(j = 0; j<ESIX_MAX_SOCK; j++)
+	{
+		//check if we already stored this address
+		if((sockets[j] != NULL) &&
+			(sockets[j]->port == port) &&
+			(sockets[j]->type == type))
 		{
 			return j;
 		}

@@ -90,7 +90,10 @@ void client_task(void *param)
 {
 	int soc;
 	char *txt = "hello world!\r\n";
-	struct sockaddr_in6 to;
+	char buff[1000];
+	int len;
+	struct sockaddr_in6 to, from;
+	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
 	
 	to.sin6_port = 2009;
 	to.sin6_addr.u6_addr32[0] = HTON32(0xfe800000);
@@ -103,7 +106,10 @@ void client_task(void *param)
 	while(1)
 	{
 		sendto(soc, txt, 14, 0, &to, sizeof(struct sockaddr_in6));
-		vTaskDelay(5000);
+		vTaskDelay(5000)
+		//while(!(len = recvfrom(soc, buff, 1000, 0, &from, &sockaddrlen)));
+		buff[len] = 0;
+		//uart_puts(buff);
 	}
 }
 

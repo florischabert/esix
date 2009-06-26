@@ -36,13 +36,14 @@ struct socket_table_row
 	u32_t socket;
 	u8_t type;
 	u16_t port;
-	u8_t *received;
+	void *received;
 };
 
 struct socket_table_row *sockets[ESIX_MAX_SOCK];
 
 int esix_socket_add_row(struct socket_table_row *row);
 int esix_socket_add(u32_t socket, u8_t type, u16_t port);
-int esix_socket_get_socket_index(u32_t socket);
+int esix_socket_get_index(u32_t socket);
+int esix_socket_get_port_index(u16_t port, u8_t type);
 
 #endif
