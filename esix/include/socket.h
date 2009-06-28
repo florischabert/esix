@@ -72,21 +72,40 @@ struct sockaddr_in6
  */
 u32_t socket(u16_t family, u8_t type, u8_t proto);
 
+/*
+ * Change properties of a socket.
+ *
+ * @param socket is the socket idenfier.
+ * @param address is a pointer to the IPv6 sockaddr stuct to be used.
+ * @param addrlen is the size of address.
+ * @return the socket identifier.
+ */
 u32_t bind(u32_t socket, const struct sockaddr_in6 *address, u32_t addrlen);
 
 /*
  * Receive data from the socket.
  * 
  * @param socket is the socket idenfier.
- * @param buff is a pointer to the received data.
- * @param nbytes is the number of byte received.
- * @param flags could contain the following flags: MSG_PEEK, MSG_DONTWAIT
- * @param from is a pointer to an IPv6 sockaddr struct.
+ * @param buff is a pointer to a buffer where the received data can be copied.
+ * @param len is the length (in bytes) os the buffer.
+ * @param flags could contain the following flags: MSG_PEEK, MSG_DONTWAIT.
+ * @param from is a pointer to an IPv6 sockaddr struct (where sender details will be copied).
  * @param fromaddrlen is a pointer to the size of from.
  * @return the number of bytes read.
  */
 u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_in6* from, u32_t *fromaddrlen);
 
+/*
+ * Send data through a socket.
+ *
+ * @paramsocket is the socket idenfier.
+ * @param buff is a pointer to a buffer containing the data to be sent.
+ * @param len is the number of bytes to send.
+ * @param flags is not used (for now).
+ * @param from is a pointer to an IPv6 sockaddr struct (containing destination details).
+ * @param fromaddrlen is a pointer to the size of from.
+ * @return the number of bytes sent.
+ */
 u32_t sendto(u32_t socket, const void *buff, u16_t len, u8_t flags, const struct sockaddr_in6 *to, u32_t toaddrlen);
 
 #endif

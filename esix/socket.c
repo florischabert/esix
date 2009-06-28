@@ -43,13 +43,11 @@ u32_t socket(u16_t family, u8_t type, u8_t proto)
 	while(esix_socket_get_index(socket) >= 0)
 		socket++; // give the first socket identifier available
 	
-	if(type == SOCK_DGRAM)
-	{
-		while(esix_socket_get_port_index(port, UDP) >= 0)
-			port++; // give the first port available (>= 1024)
+	while(esix_socket_get_port_index(port, proto) >= 0)
+		port++; // give the first port available (>= 1024)
 			
-		if(esix_socket_add(socket, SOCK_DGRAM, port) < 0)
-			return -1;
+	if(esix_socket_add(socket, proto, port) < 0)
+		return -1;
 	}
 	return socket;
 }
@@ -61,8 +59,8 @@ u32_t bind(u32_t socket, const struct sockaddr_in6 *address, u32_t addrlen)
 	i = esix_socket_get_index(socket);
 	if(i < 0)
 		return -1;
-	// TODO: addresses stuff
-	if(esix_socket_get_port_index(address->sin6_port, UDP) < 0)
+	// TODO: address stuff
+	if(esix_socket_get_port_index(address->sin6_port, SOCK_DGRAM) < 0)
 		sockets[i]->port = address->sin6_port;
 	else
 		return -1;
