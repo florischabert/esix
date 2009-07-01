@@ -43,10 +43,10 @@ u32_t socket(u16_t family, u8_t type, u8_t proto)
 	while(esix_socket_get_index(socket) >= 0)
 		socket++; // give the first socket identifier available
 	
-	while(esix_socket_get_port_index(port, proto) >= 0)
+	while(esix_socket_get_port_index(port, type) >= 0)
 		port++; // give the first port available (>= 1024)
 			
-	if(esix_socket_add(socket, proto, port) < 0)
+	if(esix_socket_add(socket, type, port) < 0)
 		return -1;
 	return socket;
 }

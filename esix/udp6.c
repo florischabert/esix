@@ -37,12 +37,12 @@ void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 {
 	int i;
 	struct udp_packet *packet;
-	
-	i = esix_socket_get_port_index(ntoh16(u_hdr->d_port), SOCK_DGRAM);	
+
+	i = esix_socket_get_port_index(u_hdr->d_port, SOCK_DGRAM);	
 	if(i < 0)
 	{
 		// esix_icmp_send_unreachable
-		uart_printf("UDP port %x unreachable\n", ntoh16(u_hdr->d_port)); // FIXME
+		uart_printf("UDP port %x unreachable\n", u_hdr->d_port); // FIXME
 		esix_icmp_send_unreachable(ip_hdr, PORT_UNREACHABLE);
 	}
 	else
@@ -51,7 +51,7 @@ void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 		if(sockets[i]->received == NULL)
 		{
 			packet = esix_w_malloc(sizeof(struct udp_packet));
-			packet->s_port = ntoh16(u_hdr->s_port);
+			packet->s_port = u_hdr->s_port;
 			esix_memcpy(&packet->s_addr, &ip_hdr->saddr, 16);
 			packet->len = ntoh16(u_hdr->len) - sizeof(struct udp_hdr);
 			packet->data = esix_w_malloc(packet->len);
@@ -60,7 +60,7 @@ void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 			sockets[i]->received = packet;
 		}
 		else
-			uart_printf("An UDP packet is already in the queue.\n"); // FIXME
+			uart_printf("An UDP packet is already in the queue.\n"); // FIXME 
 	}
 	
 	return;
@@ -71,16 +71,18 @@ void esix_udp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, const voi
 	int i;
 	struct ip6_addr saddr;
 	struct udp_hdr *hdr = esix_w_malloc(sizeof(struct udp_hdr) + len);
-	hdr->d_port = hton16(d_port);
-	hdr->s_port = hton16(s_port);
+	hdr->d_port = d_port;
+	hdr->s_port = s_port;
 	hdr->len = hton16(len + sizeof(struct udp_hdr));
 	hdr->chksum = 0;
 	esix_memcpy(hdr + 1, data, len);
-	
+
 	// get the source address
-	i = esix_intf_get_scope_address(GLOBAL_SCOPE);
-	if(i < 0)
+	if((daddr->addr1 & hton32(0xffff0000)) == hton32(0xfe800000))
 		i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
+	else
+		i = esix_intf_get_scope_address(GLOBAL_SCOPE);
+
 	saddr = addrs[i]->addr;
 	
 	hdr->chksum = esix_ip_upper_checksum(&saddr, daddr, UDP, hdr, len + sizeof(struct udp_hdr));

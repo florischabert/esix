@@ -49,7 +49,7 @@ void main(void)
 	u16_t lla[3]; // MAC address
 	lla[0] = 0x003a;
 	lla[1] = 0xe967;
-	lla[2] = 0xc58c;
+	lla[2] = 0xc580;
 
 	u16_t lla2[3];
 	lla2[0]	= HTON16(lla[0]);
@@ -95,7 +95,7 @@ void server_task(void *param)
 	struct sockaddr_in6 serv, from;
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
 	
-	serv.sin6_port = hton16(2009);
+	serv.sin6_port = HTON16(2009);
 	
 	soc = socket(AF_INET6, SOCK_DGRAM, 0);
 	soc = bind(soc, &serv, sizeof(serv));

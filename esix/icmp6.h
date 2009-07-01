@@ -190,4 +190,6 @@
 	void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *, int , struct ip6_hdr *);
 	void esix_icmp_send_neighbor_sol(struct ip6_addr*, struct ip6_addr*);
 	void esix_icmp_send_router_sol(int);
+	void esix_icmp_send_unreachable(struct ip6_hdr *ip_hdr, u8_t type);
+
 #endif

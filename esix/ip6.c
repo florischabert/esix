@@ -66,7 +66,7 @@ void esix_ip_process(void *packet, int len)
 			break;
 		}
 	}
-	
+
 	//drop the packet in case it doesn't
 	if(pkt_for_us==0)
 	{
