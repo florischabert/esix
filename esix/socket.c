@@ -48,7 +48,6 @@ u32_t socket(u16_t family, u8_t type, u8_t proto)
 			
 	if(esix_socket_add(socket, proto, port) < 0)
 		return -1;
-	}
 	return socket;
 }
 

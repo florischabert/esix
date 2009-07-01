@@ -198,7 +198,7 @@ void ether_receive_task(void *param)
 		else
 		{	
 			// allocate memory for the frame
- 			eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len);			
+ 			eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len+365);			
 
 			// read the payload
 			for(i = 0; i < len; i += 4)

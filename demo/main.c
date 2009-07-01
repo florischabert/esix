@@ -95,7 +95,7 @@ void server_task(void *param)
 	struct sockaddr_in6 serv, from;
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
 	
-	serv.sin6_port = 2009;
+	serv.sin6_port = hton16(2009);
 	
 	soc = socket(AF_INET6, SOCK_DGRAM, 0);
 	soc = bind(soc, &serv, sizeof(serv));

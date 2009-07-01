@@ -139,6 +139,13 @@
 	} __attribute__((__packed__));
 
 	/**
+	 * ICMP TTL expired header.
+	 */
+	struct icmp6_ttl_exp_hdr {
+		u32_t reserved; //do we really need such a header? hm...
+	};
+
+	/**
 	 * ICMP option, prefix info header.
 	 */
 	struct icmp6_opt_prefix_info {
