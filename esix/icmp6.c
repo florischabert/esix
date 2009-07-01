@@ -136,7 +136,6 @@ void esix_icmp_send_unreachable(struct ip6_hdr *ip_hdr, u8_t type)
 	esix_memcpy(unreach+1, ip_hdr, n_len - sizeof(struct icmp6_unreachable_hdr));
 
 	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, DST_UNR, type, unreach, n_len);
-	toggle_led();
 }
 
 /**
@@ -385,6 +384,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	}
 	else if (got_prefix_info)
 	{
+		toggle_led();
 		//builds a new global scope address
 		//not endian-safe for now, words in the prefix field
 		//are not aligned when received

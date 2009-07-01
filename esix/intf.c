@@ -321,7 +321,7 @@ int esix_intf_get_neighbor_index(struct ip6_addr *addr, u8_t interface)
  */
 int esix_intf_remove_neighbor(struct ip6_addr *addr, u8_t interface)
 {
-	uart_printf("remove neighbor  \n");
+	//uart_printf("remove neighbor  \n");
 	int i;
 	struct esix_neighbor_table_row *row;
 	
@@ -331,11 +331,11 @@ int esix_intf_remove_neighbor(struct ip6_addr *addr, u8_t interface)
 		row = neighbors[i];
 		neighbors[i] = NULL; 
 		esix_w_free(row);
-	uart_printf("remove neighbor  end\n");
+	//uart_printf("remove neighbor  end\n");
 		return 1;
 	}
 
-	uart_printf("remove neighbor  CRASH\n");
+	//uart_printf("remove neighbor  CRASH\n");
 	return 0;
 }
 
@@ -412,8 +412,8 @@ int esix_intf_get_route_index(struct ip6_addr *daddr, struct ip6_addr *mask, str
  */
 int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_date, u8_t scope)
 {
-	uart_printf("esix_intf_add_address: adding %x:%x:%x:%x\n",
-		addr->addr1, addr->addr2, addr->addr3, addr->addr4);
+	//uart_printf("esix_intf_add_address: adding %x:%x:%x:%x\n",
+	//	addr->addr1, addr->addr2, addr->addr3, addr->addr4);
 	struct esix_ipaddr_table_row *row;
 	int i;
 
@@ -476,7 +476,7 @@ int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_addr, u32_t expiration_date,
 				u8_t ttl, u32_t mtu, u8_t interface)
 {
-	uart_printf("esix_intf_add_route: adding %x:%x:%x:%x nxt_hop %x:%x:%x:%x\n",
+	//uart_printf("esix_intf_add_route: adding %x:%x:%x:%x nxt_hop %x:%x:%x:%x\n",
 		daddr->addr1, daddr->addr2, daddr->addr3, daddr->addr4,
 		next_addr->addr1, next_addr->addr2, next_addr->addr3, next_addr->addr4);
 		
