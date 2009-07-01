@@ -347,7 +347,7 @@ int esix_intf_get_scope_address(u8_t scope)
 	for(i=0; i<ESIX_MAX_IPADDR;i++)
 	{
 		if( (addrs[i] != NULL) &&
-			((addrs[i]->scope == scope) || (scope = ANY_SCOPE)) )
+			((addrs[i]->scope == scope) || (scope == ANY_SCOPE)) )
 			return i;
 	}
 
