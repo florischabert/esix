@@ -92,8 +92,25 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 /**
  * Sends a TTL expired message back to its source.
  */
-void esix_icmp_send_ttl_expired(struct ip6_hdr *hdr)
+void esix_icmp_send_ttl_expired(struct ip6_hdr *ip_hdr)
 {
+	//TODO : don't reply to an icmp error message
+
+	//we're returning (most of) an entire packet. The size of our error msg shouldn't
+	//ever exceed the minimum IPv6 MTU (1280 bytes).
+	int n_len = ntoh16(ip_hdr->payload_len) + sizeof(struct ip6_hdr) + sizeof(struct icmp6_ttl_exp_hdr);
+	if(n_len > 1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr))
+		n_len=1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
+
+	struct icmp6_ttl_exp_hdr *ttl_exp = esix_w_malloc(n_len);
+	//hmm, I smell gas...
+	if(ttl_exp == NULL)
+		return;
+
+	//now copy the packet that caused trouble.
+	esix_memcpy(ttl_exp+1, ip_hdr, n_len);
+
+	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, TTL_EXP , 0, ttl_exp, n_len);
 }
 
 /**
