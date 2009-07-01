@@ -477,8 +477,8 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
 				u8_t ttl, u32_t mtu, u8_t interface)
 {
 	//uart_printf("esix_intf_add_route: adding %x:%x:%x:%x nxt_hop %x:%x:%x:%x\n",
-		daddr->addr1, daddr->addr2, daddr->addr3, daddr->addr4,
-		next_addr->addr1, next_addr->addr2, next_addr->addr3, next_addr->addr4);
+	//	daddr->addr1, daddr->addr2, daddr->addr3, daddr->addr4,
+	//	next_addr->addr1, next_addr->addr2, next_addr->addr3, next_addr->addr4);
 		
 	int i=0;
 	struct esix_route_table_row *rt	= NULL;
