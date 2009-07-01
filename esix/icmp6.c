@@ -109,7 +109,7 @@ void esix_icmp_send_ttl_expired(struct ip6_hdr *ip_hdr)
 		return;
 
 	//now copy the packet that caused trouble.
-	esix_memcpy(ttl_exp+1, ip_hdr, n_len);
+	esix_memcpy(ttl_exp+1, ip_hdr, n_len-sizeof(struct icmp6_ttl_exp_hdr));
 
 	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, TTL_EXP , 0, ttl_exp, n_len);
 }
@@ -124,8 +124,6 @@ void esix_icmp_send_unreachable(struct ip6_hdr *ip_hdr, u8_t type)
 	//we're returning (most of) an entire packet. The size of our error msg shouldn't
 	//ever exceed the minimum IPv6 MTU (1280 bytes).
 	int n_len = ntoh16(ip_hdr->payload_len) + sizeof(struct ip6_hdr) + sizeof(struct icmp6_unreachable_hdr);
-	uart_printf("esix_icmp_send_unreachable: required length : %x\n",  n_len);
-	int i;
 	if(n_len > 1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr))
 		n_len=1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
 
@@ -135,9 +133,10 @@ void esix_icmp_send_unreachable(struct ip6_hdr *ip_hdr, u8_t type)
 		return;
 
 	//now copy the packet that caused trouble.
-	esix_memcpy(unreach+1, ip_hdr, n_len);
+	esix_memcpy(unreach+1, ip_hdr, n_len - sizeof(struct icmp6_unreachable_hdr));
 
 	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, DST_UNR, type, unreach, n_len);
+	toggle_led();
 }
 
 /**
@@ -358,7 +357,16 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 			break;
 
 			default:
-				i+= (option_hdr->length*8); //option_hdr->length gives the size of
+				//this is an easy way to make the stack hang...
+				//(and should also be considered as a malformed packet. easy cure : drop it.)
+				if(option_hdr->length == 0)
+				{
+					uart_printf("esix_icmp_process_router_adv: unknown option with length 0 in RA, from %x:%x:%x:%x\n",
+						ip_hdr->saddr.addr1, ip_hdr->saddr.addr2, ip_hdr->saddr.addr3, ip_hdr->saddr.addr4);
+					return;
+				}
+				else
+					i+= (option_hdr->length*8); //option_hdr->length gives the size of
 								//type + length + data fields in
 								//8 bytes multiples
 								//skip this length since we don't know
@@ -397,7 +405,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		addr.addr4 = 	hton32(	(0xfe000000) //0xfe here is OK
 			 		| (ntoh16(neighbors[0]->lla[1]) << 16 & 0xff0000) 
 			 		| (ntoh16(neighbors[0]->lla[2])) );
-		uart_printf("got prefix info: prefix : %x:%x\n", addr.addr1, addr.addr2, addr.addr3, addr.addr4);
+		//uart_printf("got prefix info: prefix : %x:%x\n", addr.addr1, addr.addr2, addr.addr3, addr.addr4);
 
 		esix_intf_add_address(&addr,
 				0x40,				// /64

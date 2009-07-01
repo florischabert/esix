@@ -42,6 +42,7 @@ void *esix_w_malloc(size_t size)
 	int i;
 	u32_t *ptr;
 	alloc_count++;
+	uart_printf("esix_w_malloc: malloc count : %x\n", alloc_count);
  	ptr = pvPortMalloc(size);
 	if(ptr == NULL)
 	{

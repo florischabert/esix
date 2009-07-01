@@ -70,10 +70,9 @@ void esix_ip_process(void *packet, int len)
 	//drop the packet in case it doesn't
 	if(pkt_for_us==0)
 	{
-		uart_printf("packed received but not for us\n");
+		uart_printf("packet received but not for us\n");
 		return;
 	}
-		uart_printf("packed for us \\o/\n");
 	
 	//check the hop limit value (should be > 0)
 	if(hdr->hlimit == 0)

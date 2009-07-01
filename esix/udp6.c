@@ -35,7 +35,6 @@
 
 void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 {
-	toggle_led();
 	int i;
 	struct udp_packet *packet;
 	
