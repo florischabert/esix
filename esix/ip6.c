@@ -73,6 +73,7 @@ void esix_ip_process(void *packet, int len)
 		uart_printf("packed received but not for us\n");
 		return;
 	}
+		uart_printf("packed for us \\o/\n");
 	
 	//check the hop limit value (should be > 0)
 	if(hdr->hlimit == 0)
@@ -80,6 +81,7 @@ void esix_ip_process(void *packet, int len)
 		esix_icmp_send_ttl_expired(hdr);
 		return;
 	}
+
 	//determine what to do next
 	switch(hdr->next_header)
 	{
