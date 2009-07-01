@@ -103,10 +103,14 @@ void server_task(void *param)
 	while(1)
 	{
 		recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
-		if(!strncmp(buff, "help\n", 5))
-			sendto(soc, "it seems you need help.\n", 24, 0, &from, sizeof(struct sockaddr_in6));
+		if(strncmp(buff, "toggle_led\n", 11))
+			sendto(soc, "commands : toggle_led : toggles the led...\n", 43, 0, &from, sizeof(struct sockaddr_in6));
 		else
-			sendto(soc, "commands: help\n", 15, 0, &from, sizeof(struct sockaddr_in6));
+		{
+			sendto(soc, "led status toggled.\n", 20, 0, &from, sizeof(struct sockaddr_in6));
+			toggle_led();
+			//sendto(soc, "commands: help\n", 15, 0, &from, sizeof(struct sockaddr_in6));
+		}
 	}
 }
 

@@ -226,7 +226,7 @@ int esix_intf_add_address_row(struct esix_ipaddr_table_row *row)
 }
 
 /**
- *  ix_intf_add_route_row: adds the given route to the routing table. 
+ *  esix_intf_add_route_row: adds the given route to the routing table. 
  *
  * @return 1 on success.
  */
