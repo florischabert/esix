@@ -28,19 +28,24 @@
 
 #include "tools.h"
 #include "udp6.h"
+#include "icmp6.h"
 #include "intf.h"
 #include "include/socket.h"
 #include "socket.h"
 
 void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 {
+	toggle_led();
 	int i;
 	struct udp_packet *packet;
 
 	i = esix_socket_get_port_index(u_hdr->d_port, SOCK_DGRAM);	
 	if(i < 0)
+	{
 		// esix_icmp_send_unreachable
 		uart_printf("UDP port %x unreachable\n", u_hdr->d_port); // FIXME
+		esix_icmp_send_unreachable(ip_hdr, PORT_UNREACHABLE);
+	}
 	else
 	{
 		// TODO: linked list for received data

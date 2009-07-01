@@ -99,6 +99,7 @@ void esix_icmp_send_ttl_expired(struct ip6_hdr *ip_hdr)
 	//we're returning (most of) an entire packet. The size of our error msg shouldn't
 	//ever exceed the minimum IPv6 MTU (1280 bytes).
 	int n_len = ntoh16(ip_hdr->payload_len) + sizeof(struct ip6_hdr) + sizeof(struct icmp6_ttl_exp_hdr);
+	int i;
 	if(n_len > 1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr))
 		n_len=1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
 
@@ -111,6 +112,32 @@ void esix_icmp_send_ttl_expired(struct ip6_hdr *ip_hdr)
 	esix_memcpy(ttl_exp+1, ip_hdr, n_len);
 
 	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, TTL_EXP , 0, ttl_exp, n_len);
+}
+
+/**
+ * Sends an ICMP unreachable message back to its source.
+ */
+void esix_icmp_send_unreachable(struct ip6_hdr *ip_hdr, u8_t type)
+{
+	//TODO : don't reply to an icmp error message
+
+	//we're returning (most of) an entire packet. The size of our error msg shouldn't
+	//ever exceed the minimum IPv6 MTU (1280 bytes).
+	int n_len = ntoh16(ip_hdr->payload_len) + sizeof(struct ip6_hdr) + sizeof(struct icmp6_unreachable_hdr);
+	uart_printf("esix_icmp_send_unreachable: required length : %x\n",  n_len);
+	int i;
+	if(n_len > 1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr))
+		n_len=1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
+
+	struct icmp6_unreachable_hdr *unreach = esix_w_malloc(n_len);
+	//hmm, I smell gas...
+	if(unreach == NULL)
+		return;
+
+	//now copy the packet that caused trouble.
+	esix_memcpy(unreach+1, ip_hdr, n_len);
+
+	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, DST_UNR, type, unreach, n_len);
 }
 
 /**
@@ -310,7 +337,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		switch(option_hdr->type)
 		{
 			case PRFX_INFO:
-				toggle_led();
+				//toggle_led();
 				pfx_info = (struct icmp6_opt_prefix_info *) &option_hdr->payload; 
 				//the advertised prefix length MUST be 64 (0x40) in order to do
 				//stateless autoconfigration.

@@ -62,6 +62,12 @@
 	#define PRFX_INFO 	0x3
 	#define MTU		0x5
 	#define S_LLA		0x1
+
+	//various icmp constants
+	#define PORT_UNREACHABLE 4
+	#define ADDR_UNREACHABLE 3
+	#define ADMIN_PROHIBITED 1
+	#define NO_ROUTE_TO_DEST 0
 	
 	/**
 	 * ICMPv6 header
@@ -143,7 +149,14 @@
 	 */
 	struct icmp6_ttl_exp_hdr {
 		u32_t reserved; //do we really need such a header? hm...
-	};
+	} __attribute__((__packed__));
+
+	/**
+	 * ICMP unreachable header.
+	 */
+	struct icmp6_unreachable_hdr {
+		u32_t reserved; //do we really need such a header? hm...
+	} __attribute__((__packed__));
 
 	/**
 	 * ICMP option, prefix info header.
