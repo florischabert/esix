@@ -293,6 +293,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		switch(option_hdr->type)
 		{
 			case PRFX_INFO:
+				toggle_led();
 				pfx_info = (struct icmp6_opt_prefix_info *) &option_hdr->payload; 
 				//the advertised prefix length MUST be 64 (0x40) in order to do
 				//stateless autoconfigration.
@@ -304,7 +305,6 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 			break;
 
 			case MTU:
-				toggle_led();
 				mtu_info = (struct icmp6_opt_mtu *) &option_hdr->payload; 
 				if( (i+8) < ntoh16(length) )
 				{
@@ -353,13 +353,14 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		addr.addr4 = 	hton32(	(0xfe000000) //0xfe here is OK
 			 		| (ntoh16(neighbors[0]->lla[1]) << 16 & 0xff0000) 
 			 		| (ntoh16(neighbors[0]->lla[2])) );
+		uart_printf("got prefix info: prefix : %x:%x\n", addr.addr1, addr.addr2, addr.addr3, addr.addr4);
 
 		esix_intf_add_address(&addr,
 				0x40,				// /64
 				esix_get_time() + ntoh32(pfx_info->valid_lifetime), //expiration date
 				GLOBAL_SCOPE);
 
-		addr.addr1 = 	hton32(	pfx_info->p[0] << 24	//prefix 
+		/*addr.addr1 = 	hton32(	pfx_info->p[0] << 24	//prefix 
 					 | pfx_info->p[1] << 16 
 					 | pfx_info->p[2] << 8
 					 | pfx_info->p[3]);
@@ -368,6 +369,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 					 | pfx_info->p[5] << 16 
 					 | pfx_info->p[6] << 8
 					 | pfx_info->p[7]);
+		*/
 		addr.addr3 = 0;
 		addr.addr4 = 0;
 		addr2.addr1 = 0;
