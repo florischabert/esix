@@ -79,10 +79,11 @@ void esix_udp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, const voi
 	esix_memcpy(hdr + 1, data, len);
 
 	// get the source address
-	i = esix_intf_get_scope_address(GLOBAL_SCOPE);
-
-	if(i < 0)
+	if((daddr->addr1 & hton32(0xffff0000)) == hton32(0xfe800000))
 		i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
+	else
+		i = esix_intf_get_scope_address(GLOBAL_SCOPE);
+
 	saddr = addrs[i]->addr;
 	
 	hdr->chksum = esix_ip_upper_checksum(&saddr, daddr, UDP, hdr, len + sizeof(struct udp_hdr));
