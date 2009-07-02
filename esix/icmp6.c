@@ -57,6 +57,9 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 			esix_icmp_process_echo_req(
 				(struct icmp6_echo *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
+		case MLD_QRY:
+			esix_icmp_send_mld2_report();
+			break;
 		default:
 			uart_printf("Unknown ICMP packet, type: %x\n", icmp_hdr->type);
 	}
@@ -99,7 +102,6 @@ void esix_icmp_send_ttl_expired(struct ip6_hdr *ip_hdr)
 	//we're returning (most of) an entire packet. The size of our error msg shouldn't
 	//ever exceed the minimum IPv6 MTU (1280 bytes).
 	int n_len = ntoh16(ip_hdr->payload_len) + sizeof(struct ip6_hdr) + sizeof(struct icmp6_ttl_exp_hdr);
-	int i;
 	if(n_len > 1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr))
 		n_len=1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
 
@@ -468,5 +470,63 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 					INTERFACE);
 	}
 
+}
+
+void esix_icmp_send_mld2_report(void)
+{
+	int i=0;
+	u16_t count=0;
+	int len;
+	int index_list[ESIX_MAX_IPADDR];
+	struct esix_ipaddr_table_row *row;
+
+	struct ip6_addr all_mld2_queriers;
+	all_mld2_queriers.addr1	= hton32(0xff020000);
+	all_mld2_queriers.addr2	= hton32(0x00000000);
+	all_mld2_queriers.addr3	= hton32(0x00000000);
+	all_mld2_queriers.addr4	= hton32(0x00000016);
+
+	while(i < ESIX_MAX_IPADDR)
+	{	
+		index_list[i] = 0;
+		if(addrs[i] != NULL && 
+			(addrs[i]->addr.addr1 & hton32(0xff000000)) == hton32(0xff000000))
+		{
+			index_list[i] = 1;
+			count++;
+		}
+		i++;
+	}
+
+	len	= sizeof(struct icmp6_mld2_hdr) + sizeof(struct icmp6_mld2_opt_mcast_addr_record)*count;
+	struct icmp6_mld2_hdr *mld = esix_w_malloc(len);
+
+	//hm, I smell gas...
+	if(mld == NULL)
+		return;
+	
+	mld->num_mcast_addr_records	= hton16(count);
+	struct icmp6_mld2_opt_mcast_addr_record *mld_mcast; 
+
+	i=0;
+	count=0;
+	mld_mcast = (struct cmp6_mld2_opt_mcast_addr_record*) (mld+1);
+	//TODO : check that we don't exceed the MTU (in which case we should send 2 separate reports)
+	while(i < ESIX_MAX_IPADDR)
+	{
+		//for each multicast address previously found, append a record in our report
+		if(index_list[i] == 1)
+		{
+			mld_mcast = mld_mcast + count;
+			mld_mcast->record_type  = MLD2_CHANGE_TO_INCLUDE; //TODO: we never change to exclude...
+			mld_mcast->aux_data_len = 0; //must be 0 per RFC
+			mld_mcast->num_sources  = 0; //we're far from supporting SSM yet...
+			mld_mcast->addr         = addrs[i]->addr;
+			count++;
+		}
+		i++;
+	}
+
+	esix_icmp_send(&addrs[0]->addr, &all_mld2_queriers, 1, MLD2_RP, 0, mld, len);
 }
 

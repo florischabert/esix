@@ -48,15 +48,15 @@
 	#define PARAM_P	0x04	//Parameter problem
 	#define ECHO_RQ	0x80	//Echo request
 	#define ECHO_RP	0x81	//Echo reply
-	#define M_L_QRY	0x82	//Multicast listener query
-	#define M_L_RPT	0x83	//Multicast listener report
-	#define M_L_DNE	0x84	//Multicast listener done
+	#define MLD_QRY	0x82	//Multicast listener query
+	#define MLD_RPT	0x83	//Multicast listener report
+	#define MLD_DNE	0x84	//Multicast listener done
 	#define RTR_SOL 0x85	//Router sollicitation
 	#define RTR_ADV 0x86	//Router advertisement
 	#define NBR_SOL	0x87	//Neighbor sollicitation
 	#define NBR_ADV	0x88	//Neighbor advertisement
 	#define REDIR	0x89	//Redirect
-	#define	MLDv2	0x90	//Multicast Listener Report (MLDv2) 
+	#define	MLD2_RP	0x8f	//Multicast Listener Report (MLDv2) 
 	
 	//list of ICMPv6 options
 	#define PRFX_INFO 	0x3
@@ -68,6 +68,10 @@
 	#define ADDR_UNREACHABLE 3
 	#define ADMIN_PROHIBITED 1
 	#define NO_ROUTE_TO_DEST 0
+
+	//mldv2 constants
+	#define MLD2_CHANGE_TO_INCLUDE 3  
+	#define MLD2_CHANGE_TO_EXCLUDE 4  
 	
 	/**
 	 * ICMPv6 header
@@ -189,7 +193,7 @@
 	/**
 	 * MLDv2 option, mcast address record header
 	 */
-	struct mld2_opt_mcast_addr_record {
+	struct icmp6_mld2_opt_mcast_addr_record {
 		u8_t 	record_type;
 		u8_t	aux_data_len;
 		u16_t	num_sources;
