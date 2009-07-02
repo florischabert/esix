@@ -166,6 +166,8 @@ void ether_handler()
 	portEND_SWITCHING_ISR(resched_needed);	
 }
 
+char buf[MAX_FRAME_SIZE];
+
 /**
  * ether_frame_received : called after an interrupt has been received.
  * copies a frame from the RX ring buffer to a loacl buffer.
@@ -198,7 +200,7 @@ void ether_receive_task(void *param)
 		else
 		{	
 			// allocate memory for the frame
- 			eth_buf = esix_w_malloc(sizeof(struct ether_hdr_t) + len+400);
+ 			eth_buf = (u32_t *) buf;//esix_w_malloc(sizeof(struct ether_hdr_t) + len + 400);
 
 			// read the payload
 			for(i = 0; i < len; i += 4)
@@ -207,7 +209,7 @@ void ether_receive_task(void *param)
 			//got a v6 frame, pass it to the v6 stack
 			esix_ip_process((eth_buf + 4), len);
 			
-			esix_w_free(eth_buf);
+			//esix_w_free(eth_buf);
 		}
 		
 		// read checksum

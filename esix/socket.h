@@ -30,12 +30,32 @@
 #define _SOCKET_H
 
 #include "config.h"
+#include "ip6.h"
+
+enum state
+{
+	CLOSED,
+	LISTEN,
+	SYN_SENT,
+	SYN_RECEIVED,
+	ESTABLISHED,
+	FIN_WAIT_1,
+	FIN_WAIT_2,
+	CLOSE_WAIT,
+	CLOSING,
+	LAST_ACK,
+	TIME_WAIT
+};
 
 struct socket_table_row
 {
 	u32_t socket;
 	u8_t type;
-	u16_t port;
+	u16_t hport; // host port
+	struct ip6_addr haddr; // host addr
+	u16_t rport; // remote port
+	struct ip6_addr raddr; // remote addr
+	volatile enum state state;
 	void * volatile received;
 };
 

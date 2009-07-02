@@ -99,7 +99,7 @@ void esix_icmp_send_ttl_expired(struct ip6_hdr *ip_hdr)
 	//we're returning (most of) an entire packet. The size of our error msg shouldn't
 	//ever exceed the minimum IPv6 MTU (1280 bytes).
 	int n_len = ntoh16(ip_hdr->payload_len) + sizeof(struct ip6_hdr) + sizeof(struct icmp6_ttl_exp_hdr);
-	int i;
+
 	if(n_len > 1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr))
 		n_len=1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
 

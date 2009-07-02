@@ -50,6 +50,9 @@ struct in6_addr
 	};
 };
 
+extern const struct in6_addr in6addr_any;
+extern const struct in6_addr in6addr_loopback;
+
 /*
  * IPv6 sockaddr.
  */
@@ -57,9 +60,9 @@ struct sockaddr_in6
 {
 	u16_t sin6_family; // AF_INET6
 	u16_t sin6_port; // Transport layer port
-	u32_t sin6_flowinfo; // IPv6 flow information
+	u32_t sin6_flowinfo; // IPv6 flow information, not used
 	struct in6_addr sin6_addr; // IPv6 address
-	u32_t sin6_scope_id; // Scope ID
+	u32_t sin6_scope_id; // Scope ID, not used
 };
 
 /*
@@ -81,6 +84,67 @@ u32_t socket(u16_t family, u8_t type, u8_t proto);
  * @return the socket identifier.
  */
 u32_t bind(u32_t socket, const struct sockaddr_in6 *address, u32_t addrlen);
+
+/*
+ * Initiate a connection.
+ *
+ * @param socket is the socket idenfier.
+ * @param to is a pointer to the IPv6 sockaddr stuct to be used.
+ * @param addrlen is the size of to.
+ * @return 0 in success.
+ */
+int connect(u32_t socket, const struct sockaddr_in6 *to, u32_t addrlen);
+
+/*
+ * Listen for connections.
+ *
+ * @param socket is the socket idenfier.
+ * @param num is the number of connections allowed on the socket.
+ * @return 0 in success.
+ */
+int listen(u32_t socket, u32_t num);
+
+/*
+ * Accept a connection.
+ *
+ * @param socket is the socket idenfier.
+ * @param address is a pointer to the IPv6 sockaddr stuct to be used.
+ * @param addrlen is the size of address.
+ * @return a socket identifier for the connection.
+ */
+u32_t accept(u32_t socket, struct sockaddr_in6 *address, u32_t *addrlen);
+
+/*
+ * Close a socket.
+ *
+ * @param socket is the socket idenfier.
+ * @return 0 in success
+ */
+int close(u32_t socket);
+
+/*
+ * Receive data through a socket (for a connected socket).
+ * 
+ * @param socket is the socket idenfier.
+ * @param buff is a pointer to a buffer where the received data can be copied.
+ * @param len is the length (in bytes) os the buffer.
+ * @param flags could contain the following flags: MSG_PEEK, MSG_DONTWAIT.
+ * @return the number of bytes read.
+ */
+u32_t recv(u32_t socket, void *buff, u16_t len, u8_t flags);
+
+/*
+ * Send data through a socket (for a connected socket).
+ *
+ * @paramsocket is the socket idenfier.
+ * @param buff is a pointer to a buffer containing the data to be sent.
+ * @param len is the number of bytes to send.
+ * @param flags is not used (for now).
+ * @param from is a pointer to an IPv6 sockaddr struct (containing destination details).
+ * @param fromaddrlen is a pointer to the size of from.
+ * @return the number of bytes sent.
+ */
+u32_t send(u32_t socket, const void *buff, u16_t len, u8_t flags);
 
 /*
  * Receive data from the socket.

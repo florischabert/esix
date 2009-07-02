@@ -96,6 +96,7 @@ void server_task(void *param)
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
 	
 	serv.sin6_port = HTON16(2009);
+	serv.sin6_addr = in6addr_any;
 	
 	soc = socket(AF_INET6, SOCK_DGRAM, 0);
 	soc = bind(soc, &serv, sizeof(serv));
@@ -120,7 +121,7 @@ void hardware_init(void)
 	// Setup the main oscillator
 	reg = SYSCTR->RCC;
 	reg = (reg & ~(0xf << 23)) | (0x3 << 23); // Set sysclk divisor /4
-	reg |= (0x1 << 22);                       // Enale sysclk divider 
+	reg |= (0x1 << 22);                       // Enable sysclk divider 
 	reg = (reg & ~(0xf << 6)) | (0xe << 6);   // 8MHz external quartz
 	reg &= ~(0x3 << 4);                       // Main oscillator as input source
 	reg &= ~(0x1 << 13);                      // Power on the PLL

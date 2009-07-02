@@ -34,6 +34,7 @@
 #define NULL ((void *) 0)
 
 void esix_memcpy(void *dst, const void *src, int len);
+int esix_memcmp(const void *p1, const void *p2, int len);
 
 inline u16_t hton16(u16_t v);
 inline u32_t hton32(u32_t v);

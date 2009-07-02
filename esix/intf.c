@@ -235,8 +235,7 @@ int esix_intf_add_route_row(struct esix_route_table_row *row)
 {
 	int i;
 	int j=-1;
-	int unsorted,k;
-	struct esix_route_table_row *tmp;
+	int unsorted;
 
 	for(i=0;i<ESIX_MAX_RT;i++)
 	{

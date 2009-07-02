@@ -32,12 +32,15 @@
 #include "include/socket.h"
 #include "udp6.h"
 
+const struct in6_addr in6addr_any = {{{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}};
+const struct in6_addr in6addr_loopback = {{{0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0}}};
+
 u32_t socket(u16_t family, u8_t type, u8_t proto)
 {	
 	u32_t socket = 3;
 	u16_t port = 1024;
 	
-	if(family != AF_INET6)
+	if((family != AF_INET6) | ((type != SOCK_DGRAM) && (type != SOCK_STREAM)))
 		return -1;
 		
 	while(esix_socket_get_index(socket) >= 0)
@@ -58,13 +61,47 @@ u32_t bind(u32_t socket, const struct sockaddr_in6 *address, u32_t addrlen)
 	i = esix_socket_get_index(socket);
 	if(i < 0)
 		return -1;
-	// TODO: address stuff
-	if(esix_socket_get_port_index(address->sin6_port, SOCK_DGRAM) < 0)
-		sockets[i]->port = address->sin6_port;
+		
+	if(esix_socket_get_port_index(address->sin6_port, sockets[i]->type) < 0)
+		sockets[i]->hport = address->sin6_port;
 	else
 		return -1;
+		
+	esix_memcpy(&sockets[i]->haddr, &address->sin6_addr, 16);
 	
 	return socket;
+}
+
+int connect(u32_t socket, const struct sockaddr_in6 *to, u32_t addrlen)
+{
+	int i;
+	
+	i = esix_socket_get_index(socket);
+	if(i < 0)
+		return -1;
+	
+	if(sockets[i]->type == SOCK_DGRAM)
+	{
+		esix_memcpy(&sockets[i]->raddr, &to->sin6_addr, 16);
+		sockets[i]->rport = to->sin6_port;
+	}
+	else
+	{
+		if(sockets[i]->state != CLOSED)
+			return -1;
+			//TODO
+	}
+	return 0;
+}
+
+u32_t recv(u32_t socket, void *buff, u16_t len, u8_t flags)
+{
+	return recvfrom(socket, buff, len, flags, NULL, NULL);
+}
+
+u32_t send(u32_t socket, const void *buff, u16_t len, u8_t flags)
+{
+	return sendto(socket, buff, len, flags, NULL, 0);
 }
 
 u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_in6* from, u32_t *fromaddrlen)
@@ -87,10 +124,13 @@ u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_
 	if(plen > len)
 		plen = len;
 	esix_memcpy(buff, packet->data, plen);
+
+	if(from != NULL)
+	{
+		from->sin6_port = packet->s_port;
+		esix_memcpy(&from->sin6_addr, &packet->s_addr, 16);
+	}
 		
-	from->sin6_port = packet->s_port;
-	esix_memcpy(&from->sin6_addr, &packet->s_addr, 16);
-	
 	if(!(flags & MSG_PEEK))
 	{
 		esix_w_free(packet->data);
@@ -103,9 +143,17 @@ u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_
 
 u32_t sendto(u32_t socket, const void *buff, u16_t len, u8_t flags, const struct sockaddr_in6 *to, u32_t toaddrlen)
 {
-	int i = esix_socket_get_index(socket);
+	int i;
+
+	if(len > MAX_UDP_LEN)
+		return 0;
 	
-	esix_udp_send((struct ip6_addr *) &to->sin6_addr, sockets[i]->port, to->sin6_port, buff, len);
+	i = esix_socket_get_index(socket);
+	
+	if(to != NULL)
+		esix_udp_send((struct ip6_addr *) &to->sin6_addr, sockets[i]->hport, to->sin6_port, buff, len);
+	else
+		esix_udp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, buff, len);
 	
 	return len;
 }
@@ -132,7 +180,9 @@ int esix_socket_add(u32_t socket, u8_t type, u16_t port)
 	
 	row->socket = socket;
 	row->type = type;
-	row->port = port;
+	row->hport = port;
+	esix_memcpy(&row->haddr, &in6addr_any, 16);
+	row->state = CLOSED;
 	row->received = NULL;
 	
 	return esix_socket_add_row(row);
@@ -160,7 +210,7 @@ int esix_socket_get_port_index(u16_t port, u8_t type)
 	{
 		//check if we already stored this address
 		if((sockets[j] != NULL) &&
-			(sockets[j]->port == port) &&
+			(sockets[j]->hport == port) &&
 			(sockets[j]->type == type))
 		{
 			return j;

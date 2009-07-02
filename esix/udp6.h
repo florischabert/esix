@@ -31,6 +31,8 @@
 
 #include "ip6.h"
 
+	#define MAX_UDP_LEN 1452
+	
 	struct udp_hdr 
 	{
 		u16_t s_port;

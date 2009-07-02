@@ -37,13 +37,31 @@ void esix_memcpy(void *dst, const void *src, int len)
 	const char *bsrc;
 	u32_t *wdst = dst;
 	const u32_t *wsrc = src;
-	
+
 	for(; len >= 4; len -= 4) // TODO: optimize for other bus width
 		*wdst++ = *wsrc++;
 	bdst = (char *) wdst;
 	bsrc = (char *) wsrc;
 	while(len--)
 		*bdst++ = *bsrc++;
+}
+
+/*
+ * Compare the len first bytes.
+ */
+int esix_memcmp(const void *p1, const void *p2, int len)
+{
+	const char *pb1 = p1;
+	const char *pb2 = p2;
+
+	while(len--)
+	{
+		if(*pb1 != *pb2)
+			return *pb2 - *pb1;
+		pb1++;
+		pb2++;
+	}	
+	return 0;
 }
 
 /**
