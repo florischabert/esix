@@ -61,8 +61,8 @@ void esix_init(u16_t lla[3])
 		sockets[i] = NULL;
 
 	esix_intf_add_default_neighbors(lla);
-	esix_intf_add_default_addresses();
 	esix_intf_add_default_routes(INTERFACE, 1500);
+	esix_intf_add_default_addresses();
 	esix_icmp_send_router_sol(INTERFACE);
 }
 

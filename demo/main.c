@@ -49,7 +49,7 @@ void main(void)
 	u16_t lla[3]; // MAC address
 	lla[0] = 0x003a;
 	lla[1] = 0xe967;
-	lla[2] = 0xc580;
+	lla[2] = 0xc58c;
 
 	u16_t lla2[3];
 	lla2[0]	= HTON16(lla[0]);
@@ -104,10 +104,14 @@ void server_task(void *param)
 	while(1)
 	{
 		recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
-		if(!strncmp(buff, "help\n", 5))
-			sendto(soc, "it seems you need help.\n", 24, 0, &from, sizeof(struct sockaddr_in6));
+		if(strncmp(buff, "toggle_led\n", 11))
+			sendto(soc, "commands : toggle_led : toggles the led...\n", 43, 0, &from, sizeof(struct sockaddr_in6));
 		else
-			sendto(soc, "commands: help\n", 15, 0, &from, sizeof(struct sockaddr_in6));
+		{
+			sendto(soc, "led status toggled.\n", 20, 0, &from, sizeof(struct sockaddr_in6));
+			toggle_led();
+			//sendto(soc, "commands: help\n", 15, 0, &from, sizeof(struct sockaddr_in6));
+		}
 	}
 }
 

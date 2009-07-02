@@ -31,7 +31,7 @@
 
 #define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
 #define ESIX_MAX_RT	8 	//max number of routes the node can have
-#define ESIX_MAX_NB 8 //max number of neighbors in the table
+#define ESIX_MAX_NB 16 //max number of neighbors in the table
 #define ESIX_MAX_SOCK 8 //max number of sockets
 
 #define ESIX_MAX_UDP_LEN 2000 //max length of the UDP receive queue (in bytes)
