@@ -178,6 +178,31 @@
 		u32_t	mtu;
 	} __attribute__((__packed__));
 
+	/**
+	 * MDLv2 header
+	 */
+	struct icmp6_mld2_hdr {
+		u16_t reserved;
+		u16_t num_mcast_addr_records;
+	} __attribute__((__packed__));
+
+	/**
+	 * MLDv2 option, mcast address record header
+	 */
+	struct mld2_opt_mcast_addr_record {
+		u8_t 	record_type;
+		u8_t	aux_data_len;
+		u16_t	num_sources;
+		struct 	ip6_addr addr;
+	} __attribute__((__packed__));
+
+	/**
+	 * MLDv2 option, source address specifier (for SSM)
+	 */
+	struct mld2_opt_source_addr {
+		struct ip6_addr addr;
+	} __attribute__((__packed__));
+
 	void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr );
 	void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len);
 

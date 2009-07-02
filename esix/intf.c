@@ -446,7 +446,14 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	//try to add it to the table of addresses and
 	//free it so we don't leak memory in case it fails
 	if(esix_intf_add_address_row(row))
+	{
+		//if we added a multicast address,
+		//send a mld report containing all our mcast
+		//addresses
+		if(scope == MCAST_SCOPE)
+			esix_icmp_send_mld2_report();
 		return 1;
+	}
 
 	//if we're still here, something went wrong.
 	esix_w_free(row);
