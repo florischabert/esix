@@ -146,7 +146,6 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	if(hdr == NULL)
 		return;
 	
-	uart_printf("baddr %x\n", saddr->addr3);
 	hdr->ver_tc_flowlabel = hton32(6 << 28);
 	hdr->payload_len = hton16(len);
 	hdr->next_header = type;

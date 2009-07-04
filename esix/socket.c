@@ -149,6 +149,8 @@ u32_t sendto(u32_t socket, const void *buff, u16_t len, u8_t flags, const struct
 		return 0;
 	
 	i = esix_socket_get_index(socket);
+	if(i < 0)
+		return -1;
 	
 	if(to != NULL)
 		esix_udp_send((struct ip6_addr *) &to->sin6_addr, sockets[i]->hport, to->sin6_port, buff, len);

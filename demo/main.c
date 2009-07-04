@@ -110,7 +110,6 @@ void server_task(void *param)
 		{
 			sendto(soc, "led status toggled.\n", 20, 0, &from, sizeof(struct sockaddr_in6));
 			toggle_led();
-			//sendto(soc, "commands: help\n", 15, 0, &from, sizeof(struct sockaddr_in6));
 		}
 	}
 }
