@@ -60,9 +60,9 @@ void esix_init(u16_t lla[3])
 	for(i=0; i<ESIX_MAX_SOCK; i++)
 		sockets[i] = NULL;
 
-	esix_intf_add_default_neighbors(lla);
 	esix_intf_add_default_routes(INTERFACE, 1500);
-	esix_intf_add_default_addresses();
+	esix_intf_init_interface(lla, INTERFACE);
+	uart_printf("init interface done\n");
 	esix_icmp_send_router_sol(INTERFACE);
 }
 
@@ -86,7 +86,7 @@ void esix_periodic_callback()
  */
 void esix_housekeep()
 {
-	int i;
+	int i,j;
 	//loop through the routing table
 	for(i=0; i<ESIX_MAX_RT; i++)
 	{
@@ -117,7 +117,10 @@ void esix_housekeep()
 			//don't delete the entry immediately. Put it in STALE state and
 			//send an unicast neighbor advertisement to refresh it.
 			if((neighbors[i]->expiration_date - STALE_DURATION) < current_time)
-				esix_icmp_send_neighbor_sol(&addrs[0]->addr, &neighbors[i]->addr);
+			{
+				if((j=esix_intf_get_scope_address(INTERFACE)) >= 0)	
+					esix_icmp_send_neighbor_sol(&addrs[j]->addr, &neighbors[i]->addr);
+			}
 	
 			//if it hasn't been refreshed after STALE_DURATION seconds,
 			//the neighbor might be gone. Remove the entry.

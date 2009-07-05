@@ -40,23 +40,24 @@
 	#define NEW_NEIGHBOR_TIMEOUT 	5
 	#define NEIGHBOR_TIMEOUT	180	
 	#define STALE_DURATION 		3
+	#define DUP_ADDR_DETECT_TRANSMITS 1
 	
-	//list of ICMPv6 types
-	#define DST_UNR	0x01	//Destination Unreachable
-	#define TOO_BIG	0x02	//Packet Too Big
-	#define TTL_EXP	0x03	//TTL Exceeded
-	#define PARAM_P	0x04	//Parameter problem
-	#define ECHO_RQ	0x80	//Echo request
-	#define ECHO_RP	0x81	//Echo reply
-	#define MLD_QRY	0x82	//Multicast listener query
-	#define MLD_RPT	0x83	//Multicast listener report
-	#define MLD_DNE	0x84	//Multicast listener done
-	#define RTR_SOL 0x85	//Router sollicitation
-	#define RTR_ADV 0x86	//Router advertisement
-	#define NBR_SOL	0x87	//Neighbor sollicitation
-	#define NBR_ADV	0x88	//Neighbor advertisement
-	#define REDIR	0x89	//Redirect
-	#define	MLD2_RP	0x8f	//Multicast Listener Report (MLDv2) 
+        //list of ICMPv6 types
+        #define DST_UNR 0x01    //Destination Unreachable
+        #define TOO_BIG 0x02    //Packet Too Big
+        #define TTL_EXP 0x03    //TTL Exceeded
+        #define PARAM_P 0x04    //Parameter problem
+        #define ECHO_RQ 0x80    //Echo request
+        #define ECHO_RP 0x81    //Echo reply
+        #define MLD_QRY 0x82    //Multicast listener query
+        #define MLD_RPT 0x83    //Multicast listener report
+        #define MLD_DNE 0x84    //Multicast listener done
+        #define RTR_SOL 0x85    //Router sollicitation
+        #define RTR_ADV 0x86    //Router advertisement
+        #define NBR_SOL 0x87    //Neighbor sollicitation
+        #define NBR_ADV 0x88    //Neighbor advertisement
+        #define REDIR   0x89    //Redirect
+        #define MLD2_RP 0x8f    //Multicast Listener Report (MLDv2)
 	
 	//list of ICMPv6 options
 	#define PRFX_INFO 	0x3
@@ -100,7 +101,6 @@
 	{
 		u32_t reserved;
 		struct ip6_addr target_addr;
-		// icmp6_opt_lla
 	} __attribute__((__packed__));
 	
 	/**
@@ -110,7 +110,6 @@
 	{
 		u32_t r_s_o_reserved;
 		struct ip6_addr target_addr;
-		// icmp6_opt_lla
 	} __attribute__((__packed__));
 	
 	/**
@@ -182,6 +181,14 @@
 		u32_t	mtu;
 	} __attribute__((__packed__));
 
+        /**
+         * MLDv1 header
+         */
+        struct icmp6_mld1_hdr {
+                u16_t max_resp_delay;
+                u16_t reserved;
+        }  __attribute__((__packed__));
+
 	/**
 	 * MDLv2 header
 	 */
@@ -220,5 +227,8 @@
 	void esix_icmp_send_neighbor_sol(struct ip6_addr*, struct ip6_addr*);
 	void esix_icmp_send_router_sol(int);
 	void esix_icmp_send_unreachable(struct ip6_hdr *ip_hdr, u8_t type);
+        void esix_icmp_process_mld_query(struct icmp6_mld1_hdr *, int, struct ip6_hdr *);
+        void esix_icmp_send_mld(struct ip6_addr *, int);
+        void esix_icmp_send_mld2_report(void);
 
 #endif

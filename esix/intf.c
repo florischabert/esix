@@ -29,17 +29,24 @@
 #include "intf.h"
 #include "tools.h"
 #include "ip6.h"
+#include "icmp6.h"
 #include "include/esix.h"
 
 void esix_intf_add_default_neighbors(esix_ll_addr lla)
 {
 	struct ip6_addr addr;
-	
+
 	//first row of the neighbors table is us
-	addr.addr1 = 0;
-	addr.addr2 = 0;
-	addr.addr3 = 0;
-	addr.addr4 = hton32(1);
+        addr.addr1 =    hton32(0xfe800000); //0xfe80
+        addr.addr2 =    hton32(0x00000000);
+        addr.addr3 =    hton32( (ntoh16(lla[0]) << 16 & 0xff0000)
+                                | (ntoh16(lla[1]) & 0xff00)
+                                | 0x020000ff ); //stateless autoconf, 0x02 : universal bit
+
+        addr.addr4 =    hton32( (0xfe000000) //0xfe here is OK
+                                | (ntoh16(lla[1])<< 16 & 0xff0000)
+                                | (ntoh16(lla[2])) );
+
 	esix_intf_add_neighbor(&addr, // ip address FIXME: which one ?
 		lla, // MAC address
 		0, // never expires
@@ -50,28 +57,11 @@ void esix_intf_add_default_neighbors(esix_ll_addr lla)
  * Adds a link local address/route based on the MAC address
  * and joins the all-nodes mcast group
  */
-void esix_intf_add_default_addresses(void)
+void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
 {
 	struct ip6_addr addr;
-	//builds our link local and associated multicast addresses
-	//from the MAC address given by the L2 layer.
-	
-	//unicast link local
-	addr.addr1 = 	hton32(0xfe800000); //0xfe80 
-	addr.addr2 = 	hton32(0x00000000);
-	addr.addr3 = 	hton32(	(ntoh16(neighbors[0]->lla[0]) << 16 & 0xff0000)
-				| (ntoh16(neighbors[0]->lla[1]) & 0xff00)
-				| 0x020000ff ); //stateless autoconf, 0x02 : universal bit
 
-	addr.addr4 = 	hton32(	(0xfe000000) //0xfe here is OK
-				| (ntoh16(neighbors[0]->lla[1])<< 16 & 0xff0000)
-				| (ntoh16(neighbors[0]->lla[2])) );
-
-	esix_intf_add_address(&addr,
-			0x80,			// /128
-			0x0,			//this one never expires
-			LINK_LOCAL_SCOPE);
-
+/*
 	//multicast solicited-node address (for neighbor discovery)
 	addr.addr1 = 	hton32(0xff020000); 	//0xff02 
 	addr.addr2 = 	0;
@@ -84,7 +74,7 @@ void esix_intf_add_default_addresses(void)
 			0x80,			// /128
 			0x0,			//this one never expires
 			MCAST_SCOPE);
-
+*/
 
 	//multicast all-nodes (for router advertisements)
 	addr.addr1 = 	hton32(0xff020000); 	//ff02::1 
@@ -95,6 +85,42 @@ void esix_intf_add_default_addresses(void)
 			0x80, 			// /128
 			0x0,			//this one never expires
 			MCAST_SCOPE);
+
+
+	//builds our link local and associated multicast addresses
+	//from the MAC address given by the L2 layer.
+	
+	//unicast link local
+	addr.addr1 = 	hton32(0xfe800000); //0xfe80 
+	addr.addr2 = 	hton32(0x00000000);
+	addr.addr3 = 	hton32(	(ntoh16(lla[0]) << 16 & 0xff0000)
+				| (ntoh16(lla[1]) & 0xff00)
+				| 0x020000ff ); //stateless autoconf, 0x02 : universal bit
+
+	addr.addr4 = 	hton32(	(0xfe000000) //0xfe here is OK
+				| (ntoh16(lla[1])<< 16 & 0xff0000)
+				| (ntoh16(lla[2])) );
+
+	esix_intf_add_address(&addr,
+			0x80,			// /128
+			0x0,			//this one never expires
+			LINK_LOCAL_SCOPE);
+
+	//first row of the neighbors table is us
+        addr.addr1 =    hton32(0xfe800000); //0xfe80
+        addr.addr2 =    hton32(0x00000000);
+        addr.addr3 =    hton32( (ntoh16(lla[0]) << 16 & 0xff0000)
+                                | (ntoh16(lla[1]) & 0xff00)
+                                | 0x020000ff ); //stateless autoconf, 0x02 : universal bit
+
+        addr.addr4 =    hton32( (0xfe000000) //0xfe here is OK
+                                | (ntoh16(lla[1])<< 16 & 0xff0000)
+                                | (ntoh16(lla[2])) );
+
+	esix_intf_add_neighbor(&addr, // ip address FIXME: which one ?
+		lla, // MAC address
+		0, // never expires
+		INTERFACE);
 }
 
 void esix_intf_add_default_routes(int intf_index, int intf_mtu)
@@ -320,7 +346,8 @@ int esix_intf_get_neighbor_index(struct ip6_addr *addr, u8_t interface)
  */
 int esix_intf_remove_neighbor(struct ip6_addr *addr, u8_t interface)
 {
-	//uart_printf("remove neighbor  \n");
+	uart_printf("esix_intf_remove_neighbor: removing %x %x %x %x\n",
+		addr->addr1, addr->addr2, addr->addr3, addr->addr4);
 	int i;
 	struct esix_neighbor_table_row *row;
 	
@@ -330,11 +357,9 @@ int esix_intf_remove_neighbor(struct ip6_addr *addr, u8_t interface)
 		row = neighbors[i];
 		neighbors[i] = NULL; 
 		esix_w_free(row);
-	//uart_printf("remove neighbor  end\n");
 		return 1;
 	}
 
-	//uart_printf("remove neighbor  CRASH\n");
 	return 0;
 }
 
@@ -411,10 +436,11 @@ int esix_intf_get_route_index(struct ip6_addr *daddr, struct ip6_addr *mask, str
  */
 int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_date, u8_t scope)
 {
-	//uart_printf("esix_intf_add_address: adding %x:%x:%x:%x\n",
-	//	addr->addr1, addr->addr2, addr->addr3, addr->addr4);
+	uart_printf("esix_intf_add_address: adding %x:%x:%x:%x\n",
+		addr->addr1, addr->addr2, addr->addr3, addr->addr4);
 	struct esix_ipaddr_table_row *row;
-	int i;
+	struct ip6_addr	mcast_sollicited, zero;
+	int i, j;
 
 	i = esix_intf_get_address_index(addr, scope, masklen);
 	if(i >= 0)
@@ -439,18 +465,66 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	row->scope			= scope;
 	row->mask			= masklen;
 
-	//TODO perform DAD
-	//
-	//it's new, perform DAD and 
+	
+	//it's new. if it's unicast, add the multicast associated address 
+	//then perform DAD.
+	//if it's anycast, don't perform DAD as duplicates are expected.
+	//if it's multicast, don't do anything special.
+	if(scope == LINK_LOCAL_SCOPE || scope == GLOBAL_SCOPE || scope == ANYCAST_SCOPE)
+	{
+		//multicast solicited-node address (for neighbor discovery)
+		mcast_sollicited.addr1 = 	hton32(0xff020000); 	//0xff02 
+		mcast_sollicited.addr2 = 	0;
+		mcast_sollicited.addr3 = 	hton32(1);
+		mcast_sollicited.addr4 = 	hton32(	(0xff000000)
+						| (ntoh32(row->addr.addr4)  & 0x00ffffff));
+
+		i=esix_intf_add_address(&mcast_sollicited,
+				0x80,			// /128
+				0x0,			//this one never expires
+				MCAST_SCOPE);
+
+		if(i<=0)
+			return 0;
+	
+		//perform DAD
+		if(scope == LINK_LOCAL_SCOPE || scope == GLOBAL_SCOPE)	
+		{
+			zero.addr1 = 0;
+			zero.addr2 = 0;
+			zero.addr3 = 0;
+			zero.addr4 = 0;
+
+			for(i=0; i< DUP_ADDR_DETECT_TRANSMITS; i++)
+			{
+				esix_icmp_send_neighbor_sol(&zero, addr);
+	
+				//TODO : hell, we need a proper sleep()...
+				for(j=0; j<10000; j++)
+					asm("nop");
+			}
+
+			//if we received an answer, bail out.
+			if(esix_intf_get_neighbor_index(addr, INTERFACE) >= 0)
+			{
+				uart_printf("esix_intf_add_address: %x %x %x %x already in use.Aborting. \n",
+					addr->addr1, addr->addr2, addr->addr3, addr->addr4);
+
+				//remove the previously added mcast node-sollicited address.
+				esix_intf_remove_address(&mcast_sollicited, 0x80, MCAST_SCOPE);
+				return 0;
+			}
+		}
+	}//DAD succeeded, we can go on.
+
 	//try to add it to the table of addresses and
 	//free it so we don't leak memory in case it fails
 	if(esix_intf_add_address_row(row))
 	{
-		//if we added a multicast address,
-		//send a mld report containing all our mcast
-		//addresses
-		//if(scope == MCAST_SCOPE)
-		//	esix_icmp_send_mld2_report();
+		if(scope == MCAST_SCOPE)
+			//esix_icmp_send_mld2_report();
+			esix_icmp_send_mld(&row->addr, MLD_RPT);
+
 		return 1;
 	}
 
@@ -461,21 +535,24 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 
 int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 {
-	//uart_printf("esix_intf_remove_address begins\n");
+	uart_printf("esix_intf_remove_address: removing %x %x %x %x\n",
+                addr->addr1, addr->addr2,  addr->addr3,  addr->addr4);
 	int i;
 	struct esix_ipaddr_table_row *row;
 	
 	i = esix_intf_get_address_index(addr, scope, masklen);
 	if(i >= 0)
 	{
+              //send a MLD done report if this is a mcast address
+                if(scope == MCAST_SCOPE)
+                        esix_icmp_send_mld(&row->addr, MLD_DNE);
+
 		row = addrs[i];
 		addrs[i] = NULL; 
 		esix_w_free(row);
-	//uart_printf("esix_intf_remove_address ends\n");
+
 		return 1;
 	}
-
-	//uart_printf("esix_intf_remove_address crash\n");
 	return 0;
 }
 
@@ -539,7 +616,10 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
  */
 int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_hop, u8_t intf)
 {
-	uart_printf("esix_intf_remove_route begins\n");
+	uart_printf("esix_intf_remove_route: removing %x %x %X %X mask %x %X %x %X via %x %x %x %x\n",
+	daddr->addr1, daddr->addr2,daddr->addr3,daddr->addr4,
+	mask->addr1, mask->addr2, mask->addr3, mask->addr4,
+	next_hop->addr1,next_hop->addr2,next_hop->addr3,next_hop->addr4);
 	int i;
 	struct esix_route_table_row *rt = NULL;
 	if( (i = esix_intf_get_route_index(daddr, next_hop, mask, intf)) >= 0)

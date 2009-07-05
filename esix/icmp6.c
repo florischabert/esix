@@ -39,25 +39,35 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 	if(length < 4)
 		return;
 
+	//TODO:compute the checksum here and check that it is correct
+
 	//determine what to do next
 	switch(icmp_hdr->type)
 	{
 		case NBR_SOL:
-			esix_icmp_process_neighbor_sol(
-				(struct icmp6_neighbor_sol *) (icmp_hdr + 1), length - 4, ip_hdr);
+			//these are just sanity checks : only code 0 are currently defined.
+			if(icmp_hdr->code == 0)
+				esix_icmp_process_neighbor_sol(
+					(struct icmp6_neighbor_sol *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case NBR_ADV:
-			esix_icmp_process_neighbor_adv(
-				(struct icmp6_neighbor_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
+			if(icmp_hdr->code == 0)
+				esix_icmp_process_neighbor_adv(
+					(struct icmp6_neighbor_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
+			break;
 		case RTR_ADV:
-			esix_icmp_process_router_adv(
-				(struct icmp6_router_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
+			if(icmp_hdr->code == 0)
+				esix_icmp_process_router_adv(
+					(struct icmp6_router_adv *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case ECHO_RQ: 
 			esix_icmp_process_echo_req(
 				(struct icmp6_echo *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case MLD_QRY:
+			esix_icmp_process_mld_query(
+ 				(struct icmp6_mld1_hdr *) (icmp_hdr + 1), length - 4, ip_hdr);
+			//esix_icmp_send_mld2_report();
 			break;
 		default:
 			uart_printf("Unknown ICMP packet, type: %x\n", icmp_hdr->type);
@@ -101,7 +111,6 @@ void esix_icmp_send_ttl_expired(struct ip6_hdr *ip_hdr)
 	//we're returning (most of) an entire packet. The size of our error msg shouldn't
 	//ever exceed the minimum IPv6 MTU (1280 bytes).
 	int n_len = ntoh16(ip_hdr->payload_len) + sizeof(struct ip6_hdr) + sizeof(struct icmp6_ttl_exp_hdr);
-
 	if(n_len > 1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr))
 		n_len=1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
 
@@ -167,7 +176,8 @@ void esix_icmp_send_router_sol(int intf_index)
 	for(i=0; i<3; i++)
 		opt->lla[i]	= neighbors[0]->lla[i];
 
-	esix_icmp_send(&addrs[0]->addr, &dest, 255, RTR_SOL, 0, ra_sol, len);
+	if((i=esix_intf_get_scope_address(LINK_LOCAL_SCOPE)) >=  0)
+		esix_icmp_send(&addrs[i]->addr, &dest, 255, RTR_SOL, 0, ra_sol, len);
 }
 
 /*
@@ -176,6 +186,21 @@ void esix_icmp_send_router_sol(int intf_index)
 void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, struct ip6_hdr *hdr)
 {
 	int i;
+
+	//sanity checks
+	//- ICMP length (derived from the IP length) is 24 or more octets (24 = 8 ICMP bytes + 16 NS bytes)
+	//- hop limit should be 255
+	//- target address is not a multicast address
+	// TODO: others non implemented yet.
+	if( 	(len < 16) || 
+		hdr->hlimit != 255 ||
+		(nb_sol->target_addr.addr1 & hton32(0xff000000)) == hton32(0xff000000))
+		return;
+
+	//check that the sollicitation is actually for us
+	if(esix_intf_get_address_index(&nb_sol->target_addr, ANY_SCOPE, ANY_MASK) < 0)
+		return;
+
 
 	// FIXME: we should be adding it in STALE state
 	i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE);
@@ -204,12 +229,16 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, struct ip6_hdr *ip_hdr)
 {
 	int i;
-	//we shouldn't trust anyone sending an advertisement from anything else than a link local address
-	//hmmm.. actually anyone coming from outside our own subnet.
-	//TODO: implement a proper check.
-	/*if(ntoh32(ip_hdr->saddr.addr1) != 0xfe800000)
+	//sanity checks
+	//- ICMP length (derived from the IP length) is 24 or more octets (24 = 8 ICMP bytes + 16 NS bytes)
+	//- hop limit should be 255
+	//- target address is not a multicast address
+	// TODO: others non implemented yet.
+	if( 	(len < 16) || 
+		ip_hdr->hlimit != 255 ||
+		(nb_adv->target_addr.addr1 & hton32(0xff000000)) == hton32(0xff000000))
 		return;
-	*/
+
 	i = esix_intf_get_neighbor_index(&nb_adv->target_addr, INTERFACE);
 
 	if(i < 0) // the neighbor isn't in the cache, add it
@@ -235,7 +264,6 @@ void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, 
 	neighbors[i]->expiration_date	= esix_get_time() + NEIGHBOR_TIMEOUT;
 }
 
-#include "udp6.h"
 /*
  * Process an ICMPv6 Echo Request and send an echo reply.
  */
@@ -274,6 +302,9 @@ void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr,
  */
 void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
 {
+	//uart_printf("senfing to %x %X %x %x from %x %x %x %x\n",
+	//	daddr->addr1, daddr->addr2,daddr->addr3,daddr->addr4,
+	//	saddr->addr1, saddr->addr2, saddr->addr3,saddr->addr4);
 	u16_t len = sizeof(struct icmp6_neighbor_sol) + sizeof(struct icmp6_opt_lla);
 	struct icmp6_neighbor_sol *nb_sol = esix_w_malloc(len);
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_sol + 1);
@@ -320,10 +351,16 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	struct icmp6_option_hdr *option_hdr;
 	int got_prefix_info	= 0;
 
-	//we at least need to have 16 bytes to parse...
+	//Sanity checks
+
+	//- we at least need to have 16 bytes to parse 
+	//- the hop limit field should be set to 255.
 	//(router advertisement without any option = 16 bytes,
 	//advertises only a default route)
-	if(ntoh16(length) < 16 ) 
+	//- source address scope is link local
+	if(ntoh16(length) < 16 || ip_hdr->hlimit != 255 ||
+		ip_hdr->saddr.addr1 != hton32(0xfe800000) ||
+		ip_hdr->saddr.addr2 != hton32(0x00000000))
 		return;
 
 	mtu	= DEFAULT_MTU;
@@ -375,17 +412,13 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 			break; 	
 		}
 	}
+
 	//now add the routes (we needed the MTU value first)
 
-
 	//global address && onlink route
-	//a lifetime of 0 means remove the address/route
-	if(got_prefix_info && pfx_info->valid_lifetime == 0x0)
+	if (got_prefix_info)
 	{
-		//TODO : remove the address / route here
-	}
-	else if (got_prefix_info)
-	{
+	
 		toggle_led();
 		//builds a new global scope address
 		//not endian-safe for now, words in the prefix field
@@ -398,7 +431,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		addr.addr2 = 	hton32(	pfx_info->p[4] << 24
 					| pfx_info->p[5] << 16
 					| pfx_info->p[6] << 8
-					| pfx_info->p[7]); // FIXME: mac adress in the table ?
+					| pfx_info->p[7]);
 
 		addr.addr3 = 	hton32(	(ntoh16(neighbors[0]->lla[0]) << 16 & 0xff0000)
 					| (ntoh16(neighbors[0]->lla[1]) & 0xff00)
@@ -409,23 +442,6 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 			 		| (ntoh16(neighbors[0]->lla[2])) );
 		//uart_printf("got prefix info: prefix : %x:%x\n", addr.addr1, addr.addr2, addr.addr3, addr.addr4);
 
-		esix_intf_add_address(&addr,
-				0x40,				// /64
-				esix_get_time() + ntoh32(pfx_info->valid_lifetime), //expiration date
-				GLOBAL_SCOPE);
-
-		/*addr.addr1 = 	hton32(	pfx_info->p[0] << 24	//prefix 
-					 | pfx_info->p[1] << 16 
-					 | pfx_info->p[2] << 8
-					 | pfx_info->p[3]);
-
-		addr.addr2 = 	hton32(	pfx_info->p[4] << 24 	//prefix
-					 | pfx_info->p[5] << 16 
-					 | pfx_info->p[6] << 8
-					 | pfx_info->p[7]);
-		*/
-		addr.addr3 = 0;
-		addr.addr4 = 0;
 		addr2.addr1 = 0;
 		addr2.addr2 = 0;
 		addr2.addr3 = 0;
@@ -435,50 +451,67 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		mask.addr3  = 0;
 		mask.addr4  = 0;
 
-		//onlink route (local route for our own subnet)
-		esix_intf_add_route(&addr,
-					&mask,				
-					&addr2,
+
+		//a lifetime of 0 means remove the address/route
+		if(pfx_info->valid_lifetime == 0x0)
+		{
+			//remove the prefix-associated address and route
+			esix_intf_remove_address(&addr, 0x40, GLOBAL_SCOPE);
+			addr.addr3 = 0;
+			addr.addr4 = 0;
+			esix_intf_remove_route(&addr, &mask, &addr2, INTERFACE);
+		}
+		else
+		{
+			esix_intf_add_address(&addr,
+					0x40,				// /64
+					esix_get_time() + ntoh32(pfx_info->valid_lifetime), //expiration date
+					GLOBAL_SCOPE);
+			addr.addr3 = 0;
+			addr.addr4 = 0;
+
+			//onlink route (local route for our own subnet)
+			esix_intf_add_route(&addr, &mask, &addr2,
 					esix_get_time() + ntoh32(pfx_info->valid_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu,
 					INTERFACE);
+		}
+
 	}//else if (got_prefix_info)
 
 	//default route
 	//a lifetime of 0 means remove the route
-	if(ntoh32(rtr_adv->rtr_lifetime) == 0x0)
-	{
-		//TODO delete the default route here.
-	}
+	addr.addr1 = 0;
+	addr.addr2 = 0;
+	addr.addr3 = 0;
+	addr.addr4 = 0;
+	mask.addr1 = 0;
+	mask.addr2 = 0;
+	mask.addr3 = 0;
+	mask.addr4 = 0;
+	
+	if(ntoh16(rtr_adv->rtr_lifetime) == 0x0)
+		esix_intf_remove_route(&addr, &mask, &ip_hdr->saddr, INTERFACE);
 	else
-	{
-		addr.addr1 = 0;
-		addr.addr2 = 0;
-		addr.addr3 = 0;
-		addr.addr4 = 0;
-		mask.addr1 = 0;
-		mask.addr2 = 0;
-		mask.addr3 = 0;
-		mask.addr4 = 0;
+	
 		esix_intf_add_route(&addr, 	//default dest
 					&mask,			//default mask
 					&ip_hdr->saddr,		//next hop
-					esix_get_time() + ntoh32(rtr_adv->rtr_lifetime), //exp. date
+					esix_get_time() + ntoh16(rtr_adv->rtr_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu,
 					INTERFACE);
-	}
 
 }
 
+//this is buggy and hasn't been updated. short disclamer : don't user it.
 void esix_icmp_send_mld2_report(void)
 {
 	int i=0;
 	u16_t count=0;
 	int len;
 	int index_list[ESIX_MAX_IPADDR];
-	struct esix_ipaddr_table_row *row;
 
 	struct ip6_addr all_mld2_queriers;
 	all_mld2_queriers.addr1	= hton32(0xff020000);
@@ -510,7 +543,7 @@ void esix_icmp_send_mld2_report(void)
 
 	i=0;
 	count=0;
-	mld_mcast = (struct cmp6_mld2_opt_mcast_addr_record*) (mld+1);
+	mld_mcast = (struct icmp6_mld2_opt_mcast_addr_record*) (mld+1);
 	//TODO : check that we don't exceed the MTU (in which case we should send 2 separate reports)
 	while(i < ESIX_MAX_IPADDR)
 	{
@@ -528,5 +561,75 @@ void esix_icmp_send_mld2_report(void)
 	}
 
 	esix_icmp_send(&addrs[0]->addr, &all_mld2_queriers, 1, MLD2_RP, 0, mld, len);
+}
+
+
+
+void esix_icmp_process_mld_query(struct icmp6_mld1_hdr *mld, int len, struct ip6_hdr *ip_hdr)
+{
+        int i=0;
+	int a = esix_intf_get_scope_address(LINK_LOCAL_SCOPE); 
+        //make sure we got enough data to process our packet
+	//and a valid link local address to send our reply
+        if(len < sizeof(struct icmp6_mld1_hdr) || a < 0)
+                return;
+
+        //this is a general query
+        if(len == sizeof(struct icmp6_mld1_hdr))
+        {
+                while(i < ESIX_MAX_IPADDR)
+                {
+                        if(addrs[i] != NULL &&
+                                (addrs[i]->addr.addr1 & hton32(0xff000000)) == hton32(0xff000000))
+                        {
+                                esix_icmp_send_mld(&addrs[a]->addr, MLD_RPT);
+                        }
+                        i++;
+                }
+        }
+        //specific query
+        else if((len ==  sizeof(struct icmp6_mld1_hdr) +  sizeof(struct ip6_hdr))
+                && ((i = esix_intf_get_address_index((struct ip6_addr*) (mld+1), MCAST_SCOPE, ANY_MASK)) > 0))
+        {
+                esix_icmp_send_mld(&addrs[a]->addr, MLD_RPT);
+        }
+}
+
+void esix_icmp_send_mld(struct ip6_addr *mcast_addr, int type)
+{
+        //don't send any report for the all-nodes address
+        if( (mcast_addr->addr1 == hton32(0xff020000)) &&
+                (mcast_addr->addr2 == hton32(0x00000000)) &&
+                (mcast_addr->addr3 == hton32(0x00000000)) &&
+                (mcast_addr->addr4 == hton32(0x00000001)) )
+                return;
+
+        //TODO: implement timers
+        struct icmp6_mld1_hdr *hdr = esix_w_malloc(sizeof(struct icmp6_mld1_hdr) + sizeof(struct ip6_addr));
+        struct ip6_addr *target = (struct ip6_addr*) (hdr+1);
+	int i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE); 
+
+        if(hdr == NULL || i < 0)
+                return;
+
+        hdr->max_resp_delay = 0;
+        *target = *mcast_addr;
+
+        if(type == MLD_RPT)
+        {
+                esix_icmp_send(&addrs[i]->addr, mcast_addr, 1, MLD_RPT, 0, hdr,
+                        sizeof(struct icmp6_mld1_hdr) + sizeof(struct ip6_addr));
+        }
+        else //must be a 'done'
+        {
+                struct ip6_addr all_nodes;
+                all_nodes.addr1 = hton32(0xff020000);
+                all_nodes.addr2 = hton32(0x00000000);
+                all_nodes.addr3 = hton32(0x00000000);
+                all_nodes.addr4 = hton32(0x00000001);
+
+                esix_icmp_send(&addrs[i]->addr, &all_nodes, 1, MLD_DNE, 0, hdr,
+                        sizeof(struct icmp6_mld1_hdr) + sizeof(struct ip6_addr));
+        }
 }
 
