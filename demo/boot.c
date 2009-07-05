@@ -43,7 +43,7 @@ void default_handler(void);
 extern u32_t _etext, _data, _edata, _bss, _ebss;
 
 // System stack
-static u32_t system_stack[512] __attribute__((section(".stack"))); // FIXME
+static u32_t system_stack[2048] __attribute__((section(".stack"))); // FIXME
 
 // Interrupt vector table
 static void (*isr_handler[])() __attribute__((section(".isr_table"), used)) = 

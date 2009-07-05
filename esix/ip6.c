@@ -191,7 +191,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 		//onlink route (next hop is destination addr)
 		dest_onlink	= 1;
 
-		//if we're sending out a multicast address, don't try to look up a lla,
+		//if we're sending to a multicast address, don't try to look up a lla,
 		//we can compute it
 		if(	(daddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
 		{
@@ -219,6 +219,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 		if(neighbors[i]->flags.status == ND_REACHABLE ||
 			neighbors[i]->flags.status == ND_STALE)
 		{
+			//packet leaves here.
 			esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
 		}
 		else
@@ -232,12 +233,14 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	{
 		// we have to send a neighbor solicitation
 		uart_printf("packet ready to be sent, but don't now the lla\n");
+		if((i=esix_intf_get_scope_address(LINK_LOCAL_SCOPE)) >= 0)
+		{
+			if(dest_onlink)
+				esix_icmp_send_neighbor_sol(&addrs[i]->addr, daddr);
+			else
+				esix_icmp_send_neighbor_sol(&addrs[i]->addr, &routes[route_index]->next_hop);
 
-		if(dest_onlink)
-			esix_icmp_send_neighbor_sol(&addrs[0]->addr, daddr);
-		else
-			esix_icmp_send_neighbor_sol(&addrs[0]->addr, &routes[route_index]->next_hop);
-
+		}
 		esix_w_free(hdr);
 	}
 	return;

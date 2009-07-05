@@ -42,6 +42,7 @@
 	#define LINK_LOCAL_SCOPE	0 
 	#define GLOBAL_SCOPE	 	1
 	#define MCAST_SCOPE		2 //should never be used to send a packet
+	#define ANYCAST_SCOPE		3 
 	#define ANY_SCOPE			255
 
 	#define ANY_MASK			255
