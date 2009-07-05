@@ -56,12 +56,15 @@ struct socket_table_row
 	u16_t rport; // remote port
 	struct ip6_addr raddr; // remote addr
 	volatile enum state state;
+	u32_t	seqn;
+	u32_t	ackn;
 	void * volatile received;
 };
 
 struct socket_table_row *sockets[ESIX_MAX_SOCK];
 
 int esix_socket_add_row(struct socket_table_row *row);
+void esix_socket_remove_row(int index);
 int esix_socket_add(u32_t socket, u8_t type, u16_t port);
 int esix_socket_get_index(u32_t socket);
 int esix_socket_get_port_index(u16_t port, u8_t type);

@@ -41,6 +41,8 @@ void hardware_init(void);
 void main_task(void *param);
 void server_task(void *param);
 
+u16_t lla2[3];
+
 /**
  * Main function.
  */	
@@ -50,18 +52,16 @@ void main(void)
 	lla[0] = 0x003a;
 	lla[1] = 0xe967;
 	lla[2] = 0xc58c;
-
-	u16_t lla2[3];
-	lla2[0]	= HTON16(lla[0]);
-	lla2[1]	= HTON16(lla[1]);
-	lla2[2]	= HTON16(lla[2]);
 	
 	hardware_init();
 	uart_init();
 	ether_init(lla);
 	ether_enable();
-	
-	esix_init(lla2);
+
+	lla[0] = HTON16(lla[0]);
+	lla[1] = HTON16(lla[1]);
+	lla[2] = HTON16(lla[2]);
+	esix_init(lla);
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(main_task, (signed char *) "main", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
@@ -71,15 +71,14 @@ void main(void)
 
 void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed portCHAR *pcTaskName)
 {
-	//if(*pcTaskName == 'name')
-		GPIOF->DATA[1] = 1;
+	GPIOF->DATA[1] = 1;
 }
 
 /**
  * Toggle the LED
  */
 void main_task(void *param)
-{
+{	
 	while(1)
 	{
 		//uart_printf("task stack %x\n", uxTaskGetStackHighWaterMark(NULL));
@@ -92,25 +91,37 @@ void server_task(void *param)
 {
 	static char buff[100];
 	int soc;
-	struct sockaddr_in6 serv, from;
+	struct sockaddr_in6 to, from;
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
 	
-	serv.sin6_port = HTON16(2009);
-	serv.sin6_addr = in6addr_any;
+	to.sin6_port = HTON16(2009);
+	to.sin6_addr.u6_addr32[0] =  HTON32(0xfe800000);
+	to.sin6_addr.u6_addr32[1] =  HTON32(0x00000000);
+	to.sin6_addr.u6_addr32[2] =  HTON32(0x0223dfff);
+	to.sin6_addr.u6_addr32[3] =  HTON32(0xfe848fcc);
 	
 	soc = socket(AF_INET6, SOCK_DGRAM, 0);
-	soc = bind(soc, &serv, sizeof(serv));
+	sendto(soc, NULL, 0, 0, &to, sizeof(struct sockaddr_in6));
+	vTaskDelay(1000);
+	
+	soc = socket(AF_INET6, SOCK_STREAM, 0);
+	if(connect(soc, &to, sockaddrlen) >= 0)
+		uart_printf("conn OK\n");
+	vTaskDelay(8000);	
+	close(soc);
 	
 	while(1)
 	{
-		recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
+		//send(soc, "lala\n", 5, 0);
+		vTaskDelay(3000);	
+		/*recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
 		if(strncmp(buff, "toggle_led\n", 11))
 			sendto(soc, "commands : toggle_led : toggles the led...\n", 43, 0, &from, sizeof(struct sockaddr_in6));
 		else
 		{
 			sendto(soc, "led status toggled.\n", 20, 0, &from, sizeof(struct sockaddr_in6));
 			toggle_led();
-		}
+		}*/
 	}
 }
 

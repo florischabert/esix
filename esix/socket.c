@@ -31,6 +31,7 @@
 #include "socket.h"
 #include "include/socket.h"
 #include "udp6.h"
+#include "tcp6.h"
 
 const struct in6_addr in6addr_any = {{{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}};
 const struct in6_addr in6addr_loopback = {{{0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0}}};
@@ -46,10 +47,10 @@ u32_t socket(u16_t family, u8_t type, u8_t proto)
 	while(esix_socket_get_index(socket) >= 0)
 		socket++; // give the first socket identifier available
 	
-	while(esix_socket_get_port_index(port, type) >= 0)
+	while(esix_socket_get_port_index(hton16(port), type) >= 0)
 		port++; // give the first port available (>= 1024)
 			
-	if(esix_socket_add(socket, type, port) < 0)
+	if(esix_socket_add(socket, type, hton16(port)) < 0)
 		return -1;
 	return socket;
 }
@@ -79,17 +80,42 @@ int connect(u32_t socket, const struct sockaddr_in6 *to, u32_t addrlen)
 	i = esix_socket_get_index(socket);
 	if(i < 0)
 		return -1;
-	
-	if(sockets[i]->type == SOCK_DGRAM)
-	{
-		esix_memcpy(&sockets[i]->raddr, &to->sin6_addr, 16);
-		sockets[i]->rport = to->sin6_port;
-	}
-	else
+
+	esix_memcpy(&sockets[i]->raddr, &to->sin6_addr, 16);
+	sockets[i]->rport = to->sin6_port;
+
+	if(sockets[i]->type == SOCK_STREAM)
 	{
 		if(sockets[i]->state != CLOSED)
 			return -1;
-			//TODO
+		
+		sockets[i]->seqn = 42;
+		
+		sockets[i]->state = SYN_SENT;	
+		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, ++sockets[i]->seqn, 0, SYN, NULL, 0);
+		
+		while(sockets[i]->state != ESTABLISHED);	
+	}
+	return 0;
+}
+
+int close(u32_t socket)
+{
+	int i;
+	
+	i = esix_socket_get_index(socket);
+	if(i < 0)
+		return -1;
+		
+	if(sockets[i]->type == SOCK_DGRAM)
+	{
+		esix_socket_remove_row(i);
+	}
+	else
+	{
+		sockets[i]->state = FIN_WAIT_1;
+		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, ++sockets[i]->seqn, ++sockets[i]->ackn, FIN, NULL, 0);
+		while(sockets[i]->state != CLOSED);
 	}
 	return 0;
 }
@@ -144,18 +170,29 @@ u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_
 u32_t sendto(u32_t socket, const void *buff, u16_t len, u8_t flags, const struct sockaddr_in6 *to, u32_t toaddrlen)
 {
 	int i;
-
-	if(len > MAX_UDP_LEN)
-		return 0;
 	
 	i = esix_socket_get_index(socket);
 	if(i < 0)
 		return -1;
+		
+	if(sockets[i]->type == SOCK_DGRAM)
+	{
+		if(len > MAX_UDP_LEN)
+			return 0;
 	
-	if(to != NULL)
-		esix_udp_send((struct ip6_addr *) &to->sin6_addr, sockets[i]->hport, to->sin6_port, buff, len);
+		if(to != NULL)
+			esix_udp_send((struct ip6_addr *) &to->sin6_addr, sockets[i]->hport, to->sin6_port, buff, len);
+		else
+			esix_udp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, buff, len);
+	}
 	else
-		esix_udp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, buff, len);
+	{
+		if(sockets[i]->state != ESTABLISHED)
+			return 0;
+		
+		sockets[i]->seqn += len;
+		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, ++sockets[i]->ackn, 0, buff, len);		
+	}
 	
 	return len;
 }
@@ -174,6 +211,12 @@ int esix_socket_add_row(struct socket_table_row *row)
 	if(i == ESIX_MAX_SOCK)
 		return -1;
 	return 0;
+}
+
+void esix_socket_remove_row(int index)
+{
+	esix_w_free(sockets[index]);
+	sockets[index] = NULL;
 }
 
 int esix_socket_add(u32_t socket, u8_t type, u16_t port)

@@ -58,7 +58,6 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 				(struct icmp6_echo *) (icmp_hdr + 1), length - 4, ip_hdr);
 			break;
 		case MLD_QRY:
-			esix_icmp_send_mld2_report();
 			break;
 		default:
 			uart_printf("Unknown ICMP packet, type: %x\n", icmp_hdr->type);

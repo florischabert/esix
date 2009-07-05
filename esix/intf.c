@@ -163,7 +163,7 @@ int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row)
 
 int esix_intf_add_neighbor(struct ip6_addr *addr, esix_ll_addr lla, u32_t expiration_date, u8_t interface)
 {
-	uart_printf("esix_intf_add_neighbor: adding %x:%x:%x:%x\n", addr->addr1, addr->addr2, addr->addr3, addr->addr4);
+	//uart_printf("esix_intf_add_neighbor: adding %x:%x:%x:%x\n", addr->addr1, addr->addr2, addr->addr3, addr->addr4);
 	int j, i = 0;
 	struct esix_neighbor_table_row *nb;
 
@@ -449,8 +449,8 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 		//if we added a multicast address,
 		//send a mld report containing all our mcast
 		//addresses
-		if(scope == MCAST_SCOPE)
-			esix_icmp_send_mld2_report();
+		//if(scope == MCAST_SCOPE)
+		//	esix_icmp_send_mld2_report();
 		return 1;
 	}
 
@@ -461,7 +461,7 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 
 int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 {
-	uart_printf("esix_intf_remove_address begins\n");
+	//uart_printf("esix_intf_remove_address begins\n");
 	int i;
 	struct esix_ipaddr_table_row *row;
 	
@@ -471,11 +471,11 @@ int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 		row = addrs[i];
 		addrs[i] = NULL; 
 		esix_w_free(row);
-	uart_printf("esix_intf_remove_address ends\n");
+	//uart_printf("esix_intf_remove_address ends\n");
 		return 1;
 	}
 
-	uart_printf("esix_intf_remove_address crash\n");
+	//uart_printf("esix_intf_remove_address crash\n");
 	return 0;
 }
 

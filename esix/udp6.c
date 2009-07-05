@@ -42,8 +42,7 @@ void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 	if((i < 0) || (esix_memcmp(&ip_hdr->daddr, &sockets[i]->haddr, 16) && 
 	               esix_memcmp(&sockets[i]->haddr, &in6addr_any, 16)))
 	{
-		// esix_icmp_send_unreachable
-		//uart_printf("UDP port %x unreachable\n", u_hdr->d_port);
+		uart_printf("UDP port %x unreachable\n", u_hdr->d_port);
 		esix_icmp_send_unreachable(ip_hdr, PORT_UNREACHABLE);
 	}
 	else

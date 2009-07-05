@@ -67,7 +67,7 @@ void esix_ip_process(void *packet, int len)
 		}
 	}
 
-	//drop the packet in case it doesn't
+	//drop the packet in case it doesn't belong to us
 	if(pkt_for_us==0)
 	{
 		uart_printf("packet received but not for us\n");
@@ -180,7 +180,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	//sorry dude, we didn't find any matching route...
 	if(route_index < 0)
 	{
-		uart_printf("esix_ip_send : no matching route found\n");
+		//uart_printf("esix_ip_send : no matching route found\n");
 		esix_w_free(hdr);
 		return;
 	}
@@ -223,7 +223,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 		}
 		else
 		{
-			uart_printf("esix_ip_send : neighbor is unreachable\n");
+			//uart_printf("esix_ip_send : neighbor is unreachable\n");
 			esix_w_free(hdr);
 			return;
 		}
@@ -231,7 +231,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	else
 	{
 		// we have to send a neighbor solicitation
-		uart_printf("packet ready to be sent, but don't now the lla\n");
+		//uart_printf("packet ready to be sent, but don't now the lla\n");
 
 		if(dest_onlink)
 			esix_icmp_send_neighbor_sol(&addrs[0]->addr, daddr);
