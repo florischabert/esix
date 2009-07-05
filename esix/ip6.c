@@ -180,7 +180,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	//sorry dude, we didn't find any matching route...
 	if(route_index < 0)
 	{
-		//uart_printf("esix_ip_send : no matching route found\n");
+		uart_printf("esix_ip_send : no matching route found\n");
 		esix_w_free(hdr);
 		return;
 	}
@@ -224,7 +224,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 		}
 		else
 		{
-			//uart_printf("esix_ip_send : neighbor is unreachable\n");
+			uart_printf("esix_ip_send : neighbor is unreachable\n");
 			esix_w_free(hdr);
 			return;
 		}

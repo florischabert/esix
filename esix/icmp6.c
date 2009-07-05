@@ -153,7 +153,7 @@ void esix_icmp_send_unreachable(struct ip6_hdr *ip_hdr, u8_t type)
  * Crafts and sends a router sollicitation
  * on the interface specified by index. 
  */
-void esix_icmp_send_router_sol(int intf_index)
+void esix_icmp_send_router_sol(u8_t intf_index)
 {
 	int i;
 	struct ip6_addr dest;
@@ -440,7 +440,6 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		addr.addr4 = 	hton32(	(0xfe000000) //0xfe here is OK
 			 		| (ntoh16(neighbors[0]->lla[1]) << 16 & 0xff0000) 
 			 		| (ntoh16(neighbors[0]->lla[2])) );
-		//uart_printf("got prefix info: prefix : %x:%x\n", addr.addr1, addr.addr2, addr.addr3, addr.addr4);
 
 		addr2.addr1 = 0;
 		addr2.addr2 = 0;

@@ -123,7 +123,7 @@ void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
 		INTERFACE);
 }
 
-void esix_intf_add_default_routes(int intf_index, int intf_mtu)
+void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu)
 {
 	//link local route (fe80::/64)
 	struct esix_route_table_row *ll_rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
@@ -425,7 +425,7 @@ int esix_intf_get_route_index(struct ip6_addr *daddr, struct ip6_addr *mask, str
 			(routes[i]->mask.addr4		== mask->addr4)     &&
 			(routes[i]->interface		== intf))
 		
-				return i;
+			return i;
 	}
 	return -1;
 }
@@ -559,16 +559,17 @@ int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_addr, u32_t expiration_date,
 				u8_t ttl, u32_t mtu, u8_t interface)
 {
-	//uart_printf("esix_intf_add_route: adding %x:%x:%x:%x nxt_hop %x:%x:%x:%x\n",
-	//	daddr->addr1, daddr->addr2, daddr->addr3, daddr->addr4,
-	//	next_addr->addr1, next_addr->addr2, next_addr->addr3, next_addr->addr4);
+	int j;
+	uart_printf("esix_intf_add_route: adding %x:%x:%x:%x nxt_hop %x:%x:%x:%x\n",
+		daddr->addr1, daddr->addr2, daddr->addr3, daddr->addr4,
+		next_addr->addr1, next_addr->addr2, next_addr->addr3, next_addr->addr4);
 		
 	int i=0;
 	struct esix_route_table_row *rt	= NULL;
 
 	//try to look up this route in the table
 	//to find if it already exists and only needs an update
-	if( (i = esix_intf_get_route_index(daddr, next_addr, mask, interface)) >=0)
+	if( (i = esix_intf_get_route_index(daddr, mask, next_addr, interface)) >=0)
 	{
 		//we found something, just update some variables
 		rt			= routes[i];
@@ -616,13 +617,14 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
  */
 int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_hop, u8_t intf)
 {
-	uart_printf("esix_intf_remove_route: removing %x %x %X %X mask %x %X %x %X via %x %x %x %x\n",
+	uart_printf("esix_intf_remove_route: removing %x %x %x %x mask %x %x %x %x via %x %x %x %x\n",
 	daddr->addr1, daddr->addr2,daddr->addr3,daddr->addr4,
 	mask->addr1, mask->addr2, mask->addr3, mask->addr4,
 	next_hop->addr1,next_hop->addr2,next_hop->addr3,next_hop->addr4);
+
 	int i;
 	struct esix_route_table_row *rt = NULL;
-	if( (i = esix_intf_get_route_index(daddr, next_hop, mask, intf)) >= 0)
+	if( (i = esix_intf_get_route_index(daddr, mask, next_hop, intf)) >= 0)
 	{
 		rt	= routes[i];
 		routes[i] = NULL;

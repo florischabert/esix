@@ -218,14 +218,14 @@
 	void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len);
 
 	void esix_icmp_send_ttl_expired(struct ip6_hdr *hdr);
-	void esix_icmp_send_router_sol(int intf_index);
+	void esix_icmp_send_router_sol(u8_t intf_index);
 	void esix_icmp_send_neighbor_adv(struct ip6_addr *, struct ip6_addr *, int);
 	void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, struct ip6_hdr *hdr);
 	void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length, struct ip6_hdr *ip_hdr);
 	void esix_icmp_process_echo_req(struct icmp6_echo *echo_rq, int length, struct ip6_hdr *ip_hdr);
 	void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *, int , struct ip6_hdr *);
 	void esix_icmp_send_neighbor_sol(struct ip6_addr*, struct ip6_addr*);
-	void esix_icmp_send_router_sol(int);
+	void esix_icmp_send_router_sol(u8_t);
 	void esix_icmp_send_unreachable(struct ip6_hdr *ip_hdr, u8_t type);
         void esix_icmp_process_mld_query(struct icmp6_mld1_hdr *, int, struct ip6_hdr *);
         void esix_icmp_send_mld(struct ip6_addr *, int);
