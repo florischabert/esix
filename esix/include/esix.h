@@ -74,14 +74,6 @@
 	 */
 	void esix_w_free(void *);
 
-	/*
-	 * Give the current time in ms.
-	 *
-	 * Needs to be implemented by the user.
-	 *
-	 * @return the time in ms (only for relative delays)
-	 */
-	u32_t esix_w_get_time(void);
 
 	/*
 	 * Send an IPv6 packet.

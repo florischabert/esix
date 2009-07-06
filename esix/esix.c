@@ -43,7 +43,7 @@ void esix_init(u16_t lla[3])
 {
 	//big fat wait loop...
 	int i;
-	for(i=0; i<15000000;i++)
+	for(i=0; i<40000000;i++)
 		asm("nop");
 
 	current_time = 1;	// 0 means "infinite lifetime" in our table/caches

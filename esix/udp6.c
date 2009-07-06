@@ -37,6 +37,10 @@ void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
 {
 	int i;
 	struct udp_packet *packet;
+	
+	// check the checksum
+	if(esix_ip_upper_checksum(&ip_hdr->saddr, &ip_hdr->daddr, UDP, u_hdr, len) != 0)
+		return;
 
 	i = esix_socket_get_port_index(u_hdr->d_port, SOCK_DGRAM);	
 	if((i < 0) || (esix_memcmp(&ip_hdr->daddr, &sockets[i]->haddr, 16) && 

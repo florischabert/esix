@@ -37,6 +37,10 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 {
 	int i;
 	struct tcp_packet *packet;
+	
+	// check the checksum
+	if(esix_ip_upper_checksum(&ip_hdr->saddr, &ip_hdr->daddr, TCP, t_hdr, len) != 0)
+		return;
 
 	i = esix_socket_get_session_index(t_hdr->d_port, t_hdr->s_port, ip_hdr->saddr);	
 	if(i < 0)
@@ -147,7 +151,7 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 			if(t_hdr->flags & FIN)
 			{
 				sockets[i]->state = CLOSED;
-				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, --sockets[i]->ackn, ACK, NULL, 0);	
+				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, ++sockets[i]->ackn, ACK, NULL, 0);	
 			}
 		}
 	}

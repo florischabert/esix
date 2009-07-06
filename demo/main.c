@@ -39,6 +39,7 @@
 // Prototypes
 void hardware_init(void);
 void main_task(void *param);
+void http_server_task(void *param);
 void tcp_server_task(void *param);
 void udp_server_task(void *param);
 
@@ -66,6 +67,7 @@ void main(void)
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(main_task, (signed char *) "main", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(http_server_task, (signed char *) "http server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(tcp_server_task, (signed char *) "tcp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(udp_server_task, (signed char *) "udp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
@@ -89,15 +91,82 @@ void main_task(void *param)
 	}
 }
 
+void udp_server_task(void *param)
+{
+	static char buff[100];
+	int soc;
+	struct sockaddr_in6 from, to;
+	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
+	
+	to.sin6_port = HTON16(2009);
+	to.sin6_addr = in6addr_any;
+	
+	soc = socket(AF_INET6, SOCK_DGRAM, 0);
+	soc = bind(soc, &to, sockaddrlen);
+		
+	while(1)
+	{
+		recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
+		if(strncmp(buff, "toggle_led\n", 11))
+			sendto(soc, "commands : toggle_led\n", 22, 0, &from, sizeof(struct sockaddr_in6));
+		else
+		{
+			sendto(soc, "status led toggled.\n", 20, 0, &from, sizeof(struct sockaddr_in6));
+			GPIOF->DATA[1]	^= 1;
+		}
+	}
+}
+
 void tcp_server_task(void *param)
 {
-	static char buff[1000];
-	int len, soc, conn;
+	static char buff[100];
+	int soc, conn, len;
+	struct sockaddr_in6 serv, to;
+	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
+	
+	serv.sin6_port = HTON16(2010);
+	serv.sin6_addr = in6addr_any;
+	
+	soc = socket(AF_INET6, SOCK_STREAM, 0);
+	soc = bind(soc, &serv, sockaddrlen);
+	listen(soc, 1);
+		
+	while(1)
+	{
+		conn = accept(soc, &to, &sockaddrlen);
+		send(conn, "hey!\ncommands : toggle_led, exit\n", 33, 0);
+		
+		while(1)
+		{
+			send(conn, "> ", 2, 0);
+			len = recv(conn, buff, sizeof(buff), 0);
+			if(!strncmp(buff, "exit", 4) || (len == 0))
+			{
+				break;
+			}
+			else if(!strncmp(buff, "toggle_led", 10))
+			{
+				send(conn, "status led toggled.\n", 20, 0);
+				GPIOF->DATA[1]	^= 1;
+			}
+			else
+			{
+				send(conn, "commands : toggle_led, exit\n", 28, 0);
+			}
+		}
+		close(conn);
+	}
+}
+
+void http_server_task(void *param)
+{
+	static char buff[1400];
+	int soc, conn;
 	struct sockaddr_in6 serv, to;
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
 	static char toggle[] = "HTTP/1.1 200 OK\nServer: quick-and-dirty\nContent-Length: 133\nConnection: close\nContent-Type: text/html;\n\n<html>The LED is now     \n<br />\n<form name=\"input\" action=\"\" method=\"get\">\n<input type=\"submit\" value=\"Toggle LED\" /></form>\n</html>";
 	
-	serv.sin6_port = HTON16(2009);
+	serv.sin6_port = HTON16(80);
 	serv.sin6_addr = in6addr_any;
 	
 	soc = socket(AF_INET6, SOCK_STREAM, 0);
@@ -109,8 +178,7 @@ void tcp_server_task(void *param)
 		conn = accept(soc, &to, &sockaddrlen);
 		
 		buff[0] = 0;
-		len = recv(conn, buff, sizeof(buff), 0);
-		uart_printf("fin %x\n", len);
+		recv(conn, buff, sizeof(buff), 0);
 		if(!strncmp(buff, "GET", 3))
 		{
 			GPIOF->DATA[1]	^= 1;	
@@ -118,37 +186,10 @@ void tcp_server_task(void *param)
 				strncpy(toggle+125, "on. ", 4);
 			else
 				strncpy(toggle+125, "off.", 4);
-			uart_printf("send\n");
 			
 			send(conn, toggle, strlen(toggle), 0);
 		}
 		close(conn);		
-	}
-}
-
-void udp_server_task(void *param)
-{
-	static char buff[100];
-	int soc;
-	struct sockaddr_in6 from, to;
-	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
-	
-	to.sin6_port = HTON16(2010);
-	to.sin6_addr = in6addr_any;
-	
-	soc = socket(AF_INET6, SOCK_DGRAM, 0);
-	soc = bind(soc, &to, sockaddrlen);
-		
-	while(1)
-	{
-		recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
-		if(strncmp(buff, "toggle_led\n", 11))
-			sendto(soc, "commands : toggle_led : toggles the led...\n", 43, 0, &from, sizeof(struct sockaddr_in6));
-		else
-		{
-			sendto(soc, "led status toggled.\n", 20, 0, &from, sizeof(struct sockaddr_in6));
-			toggle_led();
-		}
 	}
 }
 

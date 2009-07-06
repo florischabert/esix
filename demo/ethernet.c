@@ -166,8 +166,6 @@ void ether_handler()
 	portEND_SWITCHING_ISR(resched_needed);	
 }
 
-char buf[MAX_FRAME_SIZE];
-
 /**
  * ether_frame_received : called after an interrupt has been received.
  * copies a frame from the RX ring buffer to a loacl buffer.
@@ -177,7 +175,8 @@ void ether_receive_task(void *param)
 {
 	int i;
 	int len;
-	u32_t *eth_buf = buf;
+	static char buf[MAX_FRAME_SIZE];
+	u32_t *eth_buf = (u32_t *) buf;
 	struct ether_hdr_t hdr;
 	
 	while(1)

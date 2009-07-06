@@ -34,13 +34,15 @@
  * Handles icmp packets.
  */
 void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr )
-{
+{	
 	//check if we have enough bytes to read the ICMP header
 	if(length < 4)
 		return;
 
-	//TODO:compute the checksum here and check that it is correct
-
+	// check the checksum
+	if(esix_ip_upper_checksum(&ip_hdr->saddr, &ip_hdr->daddr, ICMP, icmp_hdr, length) != 0)
+		return;
+		
 	//determine what to do next
 	switch(icmp_hdr->type)
 	{
