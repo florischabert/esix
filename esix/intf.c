@@ -32,27 +32,6 @@
 #include "icmp6.h"
 #include "include/esix.h"
 
-void esix_intf_add_default_neighbors(esix_ll_addr lla)
-{
-	struct ip6_addr addr;
-
-	//first row of the neighbors table is us
-        addr.addr1 =    hton32(0xfe800000); //0xfe80
-        addr.addr2 =    hton32(0x00000000);
-        addr.addr3 =    hton32( (ntoh16(lla[0]) << 16 & 0xff0000)
-                                | (ntoh16(lla[1]) & 0xff00)
-                                | 0x020000ff ); //stateless autoconf, 0x02 : universal bit
-
-        addr.addr4 =    hton32( (0xfe000000) //0xfe here is OK
-                                | (ntoh16(lla[1])<< 16 & 0xff0000)
-                                | (ntoh16(lla[2])) );
-
-	esix_intf_add_neighbor(&addr, // ip address FIXME: which one ?
-		lla, // MAC address
-		0, // never expires
-		INTERFACE);
-}
-
 /**
  * Adds a link local address/route based on the MAC address
  * and joins the all-nodes mcast group
@@ -60,21 +39,6 @@ void esix_intf_add_default_neighbors(esix_ll_addr lla)
 void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
 {
 	struct ip6_addr addr;
-
-/*
-	//multicast solicited-node address (for neighbor discovery)
-	addr.addr1 = 	hton32(0xff020000); 	//0xff02 
-	addr.addr2 = 	0;
-	addr.addr3 = 	hton32(1);
-	addr.addr4 = 	hton32(	(0xff000000)
-				| (ntoh16(neighbors[0]->lla[1]) << 16 & 0xff0000)
-				| (ntoh16(neighbors[0]->lla[2])) );
-
-	esix_intf_add_address(&addr,
-			0x80,			// /128
-			0x0,			//this one never expires
-			MCAST_SCOPE);
-*/
 
 	//multicast all-nodes (for router advertisements)
 	addr.addr1 = 	hton32(0xff020000); 	//ff02::1 
@@ -559,7 +523,6 @@ int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_addr, u32_t expiration_date,
 				u8_t ttl, u32_t mtu, u8_t interface)
 {
-	int j;
 	uart_printf("esix_intf_add_route: adding %x:%x:%x:%x nxt_hop %x:%x:%x:%x\n",
 		daddr->addr1, daddr->addr2, daddr->addr3, daddr->addr4,
 		next_addr->addr1, next_addr->addr2, next_addr->addr3, next_addr->addr4);
