@@ -165,13 +165,11 @@ int close(u32_t socket)
 	}
 	else if(sockets[i]->state == LAST_ACK)
 	{
-		while(sockets[i]->state != CLOSED);
-		esix_socket_remove_row(i);
 	}
 	else if(sockets[i]->state == ESTABLISHED)
 	{
 		sockets[i]->state = FIN_WAIT_1;
-		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, ++sockets[i]->seqn, ++sockets[i]->ackn, FIN, NULL, 0);
+		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn++, ++sockets[i]->ackn, FIN, NULL, 0);
 	}
 	return 0;
 }
@@ -225,7 +223,10 @@ u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_
 	}
 	else
 	{
-		while((sockets[i]->state == ESTABLISHED) && (sockets[i]->received == NULL) && !(flags & MSG_DONTWAIT));
+		if(sockets[i]->state != ESTABLISHED)
+			return 0;
+		
+		while((sockets[i]->received == NULL) && !(flags & MSG_DONTWAIT));
 		
 		tcp = sockets[i]->received;
 		if(tcp == NULL)

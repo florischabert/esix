@@ -52,7 +52,7 @@ void main(void)
 	u16_t lla[3]; // MAC address
 	lla[0] = 0x003a;
 	lla[1] = 0xe967;
-	lla[2] = 0xc580;
+	lla[2] = 0xc58c;
 	
 	hardware_init();
 	uart_init();
@@ -91,7 +91,7 @@ void main_task(void *param)
 
 void tcp_server_task(void *param)
 {
-	static char buff[1450];
+	static char buff[1000];
 	int len, soc, conn;
 	struct sockaddr_in6 serv, to;
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
@@ -107,21 +107,21 @@ void tcp_server_task(void *param)
 	while(1)
 	{
 		conn = accept(soc, &to, &sockaddrlen);
-		do
+		
+		buff[0] = 0;
+		len = recv(conn, buff, sizeof(buff), 0);
+		uart_printf("fin %x\n", len);
+		if(!strncmp(buff, "GET", 3))
 		{
-			buff[0] = 0;
-			len = recv(conn, buff, sizeof(buff), 0);
+			GPIOF->DATA[1]	^= 1;	
+			if(GPIOF->DATA[1]	== 1)
+				strncpy(toggle+125, "on. ", 4);
+			else
+				strncpy(toggle+125, "off.", 4);
+			uart_printf("send\n");
 			
-			if(!strncmp(buff, "GET", 3))
-			{
-				GPIOF->DATA[1]	^= 1;	
-				if(GPIOF->DATA[1]	== 1)
-					strncpy(toggle+125, "on. ", 4);
-				else
-					strncpy(toggle+125, "off.", 4);
-				send(conn, toggle, strlen(toggle), 0);
-			}
-		} while(len > 0);
+			send(conn, toggle, strlen(toggle), 0);
+		}
 		close(conn);		
 	}
 }

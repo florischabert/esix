@@ -50,12 +50,11 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 	}
 	else
 	{
-		uart_printf("socket: %x\n", sockets[i]->state);
 		if(sockets[i]->state == CLOSED)
 		{
 			esix_tcp_send(&ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port, sockets[i]->seqn, ntoh32(t_hdr->seqn)+1, RST | ACK, NULL, 0);
 		}
-		if(sockets[i]->state == LISTEN)
+		else if(sockets[i]->state == LISTEN)
 		{	
 			if(t_hdr->flags & SYN)
 			{
@@ -76,7 +75,7 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 				sockets[i]->state = ESTABLISHED;
 			}
 		}
-		else if(sockets[i]->state == SYN_SENT)
+		else if((sockets[i]->state == SYN_SENT) && (sockets[i]->session != 0))
 		{
 			if(t_hdr->flags & ACK)
 			{
@@ -88,7 +87,7 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 				}
 			}
 		}
-		else if(sockets[i]->state == ESTABLISHED)
+		else if((sockets[i]->state == ESTABLISHED) && (sockets[i]->session != 0))
 		{
 			if(t_hdr->flags & SYN)
 				sockets[i]->state = LISTEN;
@@ -118,24 +117,37 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 					uart_printf("A TCP packet is already in the queue.\n"); // FIXME
 			}
 		}
-		else if(sockets[i]->state == LAST_ACK)
+		else if((sockets[i]->state == LAST_ACK) && (sockets[i]->session != 0))
 		{
 			if(t_hdr->flags & ACK)
 			{
 				sockets[i]->state = CLOSED;
+				esix_socket_remove_row(i);
 			}
 		}
-		else if(sockets[i]->state == FIN_WAIT_1)
-		{
-			if(t_hdr->flags & ACK)
-				sockets[i]->state = FIN_WAIT_2;
-		}
-		else if(sockets[i]->state == FIN_WAIT_2)
+		else if((sockets[i]->state == FIN_WAIT_1) && (sockets[i]->session != 0))
 		{
 			if((t_hdr->flags & FIN) && (t_hdr->flags & ACK))
 			{
-				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, ++sockets[i]->seqn, ++sockets[i]->ackn, ACK, NULL, 0);
 				sockets[i]->state = CLOSED;
+				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, sockets[i]->ackn, ACK, NULL, 0);
+				esix_socket_remove_row(i);
+			}
+			else if(t_hdr->flags & FIN)
+			{
+				sockets[i]->state = CLOSED;
+				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, sockets[i]->ackn, ACK, NULL, 0);
+				esix_socket_remove_row(i);
+			}
+			else if(t_hdr->flags & ACK)
+				sockets[i]->state = FIN_WAIT_2;
+		}
+		else if((sockets[i]->state == FIN_WAIT_2) && (sockets[i]->session != 0))
+		{
+			if(t_hdr->flags & FIN)
+			{
+				sockets[i]->state = CLOSED;
+				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, --sockets[i]->ackn, ACK, NULL, 0);	
 			}
 		}
 	}
