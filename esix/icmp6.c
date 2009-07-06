@@ -201,8 +201,6 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 	if(esix_intf_get_address_index(&nb_sol->target_addr, ANY_SCOPE, ANY_MASK) < 0)
 		return;
 
-
-	// FIXME: we should be adding it in STALE state
 	i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE);
 	if(i < 0) // the neighbor isn't in the cache, add it
 	{
@@ -218,9 +216,8 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 		}
 	}
 		
-	i = esix_intf_get_address_index(&nb_sol->target_addr, ANY_SCOPE, ANY_MASK);	
-	if(i >= 0) // we're solicited, we now send an advertisement
-		esix_icmp_send_neighbor_adv(&nb_sol->target_addr, &hdr->saddr, 1);
+	//actually send the advertisement
+	esix_icmp_send_neighbor_adv(&nb_sol->target_addr, &hdr->saddr, 1);
 }
 
 /*
