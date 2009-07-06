@@ -39,7 +39,8 @@
 // Prototypes
 void hardware_init(void);
 void main_task(void *param);
-void server_task(void *param);
+void tcp_server_task(void *param);
+void udp_server_task(void *param);
 
 u16_t lla2[3];
 
@@ -65,7 +66,8 @@ void main(void)
 	
 	// FreeRTOS tasks scheduling
 	xTaskCreate(main_task, (signed char *) "main", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(server_task, (signed char *) "server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(tcp_server_task, (signed char *) "tcp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(udp_server_task, (signed char *) "udp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
 }
 
@@ -87,13 +89,13 @@ void main_task(void *param)
 	}
 }
 
-void server_task(void *param)
+void tcp_server_task(void *param)
 {
 	static char buff[1450];
-	int soc, conn;
+	int len, soc, conn;
 	struct sockaddr_in6 serv, to;
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
-	char web[] = "HTTP/1.1 200 OK\nDate: Mon, 23 May 2012 22:38:34 GMT\nServer: quick-and-dirty\nContent-Length: 12\nConnection: close\nContent-Type: text/html; charset=UTF-8\n\nhello world!";
+	static char toggle[] = "HTTP/1.1 200 OK\nServer: quick-and-dirty\nContent-Length: 133\nConnection: close\nContent-Type: text/html;\n\n<html>The LED is now     \n<br />\n<form name=\"input\" action=\"\" method=\"get\">\n<input type=\"submit\" value=\"Toggle LED\" /></form>\n</html>";
 	
 	serv.sin6_port = HTON16(2009);
 	serv.sin6_addr = in6addr_any;
@@ -107,21 +109,46 @@ void server_task(void *param)
 		conn = accept(soc, &to, &sockaddrlen);
 		do
 		{
-			recv(conn, buff, sizeof(buff), 0);
-		} while(strncmp(buff, "GET", 3));
+			buff[0] = 0;
+			len = recv(conn, buff, sizeof(buff), 0);
+			
+			if(!strncmp(buff, "GET", 3))
+			{
+				GPIOF->DATA[1]	^= 1;	
+				if(GPIOF->DATA[1]	== 1)
+					strncpy(toggle+125, "on. ", 4);
+				else
+					strncpy(toggle+125, "off.", 4);
+				send(conn, toggle, strlen(toggle), 0);
+			}
+		} while(len > 0);
+		close(conn);		
+	}
+}
 
-		buff[0] = 0; // we provide only secure code...
-		send(conn, web, strlen(web), 0);
-		close(conn);
+void udp_server_task(void *param)
+{
+	static char buff[100];
+	int soc;
+	struct sockaddr_in6 from, to;
+	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
+	
+	to.sin6_port = HTON16(2010);
+	to.sin6_addr = in6addr_any;
+	
+	soc = socket(AF_INET6, SOCK_DGRAM, 0);
+	soc = bind(soc, &to, sockaddrlen);
 		
-		/*recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
+	while(1)
+	{
+		recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
 		if(strncmp(buff, "toggle_led\n", 11))
 			sendto(soc, "commands : toggle_led : toggles the led...\n", 43, 0, &from, sizeof(struct sockaddr_in6));
 		else
 		{
 			sendto(soc, "led status toggled.\n", 20, 0, &from, sizeof(struct sockaddr_in6));
 			toggle_led();
-		}*/
+		}
 	}
 }
 

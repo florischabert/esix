@@ -46,13 +46,14 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
                   esix_memcmp(&sockets[i]->haddr, &in6addr_any, 16)))
 	{
 		uart_printf("TCP port %x unreachable\n", hton16(t_hdr->d_port));
-		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, 0, 0, RST, NULL, 0);
+		esix_tcp_send(&ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port, 0, ntoh32(t_hdr->seqn)+1, RST | ACK, NULL, 0);
 	}
 	else
 	{
+		uart_printf("socket: %x\n", sockets[i]->state);
 		if(sockets[i]->state == CLOSED)
 		{
-			esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, 0, 0, RST | ACK, NULL, 0);
+			esix_tcp_send(&ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port, sockets[i]->seqn, ntoh32(t_hdr->seqn)+1, RST | ACK, NULL, 0);
 		}
 		if(sockets[i]->state == LISTEN)
 		{	
@@ -89,6 +90,9 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 		}
 		else if(sockets[i]->state == ESTABLISHED)
 		{
+			if(t_hdr->flags & SYN)
+				sockets[i]->state = LISTEN;
+				
 			if(t_hdr->flags & FIN)
 			{
 				sockets[i]->state = LAST_ACK;
@@ -96,7 +100,6 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 			}
 			else if(len - sizeof(struct tcp_hdr) > 0)
 			{
-			// TODO: check the address
 				if(sockets[i]->received == NULL)
 				{
 					packet = esix_w_malloc(sizeof(struct tcp_packet));

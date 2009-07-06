@@ -159,9 +159,14 @@ int close(u32_t socket)
 	{
 		esix_socket_remove_row(i);
 	}
-	else if(sockets[i]->session != 0)
+	else if(sockets[i]->state == CLOSED)
+	{
+		esix_socket_remove_row(i);
+	}
+	else if(sockets[i]->state == LAST_ACK)
 	{
 		while(sockets[i]->state != CLOSED);
+		esix_socket_remove_row(i);
 	}
 	else if(sockets[i]->state == ESTABLISHED)
 	{
@@ -220,7 +225,7 @@ u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_
 	}
 	else
 	{
-		while((sockets[i]->received == NULL) && !(flags & MSG_DONTWAIT));
+		while((sockets[i]->state == ESTABLISHED) && (sockets[i]->received == NULL) && !(flags & MSG_DONTWAIT));
 		
 		tcp = sockets[i]->received;
 		if(tcp == NULL)
