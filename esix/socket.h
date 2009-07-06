@@ -51,6 +51,7 @@ struct socket_table_row
 {
 	u32_t socket;
 	u8_t type;
+	u8_t session;
 	u16_t hport; // host port
 	struct ip6_addr haddr; // host addr
 	u16_t rport; // remote port
@@ -68,5 +69,6 @@ void esix_socket_remove_row(int index);
 int esix_socket_add(u32_t socket, u8_t type, u16_t port);
 int esix_socket_get_index(u32_t socket);
 int esix_socket_get_port_index(u16_t port, u8_t type);
+int esix_socket_get_session_index(u16_t hport, u16_t rport, struct ip6_addr raddr);
 
 #endif

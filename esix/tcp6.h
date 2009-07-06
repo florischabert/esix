@@ -51,6 +51,13 @@
 		u16_t chksum;
 		u16_t urg_pointer;
 	} __attribute__((__packed__));
+	
+	struct tcp_packet
+	{
+		u16_t	len;
+		u8_t *data;
+		struct udp_packet *next;
+	} __attribute__((__packed__));
 
 	void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr);
 	void esix_tcp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, u32_t	seqn, u32_t	ackn, u8_t flags, const void *data, u16_t len);

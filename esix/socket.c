@@ -88,15 +88,63 @@ int connect(u32_t socket, const struct sockaddr_in6 *to, u32_t addrlen)
 	{
 		if(sockets[i]->state != CLOSED)
 			return -1;
-		
-		sockets[i]->seqn = 42;
-		
+				
 		sockets[i]->state = SYN_SENT;	
-		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, ++sockets[i]->seqn, 0, SYN, NULL, 0);
+		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, 0, SYN, NULL, 0);
 		
 		while(sockets[i]->state != ESTABLISHED);	
 	}
 	return 0;
+}
+
+int listen(u32_t socket, u32_t num)
+{
+	int i;
+	
+	i = esix_socket_get_index(socket);
+	if(i < 0)
+		return -1;
+	
+	if(sockets[i]->type != SOCK_STREAM)
+		return -1;
+		
+	sockets[i]->state = LISTEN;
+	return 0;
+}
+
+u32_t accept(u32_t socket, struct sockaddr_in6 *address, u32_t *addrlen)
+{
+	u32_t sockc = 3;
+	int i, j;
+	
+	i = esix_socket_get_index(socket);
+	if(i < 0)
+		return -1;
+	
+	if((sockets[i]->type != SOCK_STREAM) || (sockets[i]->state != LISTEN))
+		return -1;	
+	
+	while(sockets[i]->state != ESTABLISHED);
+	sockets[i]->state = LISTEN;
+	
+	// we create a new socket for the session
+	while(esix_socket_get_index(sockc) >= 0)
+		sockc++;
+		
+	if((j = esix_socket_add(sockc, SOCK_STREAM, sockets[i]->hport)) < 0)
+		return -1;
+		
+	sockets[j]->session = 1;
+	sockets[j]->state = ESTABLISHED;
+	sockets[j]->rport = sockets[i]->rport;
+	sockets[j]->seqn = sockets[i]->seqn;
+	sockets[j]->ackn = sockets[i]->ackn;
+	esix_memcpy(&sockets[j]->raddr, &sockets[i]->raddr, 16);
+	
+	address->sin6_port = sockets[i]->rport;
+	esix_memcpy(&address->sin6_addr, &sockets[i]->raddr, 16);
+	
+	return sockc;
 }
 
 int close(u32_t socket)
@@ -106,16 +154,19 @@ int close(u32_t socket)
 	i = esix_socket_get_index(socket);
 	if(i < 0)
 		return -1;
-		
+	
 	if(sockets[i]->type == SOCK_DGRAM)
 	{
 		esix_socket_remove_row(i);
 	}
-	else
+	else if(sockets[i]->session != 0)
+	{
+		while(sockets[i]->state != CLOSED);
+	}
+	else if(sockets[i]->state == ESTABLISHED)
 	{
 		sockets[i]->state = FIN_WAIT_1;
 		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, ++sockets[i]->seqn, ++sockets[i]->ackn, FIN, NULL, 0);
-		while(sockets[i]->state != CLOSED);
 	}
 	return 0;
 }
@@ -134,34 +185,59 @@ u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_
 {
 	int i;
 	u32_t plen;
-	struct udp_packet *packet;
+	struct udp_packet *udp;
+	struct tcp_packet *tcp;
 	
 	i = esix_socket_get_index(socket);
 	if(i < 0)
 		return 0;
 	
-	while((sockets[i]->received == NULL) && !(flags & MSG_DONTWAIT));
+	if(sockets[i]->type == SOCK_DGRAM)
+	{
+		while((sockets[i]->received == NULL) && !(flags & MSG_DONTWAIT));
 	
-	packet = sockets[i]->received;
-	if(packet == NULL)
-		return 0;
+		udp = sockets[i]->received;
+		if(udp == NULL)
+			return 0;
 		
-	plen = packet->len;
-	if(plen > len)
-		plen = len;
-	esix_memcpy(buff, packet->data, plen);
+		plen = udp->len;
+		if(plen > len)
+			plen = len;
+		esix_memcpy(buff, udp->data, plen);
 
-	if(from != NULL)
-	{
-		from->sin6_port = packet->s_port;
-		esix_memcpy(&from->sin6_addr, &packet->s_addr, 16);
-	}
+		if(from != NULL)
+		{
+			from->sin6_port = udp->s_port;
+			esix_memcpy(&from->sin6_addr, &udp->s_addr, 16);
+		}
 		
-	if(!(flags & MSG_PEEK))
+		if(!(flags & MSG_PEEK))
+		{
+			esix_w_free(udp->data);
+			esix_w_free(sockets[i]->received);
+			sockets[i]->received = NULL;
+		}
+	}
+	else
 	{
-		esix_w_free(packet->data);
-		esix_w_free(sockets[i]->received);
-		sockets[i]->received = NULL;
+		while((sockets[i]->received == NULL) && !(flags & MSG_DONTWAIT));
+		
+		tcp = sockets[i]->received;
+		if(tcp == NULL)
+			return 0;
+
+		plen = tcp->len;
+		if(plen > len)
+			plen = len;
+		esix_memcpy(buff, tcp->data, plen);
+
+		if(!(flags & MSG_PEEK))
+		{
+			if(tcp->len > 0)
+				esix_w_free(tcp->data);
+			esix_w_free(sockets[i]->received);
+			sockets[i]->received = NULL;
+		}
 	}
 
 	return plen;
@@ -190,8 +266,8 @@ u32_t sendto(u32_t socket, const void *buff, u16_t len, u8_t flags, const struct
 		if(sockets[i]->state != ESTABLISHED)
 			return 0;
 		
+		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, sockets[i]->ackn, ACK, buff, len);	
 		sockets[i]->seqn += len;
-		esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, ++sockets[i]->ackn, 0, buff, len);		
 	}
 	
 	return len;
@@ -210,7 +286,7 @@ int esix_socket_add_row(struct socket_table_row *row)
 	}	
 	if(i == ESIX_MAX_SOCK)
 		return -1;
-	return 0;
+	return i;
 }
 
 void esix_socket_remove_row(int index)
@@ -228,6 +304,8 @@ int esix_socket_add(u32_t socket, u8_t type, u16_t port)
 	row->hport = port;
 	esix_memcpy(&row->haddr, &in6addr_any, 16);
 	row->state = CLOSED;
+	row->session = 0;
+	row->seqn = 42;
 	row->received = NULL;
 	
 	return esix_socket_add_row(row);
@@ -251,12 +329,33 @@ int esix_socket_get_index(u32_t socket)
 int esix_socket_get_port_index(u16_t port, u8_t type)
 {
 	int j;
+	
 	for(j = 0; j<ESIX_MAX_SOCK; j++)
 	{
 		//check if we already stored this address
 		if((sockets[j] != NULL) &&
+			(sockets[j]->session == 0) &&
 			(sockets[j]->hport == port) &&
 			(sockets[j]->type == type))
+		{
+			return j;
+		}
+	}
+	return -1;
+}
+
+int esix_socket_get_session_index(u16_t hport, u16_t rport, struct ip6_addr raddr)
+{
+	int j;
+	
+	for(j = 0; j<ESIX_MAX_SOCK; j++)
+	{
+		//check if we already stored this address
+		if((sockets[j] != NULL) &&
+			(sockets[j]->session != 0) &&
+			(sockets[j]->hport == hport) &&
+			(sockets[j]->rport == rport) &&
+			!esix_memcmp(&sockets[j]->raddr, &raddr, 16))
 		{
 			return j;
 		}

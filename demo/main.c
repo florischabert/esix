@@ -89,31 +89,31 @@ void main_task(void *param)
 
 void server_task(void *param)
 {
-	static char buff[100];
-	int soc;
-	struct sockaddr_in6 to, from;
+	static char buff[1450];
+	int soc, conn;
+	struct sockaddr_in6 serv, to;
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
+	char web[] = "HTTP/1.1 200 OK\nDate: Mon, 23 May 2012 22:38:34 GMT\nServer: quick-and-dirty\nContent-Length: 12\nConnection: close\nContent-Type: text/html; charset=UTF-8\n\nhello world!";
 	
-	to.sin6_port = HTON16(2009);
-	to.sin6_addr.u6_addr32[0] =  HTON32(0xfe800000);
-	to.sin6_addr.u6_addr32[1] =  HTON32(0x00000000);
-	to.sin6_addr.u6_addr32[2] =  HTON32(0x0223dfff);
-	to.sin6_addr.u6_addr32[3] =  HTON32(0xfe848fcc);
-	
-	soc = socket(AF_INET6, SOCK_DGRAM, 0);
-	sendto(soc, NULL, 0, 0, &to, sizeof(struct sockaddr_in6));
-	vTaskDelay(1000);
+	serv.sin6_port = HTON16(2009);
+	serv.sin6_addr = in6addr_any;
 	
 	soc = socket(AF_INET6, SOCK_STREAM, 0);
-	if(connect(soc, &to, sockaddrlen) >= 0)
-		uart_printf("conn OK\n");
-	vTaskDelay(8000);	
-	close(soc);
-	
+	soc = bind(soc, &serv, sockaddrlen);
+	listen(soc, 1);
+		
 	while(1)
 	{
-		//send(soc, "lala\n", 5, 0);
-		vTaskDelay(3000);	
+		conn = accept(soc, &to, &sockaddrlen);
+		do
+		{
+			recv(conn, buff, sizeof(buff), 0);
+		} while(strncmp(buff, "GET", 3));
+
+		buff[0] = 0; // we provide only secure code...
+		send(conn, web, strlen(web), 0);
+		close(conn);
+		
 		/*recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
 		if(strncmp(buff, "toggle_led\n", 11))
 			sendto(soc, "commands : toggle_led : toggles the led...\n", 43, 0, &from, sizeof(struct sockaddr_in6));
