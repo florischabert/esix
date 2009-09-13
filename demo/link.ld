@@ -37,6 +37,7 @@ SECTIONS
 	.text : 
 	{
 		KEEP(*(.isr_table))
+		KEEP(*(.boot_marker))
 		_text = .;
 		*(.text*)
 		*(.rodata*)

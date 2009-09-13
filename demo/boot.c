@@ -45,6 +45,10 @@ extern u32_t _etext, _data, _edata, _bss, _ebss;
 // System stack
 static u32_t system_stack[2048] __attribute__((section(".stack"))); // FIXME
 
+//bootloader marker. placed at a fixed ram address and checked at each boot.
+//if it equals "boot", then boot from ram directly, else boot from flash 
+static u32_t boot_marker __attribute__((section(".boot_marker"), used))	= 0x626f6f74; //boot 
+
 // Interrupt vector table
 static void (*isr_handler[])() __attribute__((section(".isr_table"), used)) = 
 {
@@ -116,12 +120,18 @@ static void (*isr_handler[])() __attribute__((section(".isr_table"), used)) =
 __attribute__((naked))
 void reset_handler(void)
 {
+	volatile u32_t *bm	= 0x200000f0;
+
 	// Simple bootloader to boot from SRAM:
 	/*
-	*((volatile unsigned int *) 0xe000ed08) = 0x20000000; // Vector Table offset
-	asm volatile ("mov r0, #0x20000000\n\t" 
-	              "ldr sp, [r0]\n\t"    // Set the stack pointer
-	              "ldr pc, [r0, #4]");  // Go to the reset_handler
+	//boot from RAM if we have "boot" just after the interrupt vector table
+	if(*bm == 0x626f6f74)
+	{
+		*((volatile unsigned int *) 0xe000ed08) = 0x20000000; // Vector Table offset
+		asm volatile ("mov r0, #0x20000000\n\t" 
+		              "ldr sp, [r0]\n\t"    // Set the stack pointer
+		              "ldr pc, [r0, #4]");  // Go to the reset_handler
+	}
 	*/
 
 	u32_t *src, *dst;

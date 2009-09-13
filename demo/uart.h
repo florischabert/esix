@@ -30,7 +30,7 @@
 #define _UART_H
 #include "types.h"
 
-#define BAUD_RATE 115200
+#define BAUD_RATE 9600
 
 /**
  * UART0 initialization.
