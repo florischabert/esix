@@ -92,4 +92,6 @@ void esix_udp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, const voi
 	hdr->chksum = esix_ip_upper_checksum(&saddr, daddr, UDP, hdr, len + sizeof(struct udp_hdr));
 	
 	esix_ip_send(&saddr, daddr, 64, UDP, hdr, len + sizeof(struct udp_hdr));
+
+	esix_w_free(hdr);
 }

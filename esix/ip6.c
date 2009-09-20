@@ -135,6 +135,9 @@ u16_t esix_ip_upper_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_
 
 /*
  * Send an IPv6 packet.
+ * Note that we're not freeing the buffer carrying the payload here, it's up to the upper layer to decide
+ * when to do it. Non-retransmitting procotols like UDP or ICMP will typically do it ASAP, but TCP might
+ * want to keep it while waiting for an ACK. 
  */
 void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len)
 {
@@ -153,7 +156,8 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	hdr->saddr = *saddr;
 	hdr->daddr = *daddr;
 	esix_memcpy(hdr + 1, data, len);
-	esix_w_free(data);
+	//prevents us from retransmitting in an efficient way
+	//esix_w_free(data);
 
 	route_index = -1;
 	//routing

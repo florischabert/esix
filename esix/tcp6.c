@@ -42,10 +42,13 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 	if(esix_ip_upper_checksum(&ip_hdr->saddr, &ip_hdr->daddr, TCP, t_hdr, len) != 0)
 		return;
 
+	//try to find an existing session (src_ip, src_port, dst_ip, dst_port) in our table.
+	//if we can't find anything, try to see if the port is in LISTENING state.
 	i = esix_socket_get_session_index(t_hdr->d_port, t_hdr->s_port, ip_hdr->saddr);	
 	if(i < 0)
 		i = esix_socket_get_port_index(t_hdr->d_port, SOCK_STREAM);	
 	
+	//either the port is closed, or listening but not bound to the targetted address. 
 	if((i < 0) || (esix_memcmp(&ip_hdr->daddr, &sockets[i]->haddr, 16) && 
                   esix_memcmp(&sockets[i]->haddr, &in6addr_any, 16)))
 	{
@@ -54,26 +57,34 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 	}
 	else
 	{
+		uart_printf("esix_tcp_process : state : %x %x\n", sockets[i]->state, sockets[i]->seqn);
 		if(sockets[i]->state == CLOSED)
 		{
+			//not even sure this can happen...
 			esix_tcp_send(&ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port, sockets[i]->seqn, ntoh32(t_hdr->seqn)+1, RST | ACK, NULL, 0);
 		}
 		else if(sockets[i]->state == LISTEN)
 		{	
 			if(t_hdr->flags & SYN)
 			{
+				//we got a SYN on a listening socket. FIXME: we should create a child socket
+				//instead of using the listening socket. This currently prevents us to
+				//accept more than a single concurrent connection on a given port.
 				sockets[i]->rport = t_hdr->s_port;
 				esix_memcpy(&sockets[i]->raddr, &ip_hdr->saddr, 16);
 				sockets[i]->state = SYN_RECEIVED;
 				sockets[i]->ackn = hton32(t_hdr->seqn);
 				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn++, ++sockets[i]->ackn, SYN | ACK, NULL, 0);
 			}		
+			else
+				esix_tcp_send(&ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port, ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST | ACK, NULL, 0);
 		}
 		else if(sockets[i]->state == SYN_RECEIVED)
 		{
 			if(t_hdr->flags & SYN)
 				sockets[i]->state = LISTEN; // FIXME
 				
+			//third handshake
 			if(t_hdr->flags & ACK)
 			{
 				sockets[i]->state = ESTABLISHED;
@@ -81,6 +92,8 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 		}
 		else if((sockets[i]->state == SYN_SENT) && (sockets[i]->session != 0))
 		{
+			//hmmmm... don't we need seq checking here?
+			//if we're in SYN_SENT, we shouldn't accept anything else than a SYN+ACK
 			if(t_hdr->flags & ACK)
 			{
 				sockets[i]->state = ESTABLISHED;
@@ -93,13 +106,15 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 		}
 		else if((sockets[i]->state == ESTABLISHED) && (sockets[i]->session != 0))
 		{
+			//hmmm... we'd better discard it, then. 
 			if(t_hdr->flags & SYN)
+				//return;
 				sockets[i]->state = LISTEN;
 				
 			if(t_hdr->flags & FIN)
 			{
 				sockets[i]->state = LAST_ACK;
-				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, ++sockets[i]->ackn, FIN | ACK, NULL, 0);
+				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, ++sockets[i]->seqn, ++sockets[i]->ackn, FIN | ACK, NULL, 0);
 			}
 			else if(len - sizeof(struct tcp_hdr) > 0)
 			{
@@ -159,6 +174,7 @@ void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
 
 void esix_tcp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, u32_t	seqn, u32_t	ackn, u8_t flags, const void *data, u16_t len)
 {
+	//TODO: implement proper retransmission/timeout here
 	int i;
 	struct ip6_addr saddr;
 	struct tcp_hdr *hdr = esix_w_malloc(sizeof(struct tcp_hdr) + len);
@@ -184,5 +200,7 @@ void esix_tcp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, u32_t	seq
 	hdr->chksum = esix_ip_upper_checksum(&saddr, daddr, TCP, hdr, len + sizeof(struct tcp_hdr));
 
 	esix_ip_send(&saddr, daddr, 64, TCP, hdr, len + sizeof(struct tcp_hdr));
+
+	esix_w_free(hdr);
 }
 

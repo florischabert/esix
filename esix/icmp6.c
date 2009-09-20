@@ -101,6 +101,9 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 	hdr->chksum = esix_ip_upper_checksum(saddr, daddr, ICMP, hdr, len + sizeof(struct icmp6_hdr));
 	
 	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + sizeof(struct icmp6_hdr));
+
+	esix_w_free(hdr);
+	
 }
 
 /**
