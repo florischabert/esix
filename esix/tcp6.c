@@ -194,6 +194,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 			}
 			if(esix_sockets[session_sock].state != CLOSED)
 				esix_sockets[session_sock].state = CLOSED;
+			esix_socket_free_queue(session_sock);
 		break;
 
 

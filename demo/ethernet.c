@@ -220,6 +220,7 @@ void ether_receive_task(void *param)
 /*
  * Send an ethernet frame.
  */
+
 void ether_send_task(void *param)
 {
 	int i;

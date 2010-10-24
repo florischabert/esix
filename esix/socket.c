@@ -254,6 +254,7 @@ int esix_socket_create_child(const struct ip6_addr *saddr, const struct ip6_addr
 
 	if((server_sock = esix_find_socket(saddr, daddr, sport, dport, proto, FIND_LISTEN)) < 0)
 		return -1;
+	uart_printf("creating child for %x\n", server_sock); 
 
 	//we found the server socket. try to create a service socket
 	if((session_sock = socket(AF_INET6, proto, 0)) < 0)

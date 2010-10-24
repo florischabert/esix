@@ -154,8 +154,6 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 	hdr->saddr = *saddr;
 	hdr->daddr = *daddr;
 	esix_memcpy(hdr + 1, data, len);
-	//prevents us from retransmitting in an efficient way
-	//esix_w_free(data);
 
 	route_index = -1;
 	//routing

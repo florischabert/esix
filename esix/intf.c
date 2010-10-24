@@ -106,8 +106,8 @@ void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu)
 	ll_rt->next_hop.addr2	= 0x0; 
 	ll_rt->next_hop.addr3	= 0x0; 
 	ll_rt->next_hop.addr4	= 0x0; 
-	ll_rt->ttl		= DEFAULT_TTL;  // 1 should be ok, linux uses 255...
-	ll_rt->mtu		= intf_mtu;	
+	ll_rt->ttl		= DEFAULT_TTL; 
+	ll_rt->mtu		= intf_mtu;
 	ll_rt->expiration_date	= 0x0; //this never expires
 	ll_rt->interface	= intf_index;
 
@@ -170,7 +170,7 @@ int esix_intf_add_neighbor(const struct ip6_addr *addr, esix_ll_addr lla, u32_t 
 		return 1;
 	}
 
-	//we're still there, let's create the new neighbor.
+	//we're still here, create the new neighbor.
 	nb	= esix_w_malloc(sizeof(struct esix_neighbor_table_row));
 
 	//hmmmm... I smell gas...
@@ -301,7 +301,6 @@ int esix_intf_get_neighbor_index(const struct ip6_addr *addr, u8_t interface)
 			(neighbors[i]->addr.addr4		== addr->addr4) &&
 			(neighbors[i]->interface		== interface))
 		{
-			//we found something, just update some variables
 			return i;
 		}
 		i++;
@@ -568,7 +567,7 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
 		return 1;
 	}
 
-	//we're still there, let's create the new route.
+	//we're still here, create the new route.
 	rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
 
 	//hmmmm... I smell gas...
