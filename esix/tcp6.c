@@ -89,6 +89,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 					//		esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
 					break;
 					case FIN_WAIT_2:
+						esix_socket_free_queue(session_sock);
 						esix_sockets[session_sock].state = CLOSED;
 					//	esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
 					//		esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
@@ -112,8 +113,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 			}
 			else
 			{
-				uart_printf("blah\n");
-			//late, retransmitted packet
+				//late, retransmitted packet
 				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
 					esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
 			}
@@ -173,6 +173,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 						esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
 							esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
 
+						esix_socket_free_queue(session_sock);
 						esix_sockets[session_sock].state = CLOSED;
 					break;
 					default :
@@ -185,7 +186,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 		case RST:
 		case RST|ACK:
 			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
-				t_hdr->d_port, t_hdr->s_port, SOCK_STREAM, FIND_CONNECTED)) < 0)
+				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)
 			{
 				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
 					ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST|ACK, NULL, 0);

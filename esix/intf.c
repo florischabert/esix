@@ -618,10 +618,8 @@ int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct
 		rt	= routes[i];
 		routes[i] = NULL;
 		esix_w_free(rt);
-		uart_printf("esix_intf_remove_route ends\n");
 		return 1;
 	}
-	uart_printf("esix_intf_remove_route crash\n");
 	return -1;
 }
 

@@ -281,8 +281,6 @@ int esix_socket_create_child(const struct ip6_addr *saddr, const struct ip6_addr
 	sqe->socknum = session_sock;
 	sqe->next_e  = NULL;
 	
-	//duplicate the socket
-//	esix_memcpy(&esix_sockets[session_sock], &esix_sockets[server_sock], sizeof(struct esix_sock));
 	//copy remote addr stuff
 	esix_memcpy(&esix_sockets[session_sock].raddr, saddr, 16);
 	esix_sockets[session_sock].rport = sport;
@@ -434,7 +432,6 @@ int listen(int socket, int blacklog)
 
 int close(const int socknum)
 {
-
 	if(esix_sockets[socknum].state == CLOSED)
 		return -1;
 
@@ -461,8 +458,31 @@ int close(const int socknum)
 	}
 	//uart_printf("close : closing %x\n", socknum);
 	esix_sockets[socknum].state = CLOSED;
-	//TODO : free the queued element list here
+	esix_socket_free_queue(socknum);
+
 	return 0;
+}
+
+void esix_socket_free_queue(int socknum)
+{
+	struct sock_queue *sqe;
+
+	//purge the socket element list, one by one
+	while(esix_sockets[socknum].queue != NULL)
+	{
+		//TODO : don't purge sent elements here, as they might not have
+		//been acked
+
+		//grab the first available element
+		sqe = esix_sockets[socknum].queue;
+		//remove the current element
+		esix_sockets[socknum].queue = sqe->next_e;
+		//free its payload, if any
+		if(sqe->qe_type == RECV_PKT || sqe->qe_type == SENT_PKT)
+			esix_w_free(sqe->data);
+		//finally free it.
+		esix_w_free(sqe);
+	}
 }
 
 int send(const int socknum, const void *buf, const int len, const u8_t flags)

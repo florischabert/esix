@@ -66,4 +66,5 @@ int esix_find_socket(const struct ip6_addr *, const struct ip6_addr *, u16_t, u1
 int esix_queue_data(int, const void *, int, struct sockaddr_in6 *);
 struct sock_queue * esix_socket_find_and_unlink(int , enum qe_type);
 void esix_socket_init();
+void esix_socket_free_queue(int);
 #endif

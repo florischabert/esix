@@ -41,6 +41,7 @@ void hardware_init(void);
 void main_task(void *param);
 void http_server_task(void *param);
 void tcp_server_task(void *param);
+void tcp_chargen_task(void *param);
 void udp_server_task(void *param);
 void udp_echo_task(void *param);
 
@@ -70,6 +71,7 @@ void main(void)
 	xTaskCreate(main_task, (signed char *) "main", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(http_server_task, (signed char *) "http server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(tcp_server_task, (signed char *) "tcp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(tcp_chargen_task, (signed char *) "tcp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(udp_server_task, (signed char *) "udp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(udp_echo_task, (signed char *) "udp echo server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
@@ -80,9 +82,6 @@ void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed portCHAR *pcTaskN
 	GPIOF->DATA[1] = 1;
 }
 
-/**
- * Toggle the LED
- */
 void main_task(void *param)
 {	
 	while(1)
@@ -98,7 +97,7 @@ void udp_server_task(void *param)
 	static char buff[100];
 	int soc;
 	struct sockaddr_in6 from, to;
-	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
+	int sockaddrlen = sizeof(struct sockaddr_in6);
 	
 	to.sin6_port = HTON16(2009);
 	to.sin6_addr = in6addr_any;
@@ -127,7 +126,7 @@ void udp_echo_task(void *param)
 	static char buff[100];
 	int soc, nbread;
 	struct sockaddr_in6 from, to;
-	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
+	int sockaddrlen = sizeof(struct sockaddr_in6);
 	
 	to.sin6_port = HTON16(7);
 	to.sin6_addr = in6addr_any;
@@ -151,8 +150,8 @@ void tcp_server_task(void *param)
 {
 	static char buff[100];
 	int soc, conn, len;
-	struct sockaddr_in6 serv, to;
-	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
+	struct sockaddr_in6 serv;
+	int sockaddrlen = sizeof(struct sockaddr_in6);
 	
 	serv.sin6_port = HTON16(2010);
 	serv.sin6_addr = in6addr_any;
@@ -204,13 +203,53 @@ void tcp_server_task(void *param)
 	}
 }
 
+void tcp_chargen_task(void *param)
+{
+	static char buff[1400];
+	int soc, conn, len;
+	char* a = buff + 1398;
+	struct sockaddr_in6 serv;
+	int sockaddrlen = sizeof(struct sockaddr_in6);
+
+	while(a-- > buff)
+		*a = '$';
+	
+	serv.sin6_port = HTON16(19);
+	serv.sin6_addr = in6addr_any;
+	
+	if((soc = socket(AF_INET6, SOCK_STREAM, 0)) <0)
+		uart_printf("tcp_server : socket failed\n");
+	if((bind(soc, &serv, sockaddrlen))<0)
+		uart_printf("tcp_server : bind failed\n");
+	if(listen(soc, 1)<0)
+		uart_printf("tcp_server : listen failed\n");
+
+	while(1)
+	{
+		vTaskDelay(500);
+		if((conn = accept(soc, NULL, NULL)) <0)
+			continue;
+
+		send(conn, "chargen starting...\n", 21, 0);
+		vTaskDelay(500);
+		
+		while(1)
+		{
+			vTaskDelay(1);
+			if((send(conn, buff, 1398, 0))<0)
+				break;
+		}
+		close(conn);
+	}
+}
+
 void http_server_task(void *param)
 {
 	static char buff[800];
 	int soc, conn, len;
-	struct sockaddr_in6 serv, to;
-	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
-	static char toggle[] = "HTTP/1.1 200 OK\nServer: quick-and-dirty\nContent-Length: 133\nConnection: close\nContent-Type: text/html;\n\n<html>The LED is now     \n<br />\n<form name=\"input\" action=\"/toggle\" method=\"get\">\n<input type=\"submit\" value=\"Toggle LED\" /></form>\n</html>";
+	struct sockaddr_in6 serv;
+	int sockaddrlen = sizeof(struct sockaddr_in6);
+	static char *toggle = "HTTP/1.1 200 OK\nServer: quick-and-dirty\nContent-Length: 133\nConnection: close\nContent-Type: text/html;\n\n<html>The LED is now     \n<br />\n<form name=\"input\" action=\"/toggle\" method=\"get\">\n<input type=\"submit\" value=\"Toggle LED\" /></form>\n</html>";
 	
 	serv.sin6_port = HTON16(80);
 	serv.sin6_addr = in6addr_any;

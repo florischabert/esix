@@ -46,7 +46,7 @@
 		u32_t	seqn;
 		u32_t	ackn;
 		u8_t data_offset; //mind it's actually 4 data offset
-				//bytes plus 4 reserved (all zeroes) bytes here
+				//bits plus 4 reserved (all zeroes) bits here
 		u8_t flags;
 		u16_t w_size;
 		u16_t chksum;
