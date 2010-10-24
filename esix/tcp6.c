@@ -33,173 +33,204 @@
 #include "include/socket.h"
 #include "socket.h"
 
-void esix_tcp_process(struct tcp_hdr *t_hdr, int len, struct ip6_hdr *ip_hdr)
+void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct ip6_hdr *ip_hdr)
 {
-	int i;
-	struct tcp_packet *packet;
+	int session_sock;
+
+	//do we have enough bytes to proces the header?
+	if(len < 20)
+	{
+		uart_printf("esix_tcp_process : packet too short\n");
+		return;
+	}
 	
-	// check the checksum
+	//check the checksum
 	if(esix_ip_upper_checksum(&ip_hdr->saddr, &ip_hdr->daddr, TCP, t_hdr, len) != 0)
 		return;
 
-	//try to find an existing session (src_ip, src_port, dst_ip, dst_port) in our table.
-	//if we can't find anything, try to see if the port is in LISTENING state.
-	i = esix_socket_get_session_index(t_hdr->d_port, t_hdr->s_port, ip_hdr->saddr);	
-	if(i < 0)
-		i = esix_socket_get_port_index(t_hdr->d_port, SOCK_STREAM);	
-	
-	//either the port is closed, or listening but not bound to the targetted address. 
-	if((i < 0) || (esix_memcmp(&ip_hdr->daddr, &sockets[i]->haddr, 16) && 
-                  esix_memcmp(&sockets[i]->haddr, &in6addr_any, 16)))
+	switch (t_hdr->flags)
 	{
-		uart_printf("TCP port %x unreachable\n", hton16(t_hdr->d_port));
-		esix_tcp_send(&ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port, 0, ntoh32(t_hdr->seqn)+1, RST | ACK, NULL, 0);
-	}
-	else
-	{
-		uart_printf("esix_tcp_process : state : %x %x\n", sockets[i]->state, sockets[i]->seqn);
-		if(sockets[i]->state == CLOSED)
-		{
-			//not even sure this can happen...
-			esix_tcp_send(&ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port, sockets[i]->seqn, ntoh32(t_hdr->seqn)+1, RST | ACK, NULL, 0);
-		}
-		else if(sockets[i]->state == LISTEN)
-		{	
-			if(t_hdr->flags & SYN)
+		case SYN:
+			//try to create a child connection. if if fails, send a RST|ACK right away.
+			if((session_sock = esix_socket_create_child(&ip_hdr->saddr, &ip_hdr->daddr, 
+				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM)) < 0)
 			{
-				//we got a SYN on a listening socket. FIXME: we should create a child socket
-				//instead of using the listening socket. This currently prevents us to
-				//accept more than a single concurrent connection on a given port.
-				sockets[i]->rport = t_hdr->s_port;
-				esix_memcpy(&sockets[i]->raddr, &ip_hdr->saddr, 16);
-				sockets[i]->state = SYN_RECEIVED;
-				sockets[i]->ackn = hton32(t_hdr->seqn);
-				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn++, ++sockets[i]->ackn, SYN | ACK, NULL, 0);
-			}		
+				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+					ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST|ACK, NULL, 0);
+				return;
+			}
+
+			esix_sockets[session_sock].state = SYN_RECEIVED;
+			esix_sockets[session_sock].ackn = ntoh32(t_hdr->seqn)+1;
+			esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+				esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, SYN|ACK, NULL, 0);
+			esix_sockets[session_sock].seqn++;
+
+		break;
+
+		case ACK:
+		case PSH|ACK:
+			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
+				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)  
+			{
+				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+					ntoh32(t_hdr->ackn), ntoh32(t_hdr->seqn), RST|ACK, NULL, 0);
+				return;
+			}
+
+			//packet sequence OK
+			if(ntoh32(t_hdr->seqn) == esix_sockets[session_sock].ackn)
+			{
+				switch(esix_sockets[session_sock].state)
+				{
+					case SYN_RECEIVED:
+						esix_sockets[session_sock].state = ESTABLISHED;
+					//	esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+					//		esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
+					break;
+					case FIN_WAIT_2:
+						esix_sockets[session_sock].state = CLOSED;
+					//	esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+					//		esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
+					break;
+					case ESTABLISHED:
+						//grab received data, if any
+						if((len-((t_hdr->data_offset>>4)*4)) >0)
+						{
+							if((esix_queue_data(session_sock, (u8_t*) t_hdr + ((t_hdr->data_offset>>4)*4) ,
+									len-(t_hdr->data_offset>>4)*4, NULL)) <0 )
+								return;
+							esix_sockets[session_sock].ackn += len-((t_hdr->data_offset>>4)*4);
+							esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+								esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
+						}
+					break;
+					default :
+					break;
+				}
+
+			}
 			else
-				esix_tcp_send(&ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port, ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST | ACK, NULL, 0);
-		}
-		else if(sockets[i]->state == SYN_RECEIVED)
-		{
-			if(t_hdr->flags & SYN)
-				sockets[i]->state = LISTEN; // FIXME
-				
-			//third handshake
-			if(t_hdr->flags & ACK)
 			{
-				sockets[i]->state = ESTABLISHED;
+				uart_printf("blah\n");
+			//late, retransmitted packet
+				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+					esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
 			}
-		}
-		else if((sockets[i]->state == SYN_SENT) && (sockets[i]->session != 0))
-		{
-			//hmmmm... don't we need seq checking here?
-			//if we're in SYN_SENT, we shouldn't accept anything else than a SYN+ACK
-			if(t_hdr->flags & ACK)
+
+		break;
+
+		case SYN|ACK:
+			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
+				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)
 			{
-				sockets[i]->state = ESTABLISHED;
-				if(t_hdr->flags & SYN)
+				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+					ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST|ACK, NULL, 0);
+				return;
+			}
+
+			//put the socket in established mode and store remote node's seq number
+			if(ntoh32(t_hdr->ackn) == esix_sockets[session_sock].seqn)
+			{
+				if(esix_sockets[session_sock].state == SYN_SENT)
+					esix_sockets[session_sock].state = ESTABLISHED;
+
+				esix_sockets[session_sock].ackn = ntoh32(t_hdr->ackn)+1;
+				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+					esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
+
+			}
+			
+		break;
+
+		case FIN:
+		case FIN|ACK:
+			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
+				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)
+			{
+				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+					ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST|ACK, NULL, 0);
+				return;
+			}
+
+			//is the packet in order?
+			if(ntoh32(t_hdr->ackn) == esix_sockets[session_sock].seqn)
+			{
+				esix_sockets[session_sock].ackn += 1 ;
+
+				switch(esix_sockets[session_sock].state)
 				{
-					sockets[i]->ackn = hton32(t_hdr->seqn);
-					esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, ++sockets[i]->seqn, ++sockets[i]->ackn, ACK, NULL, 0);
+					case SYN_RECEIVED:
+					case ESTABLISHED:
+						esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+							esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, FIN|ACK, NULL, 0);
+							esix_sockets[session_sock].seqn += 1 ;
+
+						esix_sockets[session_sock].state = FIN_WAIT_2;
+					break;
+
+					case FIN_WAIT_1:
+						esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+							esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
+
+						esix_sockets[session_sock].state = CLOSED;
+					break;
+					default :
+					break;
 				}
 			}
-		}
-		else if((sockets[i]->state == ESTABLISHED) && (sockets[i]->session != 0))
-		{
-			//hmmm... we'd better discard it, then. 
-			if(t_hdr->flags & SYN)
-				//return;
-				sockets[i]->state = LISTEN;
-				
-			if(t_hdr->flags & FIN)
+			
+		break;
+
+		case RST:
+		case RST|ACK:
+			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
+				t_hdr->d_port, t_hdr->s_port, SOCK_STREAM, FIND_CONNECTED)) < 0)
 			{
-				sockets[i]->state = LAST_ACK;
-				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, ++sockets[i]->seqn, ++sockets[i]->ackn, FIN | ACK, NULL, 0);
+				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+					ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST|ACK, NULL, 0);
+				return;
 			}
-			else if(len - sizeof(struct tcp_hdr) > 0)
-			{
-				if(sockets[i]->received == NULL)
-				{
-					packet = esix_w_malloc(sizeof(struct tcp_packet));
-					packet->len = len - sizeof(struct tcp_hdr);
-					if(packet->len > 0)
-					{
-						packet->data = esix_w_malloc(packet->len);
-						esix_memcpy(packet->data, t_hdr + 1, packet->len);
-					}
-					packet->next = NULL;
-					sockets[i]->received = packet;
-					sockets[i]->ackn += packet->len; 
-					esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, sockets[i]->ackn, ACK, NULL, 0);
-				}
-				else
-					uart_printf("A TCP packet is already in the queue.\n"); // FIXME
-			}
-		}
-		else if((sockets[i]->state == LAST_ACK) && (sockets[i]->session != 0))
-		{
-			if(t_hdr->flags & ACK)
-			{
-				sockets[i]->state = CLOSED;
-				esix_socket_remove_row(i);
-			}
-		}
-		else if((sockets[i]->state == FIN_WAIT_1) && (sockets[i]->session != 0))
-		{
-			if((t_hdr->flags & FIN) && (t_hdr->flags & ACK))
-			{
-				sockets[i]->state = CLOSED;
-				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, sockets[i]->ackn, ACK, NULL, 0);
-				esix_socket_remove_row(i);
-			}
-			else if(t_hdr->flags & FIN)
-			{
-				sockets[i]->state = CLOSED;
-				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, sockets[i]->ackn, ACK, NULL, 0);
-				esix_socket_remove_row(i);
-			}
-			else if(t_hdr->flags & ACK)
-				sockets[i]->state = FIN_WAIT_2;
-		}
-		else if((sockets[i]->state == FIN_WAIT_2) && (sockets[i]->session != 0))
-		{
-			if(t_hdr->flags & FIN)
-			{
-				sockets[i]->state = CLOSED;
-				esix_tcp_send(&sockets[i]->raddr, sockets[i]->hport, sockets[i]->rport, sockets[i]->seqn, ++sockets[i]->ackn, ACK, NULL, 0);	
-			}
-		}
+			if(esix_sockets[session_sock].state != CLOSED)
+				esix_sockets[session_sock].state = CLOSED;
+		break;
+
+
+		default :
+			uart_printf("esix_tcp_process : unknown flag\n");
+			//uh oh
+		break;
 	}
 }
 
-void esix_tcp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, u32_t	seqn, u32_t	ackn, u8_t flags, const void *data, u16_t len)
+void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u16_t s_port, const u16_t d_port, 
+	const u32_t seqn, const u32_t ackn, const u8_t flags, const void *data, const u16_t len)
 {
+	int laddr;
+	struct tcp_hdr *hdr;
+
+	//check source address
+	if((laddr = esix_intf_check_source_addr(saddr, daddr)) < 0)
+		return;	
+
 	//TODO: implement proper retransmission/timeout here
-	int i;
-	struct ip6_addr saddr;
-	struct tcp_hdr *hdr = esix_w_malloc(sizeof(struct tcp_hdr) + len);
+	if((hdr = esix_w_malloc(sizeof(struct tcp_hdr) + len)) == NULL)
+		return;
+	
 	hdr->d_port = d_port;
 	hdr->s_port = s_port;
 	hdr->seqn = hton32(seqn);
 	hdr->ackn = hton32(ackn);
-	hdr->data_offset = 5 << 4;
+	hdr->data_offset = (5 << 4); //we don't support any option yet...
 	hdr->flags = flags;
 	hdr->w_size = hton16(1400);
 	hdr->urg_pointer = 0;
 	hdr->chksum = 0;
 	esix_memcpy(hdr + 1, data, len);
-
-	// get the source address
-	if((daddr->addr1 & hton32(0xffff0000)) == hton32(0xfe800000))
-		i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
-	else
-		i = esix_intf_get_scope_address(GLOBAL_SCOPE);
-
-	saddr = addrs[i]->addr;
 	
-	hdr->chksum = esix_ip_upper_checksum(&saddr, daddr, TCP, hdr, len + sizeof(struct tcp_hdr));
+	hdr->chksum = esix_ip_upper_checksum(saddr, daddr, TCP, hdr, len + sizeof(struct tcp_hdr));
 
-	esix_ip_send(&saddr, daddr, 64, TCP, hdr, len + sizeof(struct tcp_hdr));
+	esix_ip_send(saddr, daddr, DEFAULT_TTL, TCP, hdr, len + sizeof(struct tcp_hdr));
 
 	esix_w_free(hdr);
 }

@@ -69,10 +69,7 @@ void esix_ip_process(void *packet, int len)
 
 	//drop the packet in case it doesn't belong to us
 	if(pkt_for_us==0)
-	{
-		uart_printf("packet received but not for us\n");
 		return;
-	}
 	
 	//check the hop limit value (should be > 0)
 	if(hdr->hlimit == 0)
@@ -101,17 +98,17 @@ void esix_ip_process(void *packet, int len)
 			
 		//unknown (unimplemented) IP type
 		default:
-			uart_printf("unknown packet received, next_header: %x\n", hdr->next_header);
+			uart_printf("esix_ip_process : unknown next header  %x\n", hdr->next_header);
 	}
 }
 
 /*
  * Compute upper-level checksum
  */
-u16_t esix_ip_upper_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t proto, void *payload, u16_t len)
+u16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u8_t proto, const void *payload, u16_t len)
 {
 	u32_t sum = 0;
-	u16_t *data;
+	u16_t const *data;
 	
 	// IPv6 pseudo-header sum : saddr, daddr, type and payload lenght
 	for(data = (u16_t *) saddr; data < (u16_t *) (saddr+1); data++)
@@ -139,12 +136,13 @@ u16_t esix_ip_upper_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_
  * when to do it. Non-retransmitting procotols like UDP or ICMP will typically do it ASAP, but TCP might
  * want to keep it while waiting for an ACK. 
  */
-void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len)
+void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u8_t hlimit, const u8_t type, const void *data, const u16_t len)
 {
-	struct ip6_hdr *hdr = esix_w_malloc(sizeof(struct ip6_hdr) + len);
+	struct ip6_hdr *hdr;
 	int i, route_index, dest_onlink;
 	esix_ll_addr lla;
 	
+	hdr = esix_w_malloc(sizeof(struct ip6_hdr) + len);
 	//hmmm... I smell gas...
 	if(hdr == NULL)
 		return;
@@ -184,7 +182,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	//sorry dude, we didn't find any matching route...
 	if(route_index < 0)
 	{
-		uart_printf("esix_ip_send : no matching route found\n");
+		uart_printf("esix_ip_send : no route.\n");
 		esix_w_free(hdr);
 		return;
 	}
@@ -228,7 +226,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 		}
 		else
 		{
-			uart_printf("esix_ip_send : neighbor is unreachable\n");
+			uart_printf("esix_ip_send : neighbor unreachable\n");
 			esix_w_free(hdr);
 			return;
 		}
@@ -236,7 +234,7 @@ void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u
 	else
 	{
 		// we have to send a neighbor solicitation
-		uart_printf("packet ready to be sent, but don't now the lla\n");
+		//uart_printf("packet ready to be sent, but don't now the lla\n");
 		if((i=esix_intf_get_scope_address(LINK_LOCAL_SCOPE)) >= 0)
 		{
 			if(dest_onlink)

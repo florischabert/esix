@@ -91,6 +91,8 @@ void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu)
 {
 	//link local route (fe80::/64)
 	struct esix_route_table_row *ll_rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
+	if(ll_rt == NULL)
+		return;
 	
 	ll_rt->addr.addr1	= hton32(0xfe800000);
 	ll_rt->addr.addr2	= 0x0;
@@ -111,6 +113,8 @@ void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu)
 
 	//multicast route (ff00:: /8)
 	struct esix_route_table_row *mcast_rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
+	if(mcast_rt == NULL)
+		return;
 	
 	mcast_rt->addr.addr1		= hton32(0xff000000);
 	mcast_rt->addr.addr2		= 0x0;
@@ -151,7 +155,7 @@ int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row)
 	return 0;
 }
 
-int esix_intf_add_neighbor(struct ip6_addr *addr, esix_ll_addr lla, u32_t expiration_date, u8_t interface)
+int esix_intf_add_neighbor(const struct ip6_addr *addr, esix_ll_addr lla, u32_t expiration_date, u8_t interface)
 {
 	//uart_printf("esix_intf_add_neighbor: adding %x:%x:%x:%x\n", addr->addr1, addr->addr2, addr->addr3, addr->addr4);
 	int j, i = 0;
@@ -241,13 +245,13 @@ int esix_intf_add_route_row(struct esix_route_table_row *row)
 	if(j < 0)
 		return 0;
 
+/*
 	//sort the table to ease the routing process
 	//routes are sorted by ascending netmask.
 
 	//FIXME: this definitely looks like hell... (4am code)
 	i=0;
 	unsorted = 1;
-/*
 	while(unsorted)
 	{
 		unsorted = 0;
@@ -282,7 +286,7 @@ int esix_intf_add_route_row(struct esix_route_table_row *row)
 /*
  * Return the neighbor row index of the given address.
  */
-int esix_intf_get_neighbor_index(struct ip6_addr *addr, u8_t interface)
+int esix_intf_get_neighbor_index(const struct ip6_addr *addr, u8_t interface)
 {
 	int i = 0;
 
@@ -308,7 +312,7 @@ int esix_intf_get_neighbor_index(struct ip6_addr *addr, u8_t interface)
 /*
  * esix_intf_remove_neighbor : removes a neighbor from the cache.
  */
-int esix_intf_remove_neighbor(struct ip6_addr *addr, u8_t interface)
+int esix_intf_remove_neighbor(const struct ip6_addr *addr, u8_t interface)
 {
 	uart_printf("esix_intf_remove_neighbor: removing %x %x %x %x\n",
 		addr->addr1, addr->addr2, addr->addr3, addr->addr4);
@@ -344,9 +348,25 @@ int esix_intf_get_scope_address(u8_t scope)
 }
 
 /*
+ * Picks an address given the scope of daddr 
+ */
+int esix_intf_pick_source_address(const struct ip6_addr *daddr)
+{
+	int i;
+	//try go get an address of the same scope. Note that we assume
+	//that a link local address is always avaiable (SLAAC link local)
+	if((daddr->addr1 & hton32(0xffff0000)) == hton32(0xfe800000))
+		i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
+	else
+		i = esix_intf_get_scope_address(GLOBAL_SCOPE);
+
+	return i;
+}
+
+/*
  * Return the address row index of the given address.
  */
-int esix_intf_get_address_index(struct ip6_addr *addr, u8_t scope, u8_t masklen)
+int esix_intf_get_address_index(const struct ip6_addr *addr, u8_t scope, u8_t masklen)
 {
 	int j;
 	for(j = 0; j<ESIX_MAX_IPADDR; j++)
@@ -368,7 +388,7 @@ int esix_intf_get_address_index(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 /*
  * Return the route row index of the given route.
  */
-int esix_intf_get_route_index(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_hop, u8_t intf)
+int esix_intf_get_route_index(const struct ip6_addr *daddr, const struct ip6_addr *mask, const struct ip6_addr *next_hop, const u8_t intf)
 {
 	int i;
 	for(i = 0; i<ESIX_MAX_RT; i++)
@@ -400,8 +420,10 @@ int esix_intf_get_route_index(struct ip6_addr *daddr, struct ip6_addr *mask, str
  */
 int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_date, u8_t scope)
 {
+	/*
 	uart_printf("esix_intf_add_address: adding %x:%x:%x:%x\n",
 		addr->addr1, addr->addr2, addr->addr3, addr->addr4);
+	*/
 	struct esix_ipaddr_table_row *row;
 	struct ip6_addr	mcast_sollicited, zero;
 	int i, j;
@@ -497,10 +519,12 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	return 0;
 }
 
-int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
+int esix_intf_remove_address(const struct ip6_addr *addr, u8_t scope, u8_t masklen)
 {
+	/*
 	uart_printf("esix_intf_remove_address: removing %x %x %x %x\n",
                 addr->addr1, addr->addr2,  addr->addr3,  addr->addr4);
+	*/
 	int i;
 	struct esix_ipaddr_table_row *row;
 	
@@ -523,9 +547,11 @@ int esix_intf_remove_address(struct ip6_addr *addr, u8_t scope, u8_t masklen)
 int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_addr, u32_t expiration_date,
 				u8_t ttl, u32_t mtu, u8_t interface)
 {
+	/*
 	uart_printf("esix_intf_add_route: adding %x:%x:%x:%x nxt_hop %x:%x:%x:%x\n",
 		daddr->addr1, daddr->addr2, daddr->addr3, daddr->addr4,
 		next_addr->addr1, next_addr->addr2, next_addr->addr3, next_addr->addr4);
+	*/
 		
 	int i=0;
 	struct esix_route_table_row *rt	= NULL;
@@ -601,8 +627,9 @@ int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct
 
 /*
  * esix_intf_check_source_addr : make sure that the source address isn't multicast
+ * if it is, choose an address from the corresponding scope
  */
-int esix_intf_check_source_addr(struct ip6_addr *saddr, struct ip6_addr *daddr)
+int esix_intf_check_source_addr(struct ip6_addr *saddr, const struct ip6_addr *daddr)
 {
 	int i = -1;
 

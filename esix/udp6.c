@@ -33,65 +33,54 @@
 #include "include/socket.h"
 #include "socket.h"
 
-void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr)
+void esix_udp_process(const struct udp_hdr *u_hdr, int len, const struct ip6_hdr *ip_hdr)
 {
-	int i;
-	struct udp_packet *packet;
+	int sock;
+	struct sockaddr_in6 sockaddr;
+
+	//do we have enough bytes to proces the header?
+	if(len < 8)
+	{
+		uart_printf("esix_udp_process : packet too short\n");
+		return;
+	}
 	
 	// check the checksum
 	if(esix_ip_upper_checksum(&ip_hdr->saddr, &ip_hdr->daddr, UDP, u_hdr, len) != 0)
 		return;
 
-	i = esix_socket_get_port_index(u_hdr->d_port, SOCK_DGRAM);	
-	if((i < 0) || (esix_memcmp(&ip_hdr->daddr, &sockets[i]->haddr, 16) && 
-	               esix_memcmp(&sockets[i]->haddr, &in6addr_any, 16)))
+	if((sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, u_hdr->s_port, u_hdr->d_port, 
+		UDP, FIND_LISTEN)) < 0)
 	{
-		uart_printf("UDP port %x unreachable\n", u_hdr->d_port);
-		esix_icmp_send_unreachable(ip_hdr, PORT_UNREACHABLE);
+		uart_printf("esix_udp_process : port unreachable\n");
+		//don't send port unreach in response to multicasts
+		if( (ip_hdr->daddr.addr1 & hton32(0xff000000)) != hton32(0xff000000))
+			esix_icmp_send_unreachable(ip_hdr, PORT_UNREACHABLE); 	
+		return;
 	}
-	else
-	{
-		// TODO: linked list for received data
-		if(sockets[i]->received == NULL)
-		{
-			packet = esix_w_malloc(sizeof(struct udp_packet));
-			packet->s_port = u_hdr->s_port;
-			esix_memcpy(&packet->s_addr, &ip_hdr->saddr, 16);
-			packet->len = ntoh16(u_hdr->len) - sizeof(struct udp_hdr);
-			packet->data = esix_w_malloc(packet->len);
-			esix_memcpy(packet->data, u_hdr + 1, packet->len);
-			packet->next = NULL;
-			sockets[i]->received = packet;
-		}
-		else
-			uart_printf("An UDP packet is already in the queue.\n"); // FIXME 
-	}
-	
+
+	esix_memcpy(&sockaddr.sin6_addr, &ip_hdr->saddr, 16);
+	sockaddr.sin6_port = u_hdr->s_port;
+	esix_queue_data(sock, u_hdr+1, ntoh16(u_hdr->len)-sizeof(struct udp_hdr), &sockaddr);
+
 	return;
 }
 
-void esix_udp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, const void *data, u16_t len)
+void esix_udp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, u16_t s_port, u16_t d_port, const void *data, u16_t len)
 {
-	int i;
-	struct ip6_addr saddr;
 	struct udp_hdr *hdr = esix_w_malloc(sizeof(struct udp_hdr) + len);
+	if(hdr == NULL)
+		return;
+
 	hdr->d_port = d_port;
 	hdr->s_port = s_port;
 	hdr->len = hton16(len + sizeof(struct udp_hdr));
 	hdr->chksum = 0;
 	esix_memcpy(hdr + 1, data, len);
 
-	// get the source address
-	if((daddr->addr1 & hton32(0xffff0000)) == hton32(0xfe800000))
-		i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
-	else
-		i = esix_intf_get_scope_address(GLOBAL_SCOPE);
-
-	saddr = addrs[i]->addr;
+	hdr->chksum = esix_ip_upper_checksum(saddr, daddr, UDP, hdr, len + sizeof(struct udp_hdr));
 	
-	hdr->chksum = esix_ip_upper_checksum(&saddr, daddr, UDP, hdr, len + sizeof(struct udp_hdr));
-	
-	esix_ip_send(&saddr, daddr, 64, UDP, hdr, len + sizeof(struct udp_hdr));
+	esix_ip_send(saddr, daddr, DEFAULT_TTL, UDP, hdr, len + sizeof(struct udp_hdr));
 
 	esix_w_free(hdr);
 }

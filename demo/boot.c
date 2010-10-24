@@ -123,9 +123,9 @@ void reset_handler(void)
 	volatile u32_t *bm	= 0x200000f0;
 
 	// Simple bootloader to boot from SRAM:
-	/*
+	
 	//boot from RAM if we have "boot" just after the interrupt vector table
-	if(*bm == 0x626f6f74)
+	/*if(*bm == 0x626f6f74)
 	{
 		*((volatile unsigned int *) 0xe000ed08) = 0x20000000; // Vector Table offset
 		asm volatile ("mov r0, #0x20000000\n\t" 

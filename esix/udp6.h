@@ -51,7 +51,8 @@
 		struct udp_packet *next;
 	} __attribute__((__packed__));
 	
-	void esix_udp_process(struct udp_hdr *u_hdr, int len, struct ip6_hdr *ip_hdr);
-	void esix_udp_send(struct ip6_addr *daddr, u16_t s_port, u16_t d_port, const void *data, u16_t len);
+	void esix_udp_process(const struct udp_hdr *u_hdr, int len, const struct ip6_hdr *ip_hdr);
+	void esix_udp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u16_t s_port, 
+		const u16_t d_port, const void *data, const u16_t len);
 
 #endif

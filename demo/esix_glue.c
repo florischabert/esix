@@ -35,7 +35,7 @@
 #include "uart.h"
 #include "ethernet.h"
 
-int alloc_count;
+int alloc_count=0;
 
 void *esix_w_malloc(size_t size)
 {
@@ -46,7 +46,7 @@ void *esix_w_malloc(size_t size)
 	if(ptr == NULL)
 	{
 		uart_printf("ERROR: malloc failed (size=%x)\n", size);
-		for(i = 0; i < 100000; i++) asm("nop");
+		for(i = 0; i < 10000; i++) asm("nop");
 	}
 	return ptr;
 }

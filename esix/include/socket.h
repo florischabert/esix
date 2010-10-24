@@ -31,8 +31,8 @@
 
 #define AF_INET6 10
 
-#define SOCK_STREAM 1
-#define SOCK_DGRAM 2
+#define SOCK_STREAM 0x06
+#define SOCK_DGRAM 0x11
 
 #define MSG_PEEK 1
 #define MSG_DONTWAIT 2
@@ -73,7 +73,7 @@ struct sockaddr_in6
  * @param proto. wait... what ?
  * @return the socket identifier.
  */
-u32_t socket(u16_t family, u8_t type, u8_t proto);
+int socket(const int family, const u8_t type, const u8_t proto);
 
 /*
  * Change properties of a socket.
@@ -83,7 +83,7 @@ u32_t socket(u16_t family, u8_t type, u8_t proto);
  * @param addrlen is the size of address.
  * @return the socket identifier.
  */
-u32_t bind(u32_t socket, const struct sockaddr_in6 *address, u32_t addrlen);
+int bind(const int socket, const struct sockaddr_in6 *address, const int addrlen);
 
 /*
  * Initiate a connection.
@@ -93,7 +93,7 @@ u32_t bind(u32_t socket, const struct sockaddr_in6 *address, u32_t addrlen);
  * @param addrlen is the size of to.
  * @return 0 in success.
  */
-int connect(u32_t socket, const struct sockaddr_in6 *to, u32_t addrlen);
+int connect(const int socket, const struct sockaddr_in6 *to, const int addrlen);
 
 /*
  * Listen for connections.
@@ -102,7 +102,7 @@ int connect(u32_t socket, const struct sockaddr_in6 *to, u32_t addrlen);
  * @param num is the number of connections allowed on the socket.
  * @return 0 in success.
  */
-int listen(u32_t socket, u32_t num);
+int listen(int socket, int num);
 
 /*
  * Accept a connection.
@@ -112,7 +112,7 @@ int listen(u32_t socket, u32_t num);
  * @param addrlen is the size of address.
  * @return a socket identifier for the connection.
  */
-u32_t accept(u32_t socket, struct sockaddr_in6 *address, u32_t *addrlen);
+int accept(int socket, struct sockaddr_in6 *address, int *addrlen);
 
 /*
  * Close a socket.
@@ -120,7 +120,7 @@ u32_t accept(u32_t socket, struct sockaddr_in6 *address, u32_t *addrlen);
  * @param socket is the socket idenfier.
  * @return 0 in success
  */
-int close(u32_t socket);
+int close(int socket);
 
 /*
  * Receive data through a socket (for a connected socket).
@@ -131,12 +131,12 @@ int close(u32_t socket);
  * @param flags could contain the following flags: MSG_PEEK, MSG_DONTWAIT.
  * @return the number of bytes read.
  */
-u32_t recv(u32_t socket, void *buff, u16_t len, u8_t flags);
+int recv(int socket, void *buff, int len, u8_t flags);
 
 /*
  * Send data through a socket (for a connected socket).
  *
- * @paramsocket is the socket idenfier.
+ * @param socket is the socket idenfier.
  * @param buff is a pointer to a buffer containing the data to be sent.
  * @param len is the number of bytes to send.
  * @param flags is not used (for now).
@@ -144,7 +144,7 @@ u32_t recv(u32_t socket, void *buff, u16_t len, u8_t flags);
  * @param fromaddrlen is a pointer to the size of from.
  * @return the number of bytes sent.
  */
-u32_t send(u32_t socket, const void *buff, u16_t len, u8_t flags);
+int send(int socket, const void *buff, int len, u8_t flags);
 
 /*
  * Receive data from the socket.
@@ -157,7 +157,7 @@ u32_t send(u32_t socket, const void *buff, u16_t len, u8_t flags);
  * @param fromaddrlen is a pointer to the size of from.
  * @return the number of bytes read.
  */
-u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_in6* from, u32_t *fromaddrlen);
+int recvfrom(int, void *, int, int, struct sockaddr_in6*, int *);
 
 /*
  * Send data through a socket.
@@ -170,6 +170,7 @@ u32_t recvfrom(u32_t socket, void *buff, u16_t len, u8_t flags, struct sockaddr_
  * @param fromaddrlen is a pointer to the size of from.
  * @return the number of bytes sent.
  */
-u32_t sendto(u32_t socket, const void *buff, u16_t len, u8_t flags, const struct sockaddr_in6 *to, u32_t toaddrlen);
+
+int sendto(int socket, const void *buff, int len, u8_t flags, const struct sockaddr_in6 *to, int toaddrlen);
 
 #endif

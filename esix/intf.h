@@ -98,26 +98,28 @@ struct esix_route_table_row *routes[ESIX_MAX_RT];
 struct esix_neighbor_table_row *neighbors[ESIX_MAX_NB];
 
 
+void esix_intf_init_interface(esix_ll_addr, u8_t);
 void esix_intf_add_default_neighbors(esix_ll_addr);
 int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row);
-int esix_intf_add_neighbor(struct ip6_addr *, esix_ll_addr, u32_t, u8_t);
-int esix_intf_get_neighbor_index(struct ip6_addr *, u8_t);
+int esix_intf_add_neighbor(const struct ip6_addr *, esix_ll_addr, u32_t, u8_t);
+int esix_intf_get_neighbor_index(const struct ip6_addr *, u8_t);
+int esix_intf_pick_source_address(const struct ip6_addr *);
 
 void esix_intf_add_default_addresses(void);
 int esix_intf_add_address_row(struct esix_ipaddr_table_row *row);
 int esix_intf_add_address(struct ip6_addr *, u8_t, u32_t, u8_t);
-int esix_intf_remove_address(struct ip6_addr *, u8_t, u8_t);
-int esix_intf_get_address_index(struct ip6_addr *, u8_t, u8_t);
+int esix_intf_remove_address(const struct ip6_addr *, u8_t, u8_t);
+int esix_intf_get_address_index(const struct ip6_addr *, u8_t, u8_t);
 int esix_intf_get_scope_address(u8_t scope);
 
 void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu);	
 int esix_intf_add_route_row(struct esix_route_table_row *row);
 int esix_intf_add_route(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, u32_t, u8_t, u32_t, u8_t);
-int esix_intf_check_source_addr(struct ip6_addr *, struct ip6_addr *);
-int esix_intf_get_route_index(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, u8_t);
-int esix_intf_remove_neighbor(struct ip6_addr *, u8_t);
+int esix_intf_check_source_addr(struct ip6_addr *, const struct ip6_addr *);
+int esix_intf_get_route_index(const struct ip6_addr *, const struct ip6_addr *, const struct ip6_addr *, const u8_t);
+int esix_intf_remove_neighbor(const struct ip6_addr *, u8_t);
 int esix_intf_remove_route(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, u8_t);
-int esix_intf_get_route_index(struct ip6_addr *, struct ip6_addr *, struct ip6_addr*, u8_t);
+//int esix_intf_get_route_index(struct ip6_addr *, struct ip6_addr *, struct ip6_addr*, u8_t);
 
 
 #endif

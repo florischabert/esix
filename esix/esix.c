@@ -56,10 +56,9 @@ void esix_init(u16_t lla[3])
 
 	for(i=0; i<ESIX_MAX_NB; i++)
 		neighbors[i] = NULL;
-	
-	for(i=0; i<ESIX_MAX_SOCK; i++)
-		sockets[i] = NULL;
 
+	esix_socket_init();
+	
 	esix_intf_add_default_routes(INTERFACE, 1500);
 	esix_intf_init_interface(lla, INTERFACE);
 	uart_printf("init interface done\n");

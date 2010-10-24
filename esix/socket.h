@@ -1,35 +1,8 @@
-/**
- * @file
- * Standard API for UDP and TCP.
- * 
- * @section LICENSE
- * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions are met:
- * 
- *    * Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *    * Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AS IS'' AND ANY EXPRESS 
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES 
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO 
- * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT, 
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
- * LIMITED TO,PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR  
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING 
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS  SOFTWARE, 
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
 #ifndef _SOCKET_H
 #define _SOCKET_H
 
-#include "config.h"
+#include "esix.h"
+#include "include/socket.h"
 #include "ip6.h"
 
 enum state
@@ -44,31 +17,53 @@ enum state
 	CLOSE_WAIT,
 	CLOSING,
 	LAST_ACK,
-	TIME_WAIT
+	TIME_WAIT,
+	RESERVED //internal state
 };
 
-struct socket_table_row
+//queue element type
+enum qe_type
 {
-	u32_t socket;
-	u8_t type;
-	u8_t session;
-	u16_t hport; // host port
-	struct ip6_addr haddr; // host addr
-	u16_t rport; // remote port
-	struct ip6_addr raddr; // remote addr
-	volatile enum state state;
-	u32_t	seqn;
-	u32_t	ackn;
-	void * volatile received;
+	CHILD_SOCK, //child socket, created upon SYN reception
+	SENT_PKT,
+	RECV_PKT
 };
 
-struct socket_table_row *sockets[ESIX_MAX_SOCK];
+struct sock_queue
+{
+	enum qe_type qe_type;
+	int socknum; //only used with CHILD_SOCK
+	struct sockaddr_in6 *sockaddr; //only used by UDP
+	void *data; //actual data
+	int data_len; //data length
+	struct sock_queue *next_e; //next queued element
+};
 
-int esix_socket_add_row(struct socket_table_row *row);
-void esix_socket_remove_row(int index);
-int esix_socket_add(u32_t socket, u8_t type, u16_t port);
-int esix_socket_get_index(u32_t socket);
-int esix_socket_get_port_index(u16_t port, u8_t type);
-int esix_socket_get_session_index(u16_t hport, u16_t rport, struct ip6_addr raddr);
+//actual session sockets, holding seq/ack/etc info
+struct esix_sock
+{
+	u8_t proto;
+	volatile enum state state;
+	struct ip6_addr laddr;
+	struct ip6_addr raddr;
+	u16_t lport;
+	u16_t rport;
+	u32_t seqn;
+	u32_t ackn;
+	struct sock_queue *queue; //stores sent/recvd data
+};
 
+#define FIND_ANY 0
+#define FIND_CONNECTED 1
+#define FIND_LISTEN 2
+
+struct esix_sock esix_sockets[ESIX_MAX_SOCK];
+u16_t esix_last_port;
+
+int esix_port_available(const u16_t);
+int esix_socket_create_child(const struct ip6_addr *, const struct ip6_addr *, u16_t, u16_t, u8_t);
+int esix_find_socket(const struct ip6_addr *, const struct ip6_addr *, u16_t, u16_t, u8_t, u8_t);
+int esix_queue_data(int, const void *, int, struct sockaddr_in6 *);
+struct sock_queue * esix_socket_find_and_unlink(int , enum qe_type);
+void esix_socket_init();
 #endif

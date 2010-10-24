@@ -75,7 +75,7 @@
 	} __attribute__((__packed__));
 	
 	void esix_ip_process_packet(void *, int);
-	void esix_ip_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, void *data, u16_t len);
-	u16_t esix_ip_upper_checksum(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t proto, void *data, u16_t len);
+	void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u8_t hlimit, const u8_t type, const void *data, const u16_t len);
+	u16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u8_t proto, const void *data, u16_t len);
 	
 #endif

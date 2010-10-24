@@ -42,7 +42,7 @@ SECTIONS
 		*(.text*)
 		*(.rodata*)
 		_etext = .;
-	} > RAM
+	} > RAM 
 
 	.data : AT (ADDR(.text) + SIZEOF(.text))
 	{

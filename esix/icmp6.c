@@ -79,9 +79,14 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 /*
  * Send an ICMPv6 packet
  */
-void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len)
+void esix_icmp_send(const struct ip6_addr *_saddr, const struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len)
 {
+	struct ip6_addr saddr = *_saddr;
 	struct icmp6_hdr *hdr = esix_w_malloc(sizeof(struct icmp6_hdr) + len);
+
+	if(hdr == NULL)
+		return;
+
 	hdr->type = type;
 	hdr->code = code;
 	hdr->chksum = 0;
@@ -92,15 +97,15 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 	//check the source address. If it's multicast, replace it.
 	//If we can't replace it (no adress available, which should never happen),
 	//abort and destroy the packet.
-	if(esix_intf_check_source_addr(saddr, daddr) < 0)
+	if(esix_intf_check_source_addr(&saddr, daddr) < 0)
 	{
 		esix_w_free(hdr);
 		return;
 	}
 	
-	hdr->chksum = esix_ip_upper_checksum(saddr, daddr, ICMP, hdr, len + sizeof(struct icmp6_hdr));
+	hdr->chksum = esix_ip_upper_checksum(&saddr, daddr, ICMP, hdr, len + sizeof(struct icmp6_hdr));
 	
-	esix_ip_send(saddr, daddr, hlimit, ICMP, hdr, len + sizeof(struct icmp6_hdr));
+	esix_ip_send(&saddr, daddr, hlimit, ICMP, hdr, len + sizeof(struct icmp6_hdr));
 
 	esix_w_free(hdr);
 	
@@ -109,7 +114,7 @@ void esix_icmp_send(struct ip6_addr *saddr, struct ip6_addr *daddr, u8_t hlimit,
 /**
  * Sends a TTL expired message back to its source.
  */
-void esix_icmp_send_ttl_expired(struct ip6_hdr *ip_hdr)
+void esix_icmp_send_ttl_expired(const struct ip6_hdr *ip_hdr)
 {
 	//TODO : don't reply to an icmp error message
 
@@ -133,7 +138,7 @@ void esix_icmp_send_ttl_expired(struct ip6_hdr *ip_hdr)
 /**
  * Sends an ICMP unreachable message back to its source.
  */
-void esix_icmp_send_unreachable(struct ip6_hdr *ip_hdr, u8_t type)
+void esix_icmp_send_unreachable(const struct ip6_hdr *ip_hdr, u8_t type)
 {
 	//TODO : don't reply to an icmp error message
 
@@ -272,19 +277,25 @@ void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, 
 void esix_icmp_process_echo_req(struct icmp6_echo *echo_req, int len, struct ip6_hdr *ip_hdr)
 {
 	struct icmp6_echo *echo_rep = esix_w_malloc(len);
+	if(echo_rep == NULL)
+		return;
 	//copying the whole packet and sending it back to its source should do the trick.	
 	esix_memcpy(echo_rep, echo_req, len);
 
-	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 255, ECHO_RP, 0, echo_rep, len);
+	esix_icmp_send(&ip_hdr->daddr, &ip_hdr->saddr, 64, ECHO_RP, 0, echo_rep, len);
 }
 
 /*
  * Send a neighbor advertisement.
  */
-void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr, int is_solicited)
+void esix_icmp_send_neighbor_adv(const struct ip6_addr *saddr, const struct ip6_addr *daddr, int is_solicited)
 {
 	u16_t len = sizeof(struct icmp6_neighbor_adv) + sizeof(struct icmp6_opt_lla);
+
 	struct icmp6_neighbor_adv *nb_adv = esix_w_malloc(len);
+	if(nb_adv == NULL)
+		return;
+
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_adv + 1);
 	
 	nb_adv->r_s_o_reserved = hton32(is_solicited << 30);
@@ -302,18 +313,18 @@ void esix_icmp_send_neighbor_adv(struct ip6_addr *saddr, struct ip6_addr *daddr,
 /*
  * Send a neighbor sollicitation.
  */
-void esix_icmp_send_neighbor_sol(struct ip6_addr *saddr, struct ip6_addr *daddr)
+void esix_icmp_send_neighbor_sol(const struct ip6_addr *saddr, const struct ip6_addr *daddr)
 {
-	//uart_printf("senfing to %x %X %x %x from %x %x %x %x\n",
-	//	daddr->addr1, daddr->addr2,daddr->addr3,daddr->addr4,
-	//	saddr->addr1, saddr->addr2, saddr->addr3,saddr->addr4);
 	u16_t len = sizeof(struct icmp6_neighbor_sol) + sizeof(struct icmp6_opt_lla);
 	struct icmp6_neighbor_sol *nb_sol = esix_w_malloc(len);
+	if(nb_sol == NULL)
+		return;
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_sol + 1);
 	struct ip6_addr	mcast_dst;
 	int i=0;
 	
 	nb_sol->target_addr = *daddr;
+	nb_sol->reserved = 0;
 
 	//build the ipv6 multicast dest address
 	mcast_dst.addr1	= hton32(0xff020000);
@@ -596,7 +607,7 @@ void esix_icmp_process_mld_query(struct icmp6_mld1_hdr *mld, int len, struct ip6
         }
 }
 
-void esix_icmp_send_mld(struct ip6_addr *mcast_addr, int type)
+void esix_icmp_send_mld(const struct ip6_addr *mcast_addr, int type)
 {
         //don't send any report for the all-nodes address
         if( (mcast_addr->addr1 == hton32(0xff020000)) &&
@@ -610,8 +621,14 @@ void esix_icmp_send_mld(struct ip6_addr *mcast_addr, int type)
         struct ip6_addr *target = (struct ip6_addr*) (hdr+1);
 	int i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE); 
 
-        if(hdr == NULL || i < 0)
+        if(hdr == NULL)
                 return;
+
+	if(i < 0)
+	{
+		esix_w_free(hdr);
+		return;
+	}
 
         hdr->max_resp_delay = 0;
         *target = *mcast_addr;

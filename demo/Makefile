@@ -29,7 +29,7 @@ PROGRAM=main
 CC=arm-none-eabi-gcc
 LD=arm-none-eabi-gcc
 AR=arm-none-eabi-ar
-CFLAGS = -mcpu=cortex-m3 -mthumb -g -O2 -Wall -ffreestanding -fasm \
+CFLAGS = -mcpu=cortex-m3 -mthumb -Os -Wall -ffreestanding -fasm \
 	-fdata-sections -ffunction-sections \
 	-I. -I../esix/include -IFreeRTOS/include -IFreeRTOS/portable/GCC/ARM_CM3
 LDFLAGS = -mcpu=cortex-m3 --gc-sections -mthumb -nostartfiles -L../src \
@@ -39,7 +39,7 @@ all: $(PROGRAM)
 
 libesix:
 	@echo "### -> Compiling libesix ..."
-	make -C ../esix CC=$(CC) AR=$(AR) CFLAGS="-mcpu=cortex-m3 -mthumb -g -O2 -Wall"
+	make -C ../esix CC=$(CC) AR=$(AR) CFLAGS="-mcpu=cortex-m3 -mthumb -Os -Wall"
 	@echo ""
 
 $(PROGRAM):  libesix $(OBJ)

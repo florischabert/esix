@@ -42,6 +42,7 @@ void main_task(void *param);
 void http_server_task(void *param);
 void tcp_server_task(void *param);
 void udp_server_task(void *param);
+void udp_echo_task(void *param);
 
 u16_t lla2[3];
 
@@ -70,6 +71,7 @@ void main(void)
 	xTaskCreate(http_server_task, (signed char *) "http server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(tcp_server_task, (signed char *) "tcp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(udp_server_task, (signed char *) "udp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(udp_echo_task, (signed char *) "udp echo server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
 }
 
@@ -102,11 +104,14 @@ void udp_server_task(void *param)
 	to.sin6_addr = in6addr_any;
 	
 	soc = socket(AF_INET6, SOCK_DGRAM, 0);
-	soc = bind(soc, &to, sockaddrlen);
+	bind(soc, &to, sockaddrlen);
+	listen(soc, 1);
 		
 	while(1)
 	{
-		recvfrom(soc, buff, sizeof(buff), 0, &from, &sockaddrlen);
+		vTaskDelay(100);
+		if(recvfrom(soc, buff, 99, 0, &from, &sockaddrlen) <0)
+			continue;
 		if(strncmp(buff, "toggle_led\n", 11))
 			sendto(soc, "commands : toggle_led\n", 22, 0, &from, sizeof(struct sockaddr_in6));
 		else
@@ -114,6 +119,31 @@ void udp_server_task(void *param)
 			sendto(soc, "status led toggled.\n", 20, 0, &from, sizeof(struct sockaddr_in6));
 			GPIOF->DATA[1]	^= 1;
 		}
+	}
+}
+
+void udp_echo_task(void *param)
+{
+	static char buff[100];
+	int soc, nbread;
+	struct sockaddr_in6 from, to;
+	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
+	
+	to.sin6_port = HTON16(7);
+	to.sin6_addr = in6addr_any;
+	
+	if((soc = socket(AF_INET6, SOCK_DGRAM, 0)) <0)
+		uart_printf("socket failed");
+	if(bind(soc, &to, sockaddrlen) < 0)
+		uart_printf("bind failed");
+	if(listen(soc, 1) <0)
+		uart_printf("listen failed");
+		
+	while(1)
+	{
+		vTaskDelay(50);
+		if((nbread = recvfrom(soc, buff, 99, 0, &from, &sockaddrlen)) >=0)
+			sendto(soc, buff, nbread, 0, &from, sizeof(struct sockaddr_in6));
 	}
 }
 
@@ -127,20 +157,36 @@ void tcp_server_task(void *param)
 	serv.sin6_port = HTON16(2010);
 	serv.sin6_addr = in6addr_any;
 	
-	soc = socket(AF_INET6, SOCK_STREAM, 0);
-	soc = bind(soc, &serv, sockaddrlen);
-	listen(soc, 1);
-		
+	if((soc = socket(AF_INET6, SOCK_STREAM, 0)) <0)
+		uart_printf("tcp_server : socket failed\n");
+	if((bind(soc, &serv, sockaddrlen))<0)
+		uart_printf("tcp_server : bind failed\n");
+	if(listen(soc, 1)<0)
+		uart_printf("tcp_server : listen failed\n");
+
 	while(1)
 	{
-		conn = accept(soc, &to, &sockaddrlen);
+		vTaskDelay(500);
+		if((conn = accept(soc, NULL, NULL)) <0)
+			continue;
+
 		send(conn, "hey!\ncommands : toggle_led, exit\n", 33, 0);
+		send(conn, "> ", 2, 0);
 		
 		while(1)
 		{
+			vTaskDelay(5000);
+			if((len = recv(conn, buff, 99, 0)) <0)
+			{
+				if(len == -1)
+					continue;
+				else
+					break;
+			}
+
+			send(conn, buff, len, 0);
 			send(conn, "> ", 2, 0);
-			len = recv(conn, buff, sizeof(buff), 0);
-			if(!strncmp(buff, "exit", 4) || (len == 0))
+			if(!strncmp(buff, "exit", 4))
 			{
 				break;
 			}
@@ -160,34 +206,54 @@ void tcp_server_task(void *param)
 
 void http_server_task(void *param)
 {
-	static char buff[1400];
-	int soc, conn;
+	static char buff[800];
+	int soc, conn, len;
 	struct sockaddr_in6 serv, to;
 	unsigned int sockaddrlen = sizeof(struct sockaddr_in6);
-	static char toggle[] = "HTTP/1.1 200 OK\nServer: quick-and-dirty\nContent-Length: 133\nConnection: close\nContent-Type: text/html;\n\n<html>The LED is now     \n<br />\n<form name=\"input\" action=\"\" method=\"get\">\n<input type=\"submit\" value=\"Toggle LED\" /></form>\n</html>";
+	static char toggle[] = "HTTP/1.1 200 OK\nServer: quick-and-dirty\nContent-Length: 133\nConnection: close\nContent-Type: text/html;\n\n<html>The LED is now     \n<br />\n<form name=\"input\" action=\"/toggle\" method=\"get\">\n<input type=\"submit\" value=\"Toggle LED\" /></form>\n</html>";
 	
 	serv.sin6_port = HTON16(80);
 	serv.sin6_addr = in6addr_any;
 	
-	soc = socket(AF_INET6, SOCK_STREAM, 0);
-	soc = bind(soc, &serv, sockaddrlen);
-	listen(soc, 1);
+	if((soc = socket(AF_INET6, SOCK_STREAM, 0)) <0)
+		uart_printf("tcp_server : socket failed\n");
+	if((bind(soc, &serv, sockaddrlen))<0)
+		uart_printf("tcp_server : bind failed\n");
+	if(listen(soc, 1)<0)
+		uart_printf("tcp_server : listen failed\n");
 		
 	while(1)
 	{
-		conn = accept(soc, &to, &sockaddrlen);
-		
-		buff[0] = 0;
-		recv(conn, buff, sizeof(buff), 0);
-		if(!strncmp(buff, "GET", 3))
+		//remember all our socket primitives are
+		//nonblocking for now
+		vTaskDelay(500);
+		if((conn = accept(soc, NULL, NULL)) <0)
+			continue;
+
+		while(1)
 		{
-			GPIOF->DATA[1]	^= 1;	
-			if(GPIOF->DATA[1]	== 1)
-				strncpy(toggle+125, "on. ", 4);
-			else
-				strncpy(toggle+125, "off.", 4);
-			
-			send(conn, toggle, strlen(toggle), 0);
+			vTaskDelay(300);
+			if((len = recv(conn, buff, 799, 0)) <0)
+			{
+				if(len == -1)
+					continue;
+				else
+					break;
+			}
+
+			if(!strncmp(buff, "GET ", 4))
+			{
+				if(!strncmp(buff, "GET /toggle", 10))
+					GPIOF->DATA[1]	^= 1;	
+
+				if(GPIOF->DATA[1]	== 1)
+					strncpy(toggle+125, "on. ", 4);
+				else
+					strncpy(toggle+125, "off.", 4);
+				
+				send(conn, toggle, strlen(toggle), 0);
+			}
+			break;
 		}
 		close(conn);		
 	}
