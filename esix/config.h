@@ -35,6 +35,7 @@
 #define ESIX_MAX_SOCK 32 //max number of sockets
 #define FIRST_PORT 32000 //make sure that ESIX_MAX_SOCK < LAST_PORT - FIRST_PORT
 #define LAST_PORT  65535 //or mayhem will happen
+#define ESIX_QUEUE_DEPHT 8 //per-socket packet queue depht (received + send (for tcp))
 
 #define INTERFACE	0 //default interface # until we have a proper intf
 				//management system.

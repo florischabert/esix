@@ -61,7 +61,7 @@ void esix_udp_process(const struct udp_hdr *u_hdr, int len, const struct ip6_hdr
 
 	esix_memcpy(&sockaddr.sin6_addr, &ip_hdr->saddr, 16);
 	sockaddr.sin6_port = u_hdr->s_port;
-	esix_queue_data(sock, u_hdr+1, ntoh16(u_hdr->len)-sizeof(struct udp_hdr), &sockaddr);
+	esix_queue_data(sock, u_hdr+1, ntoh16(u_hdr->len)-sizeof(struct udp_hdr), &sockaddr, IN);
 
 	return;
 }

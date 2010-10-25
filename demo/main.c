@@ -169,12 +169,12 @@ void tcp_server_task(void *param)
 		if((conn = accept(soc, NULL, NULL)) <0)
 			continue;
 
-		send(conn, "hey!\ncommands : toggle_led, exit\n", 33, 0);
+		send(conn, "hey!\ncommands : toggle_led, help, exit\n", 39, 0);
 		send(conn, "> ", 2, 0);
 		
 		while(1)
 		{
-			vTaskDelay(5000);
+			vTaskDelay(100);
 			if((len = recv(conn, buff, 99, 0)) <0)
 			{
 				if(len == -1)
@@ -184,7 +184,6 @@ void tcp_server_task(void *param)
 			}
 
 			send(conn, buff, len, 0);
-			send(conn, "> ", 2, 0);
 			if(!strncmp(buff, "exit", 4))
 			{
 				break;
@@ -194,10 +193,11 @@ void tcp_server_task(void *param)
 				send(conn, "status led toggled.\n", 20, 0);
 				GPIOF->DATA[1]	^= 1;
 			}
-			else
+			else if(!strncmp(buff, "help", 4))
 			{
-				send(conn, "commands : toggle_led, exit\n", 28, 0);
+				send(conn, "commands : toggle_led, help, exit\n", 34, 0);
 			}
+			send(conn, "> ", 2, 0);
 		}
 		close(conn);
 	}
@@ -235,7 +235,7 @@ void tcp_chargen_task(void *param)
 		
 		while(1)
 		{
-			vTaskDelay(1);
+			vTaskDelay(4);
 			if((send(conn, buff, 1398, 0))<0)
 				break;
 		}

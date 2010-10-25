@@ -21,6 +21,18 @@ enum state
 	RESERVED //internal state
 };
 
+enum direction
+{
+	IN,
+	OUT
+};
+
+enum action
+{
+	KEEP,
+	EVICT
+};
+
 //queue element type
 enum qe_type
 {
@@ -32,10 +44,12 @@ enum qe_type
 struct sock_queue
 {
 	enum qe_type qe_type;
-	int socknum; //only used with CHILD_SOCK
-	struct sockaddr_in6 *sockaddr; //only used by UDP
+	int socknum; 			//only used with CHILD_SOCK
+	struct sockaddr_in6 *sockaddr;  //only used by UDP for RX packets, addr&port of sender
+	u32_t seqn;			//stores the sequence number of this packet
 	void *data; //actual data
 	int data_len; //data length
+	u32_t t_sent; //time at which the packet was queued
 	struct sock_queue *next_e; //next queued element
 };
 
@@ -50,6 +64,7 @@ struct esix_sock
 	u16_t rport;
 	u32_t seqn;
 	u32_t ackn;
+	u32_t rexmit_date; //date at which to trigger retransmission
 	struct sock_queue *queue; //stores sent/recvd data
 };
 
@@ -63,8 +78,10 @@ u16_t esix_last_port;
 int esix_port_available(const u16_t);
 int esix_socket_create_child(const struct ip6_addr *, const struct ip6_addr *, u16_t, u16_t, u8_t);
 int esix_find_socket(const struct ip6_addr *, const struct ip6_addr *, u16_t, u16_t, u8_t, u8_t);
-int esix_queue_data(int, const void *, int, struct sockaddr_in6 *);
-struct sock_queue * esix_socket_find_and_unlink(int , enum qe_type);
+int esix_queue_data(int, const void *, int, struct sockaddr_in6 *, enum direction);
+struct sock_queue * esix_socket_find_e(int , enum qe_type, enum action);
 void esix_socket_init();
 void esix_socket_free_queue(int);
+int esix_socket_expire_e(int, u32_t);
+void esix_socket_housekeep();
 #endif

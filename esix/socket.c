@@ -16,11 +16,21 @@ void esix_socket_init()
 		esix_sockets[i].state = CLOSED;
 }
 
-int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *sockaddr)
+int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *sockaddr, enum direction direction)
 {
 	//sock queue element 
 	struct sock_queue *sqe, *cur_sqe;
+	int i;
 	u8_t *buf;
+
+	//don't queue up more than ESIX_QUEUE_DEPHT packets
+	cur_sqe = esix_sockets[sock].queue; 
+	for(i=0; cur_sqe != NULL ; i++)
+	{
+		if(i >= ESIX_QUEUE_DEPHT)
+			return -1;
+		cur_sqe = cur_sqe->next_e;
+	}
 
 	switch(esix_sockets[sock].proto)
 	{
@@ -49,9 +59,17 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 	}
 
 	sqe->data 	= buf;
-	sqe->qe_type 	= RECV_PKT;
 	sqe->data_len 	= len;
 	sqe->next_e	= NULL;
+
+	if(direction == IN) 
+		sqe->qe_type 	= RECV_PKT;
+	else
+	{
+		sqe->qe_type	= SENT_PKT;
+		sqe->seqn 	= esix_sockets[sock].seqn;
+		sqe->t_sent 	= esix_get_time();
+	}
 
 	//there's no element in the list.
 	if(esix_sockets[sock].queue == NULL)
@@ -133,10 +151,9 @@ int connect(int sock, const struct sockaddr_in6 *daddr, int len)
 	return 0;
 }
 
-//finds and unlink an element in a socket event queue and returns a pointer.
-//note that it's up to the caller to free it (and its associated data, if any)
-//returns -1 if not found
-struct sock_queue * esix_socket_find_and_unlink(int sock, enum qe_type qe_type)
+//finds (and unlink, if specified) the first element of type qe_type in a socket event queue 
+//and returns a pointer.
+struct sock_queue * esix_socket_find_e(int sock, enum qe_type qe_type, enum action action)
 {
 	struct sock_queue *sqe;
 	struct sock_queue *prev_sqe;
@@ -147,7 +164,7 @@ struct sock_queue * esix_socket_find_and_unlink(int sock, enum qe_type qe_type)
 
 	sqe 		= esix_sockets[sock].queue;
 	prev_sqe	= sqe;
-	//find the first available received packet in queue
+	//find the first available eligible packet in queue
 	//and keep a reference to the previous queue element
 	while(sqe->qe_type != qe_type)
 	{
@@ -159,11 +176,15 @@ struct sock_queue * esix_socket_find_and_unlink(int sock, enum qe_type qe_type)
 		sqe 	= sqe->next_e;
 	}
 
-	//first element needs special treatment
-	if(esix_sockets[sock].queue == sqe)
-		esix_sockets[sock].queue = sqe->next_e;
-	else
-		prev_sqe->next_e = sqe->next_e;
+	//remove packet from queue
+	if(action == EVICT)
+	{
+		//first element needs special treatment
+		if(esix_sockets[sock].queue == sqe)
+			esix_sockets[sock].queue = sqe->next_e;
+		else
+			prev_sqe->next_e = sqe->next_e;
+	}
 
 	return sqe;
 }
@@ -182,7 +203,7 @@ int recvfrom(int sock, void *buf, int max_len, int flags, struct sockaddr_in6 *s
 	if(esix_sockets[sock].proto == SOCK_STREAM && esix_sockets[sock].state != ESTABLISHED)
 		return -2;
 
-	struct sock_queue *sqe = esix_socket_find_and_unlink(sock, RECV_PKT); 
+	struct sock_queue *sqe = esix_socket_find_e(sock, RECV_PKT, EVICT); 
 	if(sqe == NULL)
 		return -1;
 
@@ -228,7 +249,7 @@ int recvfrom(int sock, void *buf, int max_len, int flags, struct sockaddr_in6 *s
 int accept(int sock, struct sockaddr_in6 *saddr, int *sockaddr_len)
 {
 	int session_sock;
-	struct sock_queue *sqe = esix_socket_find_and_unlink(sock, CHILD_SOCK); 
+	struct sock_queue *sqe = esix_socket_find_e(sock, CHILD_SOCK, EVICT); 
 	if(sqe == NULL)
 		return -1;
 
@@ -254,7 +275,6 @@ int esix_socket_create_child(const struct ip6_addr *saddr, const struct ip6_addr
 
 	if((server_sock = esix_find_socket(saddr, daddr, sport, dport, proto, FIND_LISTEN)) < 0)
 		return -1;
-	uart_printf("creating child for %x\n", server_sock); 
 
 	//we found the server socket. try to create a service socket
 	if((session_sock = socket(AF_INET6, proto, 0)) < 0)
@@ -367,6 +387,7 @@ int socket(const int family, const u8_t type, const u8_t proto)
 			esix_memcpy(&esix_sockets[i].raddr, &in6addr_any, 16);
 			esix_sockets[i].seqn = 0; //TODO : should be random
 			esix_sockets[i].ackn = 0;
+			esix_sockets[i].rexmit_date = 0;
 			esix_sockets[i].queue = NULL;
 
 			return i;
@@ -495,6 +516,13 @@ int send(const int socknum, const void *buf, const int len, const u8_t flags)
 
 	if(esix_sockets[socknum].proto == SOCK_STREAM)
 	{
+		//queue the segment first, 
+		//if it fails, bail out and tell the user.
+		if(esix_queue_data(socknum, buf, len, NULL, OUT) < 0)
+			return -1;
+
+		//now that we made sure we saved it, try to send it.
+		//we can always retransmit it if needed.
 		esix_tcp_send(&esix_sockets[socknum].laddr, 
 					&esix_sockets[socknum].raddr,
 					esix_sockets[socknum].lport,
@@ -503,12 +531,14 @@ int send(const int socknum, const void *buf, const int len, const u8_t flags)
 					esix_sockets[socknum].ackn,
 					PSH|ACK, buf, len);
 
-		//TODO : store packet here for retransmission
 		esix_sockets[socknum].seqn+= len;
+		esix_sockets[socknum].rexmit_date = esix_get_time() + 2;
+
 		return len;
 	}
 	else if(esix_sockets[socknum].proto == SOCK_DGRAM)
 	{
+		//not saving sent UDP packets
 		esix_udp_send(&esix_sockets[socknum].laddr,
 					&esix_sockets[socknum].raddr,
 					esix_sockets[socknum].lport,
@@ -532,4 +562,89 @@ int esix_port_available(const u16_t port)
 		i++;
 	}
 	return 0;
+}
+
+//expires every sent packet with (seq number + payload_len) < ackn
+int esix_socket_expire_e(int s, u32_t ackn)
+{
+	int i=0;
+	struct sock_queue *sqe, *prev_sqe, *tmp;
+	sqe = prev_sqe = esix_sockets[s].queue;
+
+	//find the first available eligible packet in queue
+	//and keep a reference to the previous queue element
+	while(sqe != NULL)
+	{
+		if(sqe->qe_type == SENT_PKT)
+		{
+			if(sqe->seqn + sqe->data_len <= ackn)
+			{
+				tmp = sqe;
+				//first element needs special treatment
+				if(esix_sockets[s].queue == sqe)
+					esix_sockets[s].queue = sqe->next_e;
+				else
+					prev_sqe->next_e = sqe->next_e;
+		
+				//update pointer to move forward
+					sqe 	= sqe->next_e;
+
+				//free the element and its data
+				esix_w_free(tmp->data);
+				esix_w_free(tmp);
+	
+				i++;
+			}
+			else 
+				break; //we're done here.
+		}
+		else
+		{
+			prev_sqe= sqe; 
+			sqe 	= sqe->next_e;
+		}
+	}
+
+	return i;
+}
+	
+//in charge of retransmission / time outs
+void esix_socket_housekeep()
+{
+	int s;
+	struct sock_queue *sqe;
+	for(s=0; s<ESIX_MAX_SOCK; s++)
+	{
+		//either retransmission is disabled or scheduled for
+		//a later time on this socket
+		if(esix_sockets[s].rexmit_date == 0 ||
+			esix_sockets[s].rexmit_date > esix_get_time())
+			continue;
+
+		//TODO : close socket and free queue if we tried for too long
+
+		//show time. find the first available packet and resend it.
+		if((sqe = esix_socket_find_e(s, SENT_PKT, KEEP)) != NULL) 
+		{
+			//first update the retransmission date
+			//exp backoff fashion
+			esix_sockets[s].rexmit_date = esix_get_time() + 
+				((esix_get_time() - sqe->t_sent)^2);
+
+			esix_tcp_send(&esix_sockets[s].laddr, 
+				&esix_sockets[s].raddr, esix_sockets[s].lport,
+				esix_sockets[s].rport,	sqe->seqn,
+				esix_sockets[s].ackn,	PSH|ACK, 
+				sqe->data, sqe->data_len);
+
+		}
+		else
+		{
+			//no more packet to rexmit : either the ACKs we received
+			//triggered enough retransmissions, evicted multiple packets from the queue
+			//disable retransmission.
+			//uart_printf("socket_housekeep : rexmit set on %x but nothing to retransmit\n", s);
+			esix_sockets[s].rexmit_date = 0;
+		}
+	}
 }

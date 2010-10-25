@@ -76,14 +76,20 @@ u32_t esix_get_time()
 void esix_periodic_callback()
 {
 	current_time++;
-	esix_housekeep();
+
+	//call ip_housekeep every 2 ticks
+	if(current_time%2)
+		esix_ip_housekeep();
+
+	//call socket_housekeep every tick
+	esix_socket_housekeep();
 }
 
 
 /*
- * esix_housekeep : takes care of cache entries expiration.
+ * esix_ip_housekeep : takes care of cache entries expiration at the ip level
  */
-void esix_housekeep()
+void esix_ip_housekeep()
 {
 	int i,j;
 	//loop through the routing table

@@ -30,5 +30,5 @@
 #define __ESIX_H
 	#include "icmp6.h"
 	u32_t esix_get_time();
-	void esix_housekeep();
+	void esix_ip_housekeep();
 #endif 
