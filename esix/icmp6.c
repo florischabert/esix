@@ -315,7 +315,14 @@ void esix_icmp_send_neighbor_adv(const struct ip6_addr *saddr, const struct ip6_
  */
 void esix_icmp_send_neighbor_sol(const struct ip6_addr *saddr, const struct ip6_addr *daddr)
 {
-	u16_t len = sizeof(struct icmp6_neighbor_sol) + sizeof(struct icmp6_opt_lla);
+	//don't add a l2 address if we don't have one yet (which can only happen
+	//when performing first DAD)
+	u16_t len;
+	if(neighbors[0] != NULL)
+		len = sizeof(struct icmp6_neighbor_sol) + sizeof(struct icmp6_opt_lla);
+	else
+		len = sizeof(struct icmp6_neighbor_sol);
+
 	struct icmp6_neighbor_sol *nb_sol = esix_w_malloc(len);
 	if(nb_sol == NULL)
 		return;
@@ -332,11 +339,14 @@ void esix_icmp_send_neighbor_sol(const struct ip6_addr *saddr, const struct ip6_
 	mcast_dst.addr3	= hton32(0x00000001);
 	mcast_dst.addr4	= hton32(0xff << 24 | (ntoh32(daddr->addr4) & 0x00ffffff));
 	
-	opt->type = 1; // Source Link-Layer Address
-	opt->len8 = 1; // length: 1x8 bytes
-	opt->lla[0] = neighbors[0]->lla[0];
-	opt->lla[1] = neighbors[0]->lla[1];
-	opt->lla[2] = neighbors[0]->lla[2];
+	if(neighbors[0] != NULL)
+	{
+		opt->type = 1; // Source Link-Layer Address
+		opt->len8 = 1; // length: 1x8 bytes
+		opt->lla[0] = neighbors[0]->lla[0];
+		opt->lla[1] = neighbors[0]->lla[1];
+		opt->lla[2] = neighbors[0]->lla[2];
+	}
 
 	//do we know it already? then send an unicast sollicitation
 	if( (i=esix_intf_get_neighbor_index(daddr, INTERFACE)) >= 0)

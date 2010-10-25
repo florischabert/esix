@@ -424,7 +424,7 @@ int bind(const int socknum, const struct sockaddr_in6 *sockaddr, const int len)
 		esix_memcpy(&esix_sockets[socknum].laddr, &in6addr_any, 16);
 		return 0;
 	}
-	else
+	else //check that we own the address
 	{
 		i=0;
 		while(i<ESIX_MAX_IPADDR)
@@ -492,9 +492,6 @@ void esix_socket_free_queue(int socknum)
 	//purge the socket element list, one by one
 	while(esix_sockets[socknum].queue != NULL)
 	{
-		//TODO : don't purge sent elements here, as they might not have
-		//been acked
-
 		//grab the first available element
 		sqe = esix_sockets[socknum].queue;
 		//remove the current element
@@ -621,11 +618,22 @@ void esix_socket_housekeep()
 			esix_sockets[s].rexmit_date > esix_get_time())
 			continue;
 
-		//TODO : close socket and free queue if we tried for too long
-
 		//show time. find the first available packet and resend it.
 		if((sqe = esix_socket_find_e(s, SENT_PKT, KEEP)) != NULL) 
 		{
+			if(esix_get_time() - sqe->t_sent > MAX_RETX_TIME)
+			{
+				//we've been trying far too long
+				esix_sockets[s].state = CLOSED;
+				esix_tcp_send(&esix_sockets[s].laddr, 
+						&esix_sockets[s].raddr, esix_sockets[s].lport,
+						esix_sockets[s].rport, esix_sockets[s].seqn,
+						esix_sockets[s].ackn, RST|ACK, NULL, 0);
+				esix_socket_free_queue(s);
+				uart_printf("esix_socket_housekeep : socket %x timed out, closing.\n", s);
+				continue;
+			} 
+
 			//first update the retransmission date
 			//exp backoff fashion
 			esix_sockets[s].rexmit_date = esix_get_time() + 

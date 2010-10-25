@@ -39,18 +39,17 @@
 	#define UDP	0x11
 	#define FRAG	0x2C
 	
-	#define LINK_LOCAL_SCOPE	0 
-	#define GLOBAL_SCOPE	 	1
-	#define MCAST_SCOPE		2 //should never be used to send a packet
-	#define ANYCAST_SCOPE		3 
-	#define ANY_SCOPE			255
+	#define ANY_MASK		255
 
-	#define ANY_MASK			255
+	enum scope
+	{
+		LINK_LOCAL_SCOPE,
+		GLOBAL_SCOPE,
+		ANYCAST_SCOPE,
+		MCAST_SCOPE,
+		ANY_SCOPE
+	};
 
-	#define DEFAULT_TTL		64 	//default TTL when unspecified by
-						//router advertisements
-	#define DEFAULT_MTU		1500
-	
 	/**
 	 * IPv6 address
 	 */

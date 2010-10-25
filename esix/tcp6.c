@@ -93,6 +93,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 
 		case ACK:
 		case PSH|ACK:
+		case CWR|PSH|ACK:
 			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
 				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)  
 			{
@@ -189,11 +190,8 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 		case RST|ACK:
 			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
 				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)
-			{
-				//esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
-				//	ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST|ACK, NULL, 0);
 				return;
-			}
+
 			if(esix_sockets[session_sock].state != CLOSED)
 				esix_sockets[session_sock].state = CLOSED;
 			esix_socket_free_queue(session_sock);
@@ -217,7 +215,6 @@ void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, c
 	if((laddr = esix_intf_check_source_addr(saddr, daddr)) < 0)
 		return;	
 
-	//TODO: implement proper retransmission/timeout here
 	if((hdr = esix_w_malloc(sizeof(struct tcp_hdr) + len)) == NULL)
 		return;
 	

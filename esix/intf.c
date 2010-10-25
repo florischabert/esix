@@ -40,17 +40,6 @@ void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
 {
 	struct ip6_addr addr;
 
-	//multicast all-nodes (for router advertisements)
-	addr.addr1 = 	hton32(0xff020000); 	//ff02::1 
-	addr.addr2 = 	0;
-	addr.addr3 = 	0;
-	addr.addr4 = 	hton32(1);
-	esix_intf_add_address(&addr,
-			0x80, 			// /128
-			0x0,			//this one never expires
-			MCAST_SCOPE);
-
-
 	//builds our link local and associated multicast addresses
 	//from the MAC address given by the L2 layer.
 	
@@ -85,6 +74,17 @@ void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
 		lla, // MAC address
 		0, // never expires
 		INTERFACE);
+
+	//multicast all-nodes (for router advertisements)
+	addr.addr1 = 	hton32(0xff020000); 	//ff02::1 
+	addr.addr2 = 	0;
+	addr.addr3 = 	0;
+	addr.addr4 = 	hton32(1);
+	esix_intf_add_address(&addr,
+			0x80, 			// /128
+			0x0,			//this one never expires
+			MCAST_SCOPE);
+
 }
 
 void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu)
@@ -313,8 +313,10 @@ int esix_intf_get_neighbor_index(const struct ip6_addr *addr, u8_t interface)
  */
 int esix_intf_remove_neighbor(const struct ip6_addr *addr, u8_t interface)
 {
+	/*
 	uart_printf("esix_intf_remove_neighbor: removing %x %x %x %x\n",
 		addr->addr1, addr->addr2, addr->addr3, addr->addr4);
+	*/
 	int i;
 	struct esix_neighbor_table_row *row;
 	
@@ -333,7 +335,7 @@ int esix_intf_remove_neighbor(const struct ip6_addr *addr, u8_t interface)
 /*
  * Returns any address of specified scope.
  */
-int esix_intf_get_scope_address(u8_t scope)
+int esix_intf_get_scope_address(enum scope scope)
 {
 	int i;
 	for(i=0; i<ESIX_MAX_IPADDR;i++)
@@ -365,7 +367,7 @@ int esix_intf_pick_source_address(const struct ip6_addr *daddr)
 /*
  * Return the address row index of the given address.
  */
-int esix_intf_get_address_index(const struct ip6_addr *addr, u8_t scope, u8_t masklen)
+int esix_intf_get_address_index(const struct ip6_addr *addr, enum scope scope, u8_t masklen)
 {
 	int j;
 	for(j = 0; j<ESIX_MAX_IPADDR; j++)
@@ -417,12 +419,8 @@ int esix_intf_get_route_index(const struct ip6_addr *daddr, const struct ip6_add
  * esix_new_addr : creates an addres with the passed arguments
  * and adds or updates it.
  */
-int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_date, u8_t scope)
+int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_date, enum scope scope)
 {
-	/*
-	uart_printf("esix_intf_add_address: adding %x:%x:%x:%x\n",
-		addr->addr1, addr->addr2, addr->addr3, addr->addr4);
-	*/
 	struct esix_ipaddr_table_row *row;
 	struct ip6_addr	mcast_sollicited, zero;
 	int i, j;
@@ -430,12 +428,12 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	i = esix_intf_get_address_index(addr, scope, masklen);
 	if(i >= 0)
 	{
-		//we're only updating it's lifetime.
+		//we're only updating its lifetime.
 		addrs[i]->expiration_date = expiration_date;
 		return 1;
 	}
 
-	//we're still there, let's create our new address.
+	//we're still here, let's create our new address.
 	row = esix_w_malloc(sizeof(struct esix_ipaddr_table_row)); 
 
 	//hmmmm... I smell gas...
@@ -451,79 +449,80 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	row->mask			= masklen;
 
 	
-	//it's new. if it's unicast, add the multicast associated address 
-	//then perform DAD.
+	//it's new. if it's unicast, perform DAD.
 	//if it's anycast, don't perform DAD as duplicates are expected.
 	//if it's multicast, don't do anything special.
-	if(scope == LINK_LOCAL_SCOPE || scope == GLOBAL_SCOPE || scope == ANYCAST_SCOPE)
+
+	//perform DAD
+	if(scope == LINK_LOCAL_SCOPE || scope == GLOBAL_SCOPE)	
 	{
-		//multicast solicited-node address (for neighbor discovery)
-		mcast_sollicited.addr1 = 	hton32(0xff020000); 	//0xff02 
-		mcast_sollicited.addr2 = 	0;
-		mcast_sollicited.addr3 = 	hton32(1);
-		mcast_sollicited.addr4 = 	hton32(	(0xff000000)
-						| (ntoh32(row->addr.addr4)  & 0x00ffffff));
+		zero.addr1 = 0;
+		zero.addr2 = 0;
+		zero.addr3 = 0;
+		zero.addr4 = 0;
 
-		i=esix_intf_add_address(&mcast_sollicited,
-				0x80,			// /128
-				0x0,			//this one never expires
-				MCAST_SCOPE);
-
-		if(i<=0)
-			return 0;
-	
-		//perform DAD
-		if(scope == LINK_LOCAL_SCOPE || scope == GLOBAL_SCOPE)	
+		for(i=0; i< DUP_ADDR_DETECT_TRANSMITS; i++)
 		{
-			zero.addr1 = 0;
-			zero.addr2 = 0;
-			zero.addr3 = 0;
-			zero.addr4 = 0;
+			esix_icmp_send_neighbor_sol(&zero, addr);
 
-			for(i=0; i< DUP_ADDR_DETECT_TRANSMITS; i++)
-			{
-				esix_icmp_send_neighbor_sol(&zero, addr);
-	
-				//TODO : hell, we need a proper sleep()...
-				for(j=0; j<10000; j++)
-					asm("nop");
-			}
+			//TODO : hell, we need a proper sleep()...
+			for(j=0; j<10000; j++)
+				asm("nop");
+		}
 
-			//if we received an answer, bail out.
-			if(esix_intf_get_neighbor_index(addr, INTERFACE) >= 0)
-			{
-				uart_printf("esix_intf_add_address: %x %x %x %x already in use.Aborting. \n",
-					addr->addr1, addr->addr2, addr->addr3, addr->addr4);
+		//if we received an answer, bail out.
+		if(esix_intf_get_neighbor_index(addr, INTERFACE) >= 0)
+		{
+			uart_printf("esix_intf_add_address: %x %x %x %x already in use. Aborting. \n",
+				addr->addr1, addr->addr2, addr->addr3, addr->addr4);
 
-				//remove the previously added mcast node-sollicited address.
-				esix_intf_remove_address(&mcast_sollicited, 0x80, MCAST_SCOPE);
-				return 0;
-			}
+			//memory leaks are evil
+			esix_w_free(row);
+			return 0;
 		}
 	}//DAD succeeded, we can go on.
 
+
 	//try to add it to the table of addresses and
 	//free it so we don't leak memory in case it fails
-	if(esix_intf_add_address_row(row))
+	if(esix_intf_add_address_row(row)) 
 	{
-		if(scope == MCAST_SCOPE)
-			//esix_icmp_send_mld2_report();
+		if(scope != MCAST_SCOPE)
+		//try to add the multicast solicited-node address (for neighbor discovery)
+		{
+			mcast_sollicited.addr1 = 	hton32(0xff020000); 	//0xff02 
+			mcast_sollicited.addr2 = 	0;
+			mcast_sollicited.addr3 = 	hton32(1);
+			mcast_sollicited.addr4 = 	hton32(	(0xff000000)
+							| (ntoh32(row->addr.addr4)  & 0x00ffffff));
+			
+			//not having this address breaks the ND protocol, so don't add the 
+			//unicast/anycast address if this fails
+			esix_intf_add_address(&mcast_sollicited,
+						0x80,			// /128
+					expiration_date, 	//expires with the main address
+					MCAST_SCOPE);
+
+		}
+		else
 			esix_icmp_send_mld(&row->addr, MLD_RPT);
 
 		return 1;
 	}
 
+
+//		uart_printf("esix_intf_add_address: added %x:%x:%x:%x\n",
+//			addr->addr1, addr->addr2, addr->addr3, addr->addr4);
+
+
 	//if we're still here, something went wrong.
+	esix_intf_remove_address(&mcast_sollicited, 0x80, MCAST_SCOPE);
 	esix_w_free(row);
 	return 0;
 }
 
-int esix_intf_remove_address(const struct ip6_addr *addr, u8_t scope, u8_t masklen)
+int esix_intf_remove_address(const struct ip6_addr *addr, enum scope scope, u8_t masklen)
 {
-	/*
-	uart_printf("esix_intf_remove_address: removing %x %x %x %x\n",
-                addr->addr1, addr->addr2,  addr->addr3,  addr->addr4);
-	*/
 	int i;
 	struct esix_ipaddr_table_row *row;
 	
@@ -537,6 +536,8 @@ int esix_intf_remove_address(const struct ip6_addr *addr, u8_t scope, u8_t maskl
 		row = addrs[i];
 		addrs[i] = NULL; 
 		esix_w_free(row);
+	//	uart_printf("esix_intf_remove_address: removed %x %x %x %x\n",
+          //      	addr->addr1, addr->addr2,  addr->addr3,  addr->addr4);
 
 		return 1;
 	}
@@ -605,10 +606,11 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
  */
 int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_hop, u8_t intf)
 {
-	uart_printf("esix_intf_remove_route: removing %x %x %x %x mask %x %x %x %x via %x %x %x %x\n",
+	/*uart_printf("esix_intf_remove_route: removing %x %x %x %x mask %x %x %x %x via %x %x %x %x\n",
 	daddr->addr1, daddr->addr2,daddr->addr3,daddr->addr4,
 	mask->addr1, mask->addr2, mask->addr3, mask->addr4,
 	next_hop->addr1,next_hop->addr2,next_hop->addr3,next_hop->addr4);
+	*/
 
 	int i;
 	struct esix_route_table_row *rt = NULL;

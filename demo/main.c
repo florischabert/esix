@@ -27,14 +27,13 @@
  */
 
 #include <FreeRTOS.h>
+#include <string.h>
 #include <task.h>
 #include "mmap.h"
 #include "uart.h"
 #include "ethernet.h"
 #include <esix.h>
 #include <socket.h>
-
-#include <string.h>
 
 // Prototypes
 void hardware_init(void);
@@ -44,6 +43,9 @@ void tcp_server_task(void *param);
 void tcp_chargen_task(void *param);
 void udp_server_task(void *param);
 void udp_echo_task(void *param);
+void mdns_server_task(void *param);
+
+extern struct esix_ipaddr_table_row *addrs;
 
 u16_t lla2[3];
 
@@ -74,6 +76,7 @@ void main(void)
 	xTaskCreate(tcp_chargen_task, (signed char *) "tcp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(udp_server_task, (signed char *) "udp server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	xTaskCreate(udp_echo_task, (signed char *) "udp echo server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
+	xTaskCreate(mdns_server_task, (signed char *) "mdns server", 200, NULL, tskIDLE_PRIORITY + 1, NULL);
 	vTaskStartScheduler();
 }
 

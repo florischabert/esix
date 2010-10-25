@@ -39,6 +39,12 @@
 
 #define INTERFACE	0 //default interface # until we have a proper intf
 				//management system.
+#define MAX_RETX_TIME 120
+
+#define DEFAULT_TTL		64 	//default TTL when unspecified by
+						//router advertisements
+#define DEFAULT_MTU		1500
+	
 				
 typedef unsigned long long u64_t;
 typedef unsigned int u32_t;
