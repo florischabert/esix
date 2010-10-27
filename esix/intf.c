@@ -428,8 +428,12 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	i = esix_intf_get_address_index(addr, scope, masklen);
 	if(i >= 0)
 	{
-		//we're only updating its lifetime.
-		addrs[i]->expiration_date = expiration_date;
+		//if we already have it and if it's supposed to expire
+		//just update the expiration date and we're done.
+		if(addrs[i]->expiration_date != 0)
+			addrs[i]->expiration_date = expiration_date;
+
+		uart_printf("add_address: already have addr %x\n", i);
 		return 1;
 	}
 
@@ -562,7 +566,8 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
 	{
 		//we found something, just update some variables
 		rt			= routes[i];
-		rt->expiration_date	= expiration_date;
+		if(rt->expiration_date != 0)
+			rt->expiration_date	= expiration_date;
 		rt->ttl			= ttl;
 		rt->mtu			= mtu;
 		return 1;
@@ -613,7 +618,7 @@ int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct
 	*/
 
 	int i;
-	struct esix_route_table_row *rt = NULL;
+	struct esix_route_table_row *rt;
 	if( (i = esix_intf_get_route_index(daddr, mask, next_hop, intf)) >= 0)
 	{
 		rt	= routes[i];

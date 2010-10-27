@@ -238,7 +238,7 @@ void tcp_chargen_task(void *param)
 		
 		while(1)
 		{
-			vTaskDelay(4);
+			vTaskDelay(50);
 			if((send(conn, buff, 1398, 0))<0)
 				break;
 		}

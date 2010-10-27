@@ -89,12 +89,12 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 
 int sendto(int sock, const void *buf, int len, u8_t flags, const struct sockaddr_in6 *to, int to_len)
 {
+	int i;
 	//only to be used with UDP
 	if(esix_sockets[sock].proto != SOCK_DGRAM)
 		return -1;
 
 	// check the source address
-	int i;
 	if(esix_memcmp(&esix_sockets[sock].laddr, &in6addr_any, 16) == 0)
 	{
 		if(((i = esix_intf_get_scope_address(GLOBAL_SCOPE)) <0) && 
