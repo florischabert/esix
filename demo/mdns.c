@@ -62,7 +62,7 @@ void mdns_server_task(void *param)
 	while(1)
 	{
 		vTaskDelay(400);
-		if((nbread = recvfrom(soc, buff, 255, 0, &from, &sockaddrlen)) <0)
+		if((nbread = recvfrom(soc, buff, 255, 0, &from, &sockaddrlen)) <= 0)
 			continue;
 		
 		q = (struct dns*) &buff;

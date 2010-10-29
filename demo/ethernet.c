@@ -240,7 +240,7 @@ void ether_send_task(void *param)
 		for(i = 0; i < 4; i++)
 			ETH0->MACDATA = *(((u32_t *) &eth_f.hdr) + i);			
 
-		//now we send the data
+		//now send the data
 		for(i = 0; (i < len4) && (i < MAX_FRAME_SIZE-5); i++) 
 				ETH0->MACDATA = *(eth_f.data + i);
 				

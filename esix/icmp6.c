@@ -81,11 +81,14 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
  */
 void esix_icmp_send(const struct ip6_addr *_saddr, const struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len)
 {
+	struct icmp6_hdr *hdr;
 	struct ip6_addr saddr = *_saddr;
-	struct icmp6_hdr *hdr = esix_w_malloc(sizeof(struct icmp6_hdr) + len);
 
-	if(hdr == NULL)
+	if((hdr = esix_w_malloc(sizeof(struct icmp6_hdr) + len)) == NULL)
+	{
+		esix_w_free(data);	
 		return;
+	}
 
 	hdr->type = type;
 	hdr->code = code;
@@ -627,18 +630,16 @@ void esix_icmp_send_mld(const struct ip6_addr *mcast_addr, int mld_type)
                 return;
 
         //TODO: implement timers
-        struct icmp6_mld1_hdr *hdr = esix_w_malloc(sizeof(struct icmp6_mld1_hdr) + sizeof(struct ip6_addr));
+        struct icmp6_mld1_hdr *hdr;
         struct ip6_addr *target = (struct ip6_addr*) (hdr+1);
 	int i = esix_intf_get_type_address(LINK_LOCAL); 
 
-        if(hdr == NULL)
-                return;
 
 	if(i < 0)
-	{
-		esix_w_free(hdr);
 		return;
-	}
+
+        if((hdr = esix_w_malloc(sizeof(struct icmp6_mld1_hdr) + sizeof(struct ip6_addr))) == NULL)
+                return;
 
         hdr->max_resp_delay = 0;
         *target = *mcast_addr;

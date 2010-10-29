@@ -29,6 +29,7 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 	{
 		if(i >= ESIX_QUEUE_DEPHT)
 			return -1;
+
 		cur_sqe = cur_sqe->next_e;
 	}
 
@@ -199,13 +200,12 @@ int recvfrom(int sock, void *buf, int max_len, int flags, struct sockaddr_in6 *s
 	//TODO : watch lockups due to OOM
 	int len;
 
-	//TODO : meaningful error codes
 	if(esix_sockets[sock].proto == SOCK_STREAM && esix_sockets[sock].state != ESTABLISHED)
-		return -2;
+		return -1;
 
 	struct sock_queue *sqe = esix_socket_find_e(sock, RECV_PKT, EVICT); 
 	if(sqe == NULL)
-		return -1;
+		return 0;
 
 	//TODO : hmm data loss warning here
 	if(max_len < sqe->data_len)
@@ -454,7 +454,8 @@ int listen(int socket, int blacklog)
 
 int close(const int socknum)
 {
-	if(esix_sockets[socknum].state == CLOSED)
+	if(esix_sockets[socknum].state == CLOSED || 
+		esix_sockets[socknum].state == CLOSING)
 		return -1;
 
 	if(esix_sockets[socknum].proto == SOCK_STREAM)
@@ -479,8 +480,9 @@ int close(const int socknum)
 		}	
 	}
 	//uart_printf("close : closing %x\n", socknum);
-	esix_sockets[socknum].state = CLOSED;
+	esix_sockets[socknum].state = CLOSING;
 	esix_socket_free_queue(socknum);
+	esix_sockets[socknum].state = CLOSED;
 
 	return 0;
 }
@@ -516,7 +518,7 @@ int send(const int socknum, const void *buf, const int len, const u8_t flags)
 		//queue the segment first, 
 		//if it fails, bail out and tell the user.
 		if(esix_queue_data(socknum, buf, len, NULL, OUT) < 0)
-			return -1;
+			return 0;
 
 		//now that we made sure we saved it, try to send it.
 		//we can always retransmit it if needed.
@@ -624,12 +626,13 @@ void esix_socket_housekeep()
 			if(esix_get_time() - sqe->t_sent > MAX_RETX_TIME)
 			{
 				//we've been trying far too long
-				esix_sockets[s].state = CLOSED;
 				esix_tcp_send(&esix_sockets[s].laddr, 
 						&esix_sockets[s].raddr, esix_sockets[s].lport,
 						esix_sockets[s].rport, esix_sockets[s].seqn,
 						esix_sockets[s].ackn, RST|ACK, NULL, 0);
+				esix_sockets[s].state = CLOSING;
 				esix_socket_free_queue(s);
+				esix_sockets[s].state = CLOSED;
 				uart_printf("esix_socket_housekeep : socket %x timed out, closing.\n", s);
 				continue;
 			} 
@@ -649,7 +652,7 @@ void esix_socket_housekeep()
 		else
 		{
 			//no more packet to rexmit : either the ACKs we received
-			//triggered enough retransmissions, evicted multiple packets from the queue
+			//triggered enough retransmissions or evicted multiple packets from the queue.
 			//disable retransmission.
 			//uart_printf("socket_housekeep : rexmit set on %x but nothing to retransmit\n", s);
 			esix_sockets[s].rexmit_date = 0;

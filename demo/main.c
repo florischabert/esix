@@ -112,7 +112,7 @@ void udp_server_task(void *param)
 	while(1)
 	{
 		vTaskDelay(100);
-		if(recvfrom(soc, buff, 99, 0, &from, &sockaddrlen) <0)
+		if(recvfrom(soc, buff, 99, 0, &from, &sockaddrlen) <= 0)
 			continue;
 		if(strncmp(buff, "toggle_led\n", 11))
 			sendto(soc, "commands : toggle_led\n", 22, 0, &from, sizeof(struct sockaddr_in6));
@@ -144,7 +144,7 @@ void udp_echo_task(void *param)
 	while(1)
 	{
 		vTaskDelay(50);
-		if((nbread = recvfrom(soc, buff, 99, 0, &from, &sockaddrlen)) >=0)
+		if((nbread = recvfrom(soc, buff, 99, 0, &from, &sockaddrlen)) >0)
 			sendto(soc, buff, nbread, 0, &from, sizeof(struct sockaddr_in6));
 	}
 }
@@ -179,12 +179,10 @@ void tcp_server_task(void *param)
 		{
 			vTaskDelay(100);
 			if((len = recv(conn, buff, 99, 0)) <0)
-			{
-				if(len == -1)
-					continue;
-				else
-					break;
-			}
+				break;
+
+			if(len == 0)
+				continue;
 
 			send(conn, buff, len, 0);
 			if(!strncmp(buff, "exit", 4))
@@ -234,11 +232,11 @@ void tcp_chargen_task(void *param)
 			continue;
 
 		send(conn, "chargen starting...\n", 21, 0);
-		vTaskDelay(500);
+		vTaskDelay(200);
 		
 		while(1)
 		{
-			vTaskDelay(50);
+			vTaskDelay(2);
 			if((send(conn, buff, 1398, 0))<0)
 				break;
 		}
@@ -274,14 +272,12 @@ void http_server_task(void *param)
 
 		while(1)
 		{
-			vTaskDelay(300);
+			vTaskDelay(50);
 			if((len = recv(conn, buff, 799, 0)) <0)
-			{
-				if(len == -1)
-					continue;
-				else
-					break;
-			}
+				break;
+
+			if(len == 0)
+				continue;
 
 			if(!strncmp(buff, "GET ", 4))
 			{

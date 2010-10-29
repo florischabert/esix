@@ -41,13 +41,14 @@ void *esix_w_malloc(size_t size)
 {
 	int i;
 	u32_t *ptr;
-	alloc_count++;
  	ptr = pvPortMalloc(size);
 	if(ptr == NULL)
 	{
 		uart_printf("ERROR: malloc failed (size=%x) count = %x\n", size,alloc_count);
 		for(i = 0; i < 10000; i++) asm("nop");
 	}
+	else
+		alloc_count++;
 	return ptr;
 }
 

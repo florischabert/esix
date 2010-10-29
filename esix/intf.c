@@ -114,7 +114,10 @@ void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu)
 	//multicast route (ff00:: /8)
 	struct esix_route_table_row *mcast_rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
 	if(mcast_rt == NULL)
+	{
+		esix_w_free(ll_rt);
 		return;
+	}
 	
 	mcast_rt->addr.addr1		= hton32(0xff000000);
 	mcast_rt->addr.addr2		= 0x0;
@@ -559,7 +562,7 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
 	*/
 		
 	int i=0;
-	struct esix_route_table_row *rt	= NULL;
+	struct esix_route_table_row *rt;
 
 	//try to look up this route in the table
 	//to find if it already exists and only needs an update
