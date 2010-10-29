@@ -28,11 +28,11 @@ void mdns_server_task(void *param)
 	mcast.addr2 = 0;
 	mcast.addr3 = 0;
 	mcast.addr4 = hton32(0xfb);
-	esix_intf_add_address(&mcast, 0x80, 0, MCAST_SCOPE); 
+	esix_intf_add_address(&mcast, 0x80, 0, MULTICAST); 
 
 	//grab an address
-	if((i=esix_intf_get_scope_address(GLOBAL_SCOPE)) < 0)
-		i=esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
+	if((i=esix_intf_get_type_address(GLOBAL)) < 0)
+		i=esix_intf_get_type_address(LINK_LOCAL);
 
 
 	if((soc = socket(AF_INET6, SOCK_DGRAM, 0)) <0)
@@ -65,7 +65,7 @@ void mdns_server_task(void *param)
 		if((nbread = recvfrom(soc, buff, 255, 0, &from, &sockaddrlen)) <0)
 			continue;
 		
-		q = &buff;
+		q = (struct dns*) &buff;
 		if(q->flags == 0 && q->questions != 0
 			&& q->answers == 0x00 && q->authority == 0
 			&& q->additionnal == 0 && esix_memcmp(&r.hostname, (u8_t*) q+13, HOSTNAME_LEN-1) == 0 )

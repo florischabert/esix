@@ -233,7 +233,7 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 	{
 		// we have to send a neighbor solicitation
 		//uart_printf("packet ready to be sent, but don't now the lla\n");
-		if((i=esix_intf_get_scope_address(LINK_LOCAL_SCOPE)) >= 0)
+		if((i=esix_intf_get_type_address(LINK_LOCAL)) >= 0)
 		{
 			if(dest_onlink)
 				esix_icmp_send_neighbor_sol(&addrs[i]->addr, daddr);

@@ -110,7 +110,7 @@ void esix_ip_housekeep()
 		if(addrs[i] != NULL)
 			if(addrs[i]->expiration_date != 0 && 
 			   addrs[i]->expiration_date < current_time)
-				esix_intf_remove_address(&addrs[i]->addr, addrs[i]->scope, addrs[i]->mask);
+				esix_intf_remove_address(&addrs[i]->addr, addrs[i]->type, addrs[i]->mask);
 	}
 
 	//loop through the neighbor table
@@ -123,7 +123,7 @@ void esix_ip_housekeep()
 			//send an unicast neighbor advertisement to refresh it.
 			if((neighbors[i]->expiration_date - STALE_DURATION) < current_time)
 			{
-				if((j=esix_intf_get_scope_address(INTERFACE)) >= 0)	
+				if((j=esix_intf_get_type_address(LINK_LOCAL)) >= 0)	
 					esix_icmp_send_neighbor_sol(&addrs[j]->addr, &neighbors[i]->addr);
 			}
 	

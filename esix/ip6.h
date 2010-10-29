@@ -41,13 +41,14 @@
 	
 	#define ANY_MASK		255
 
-	enum scope
+	//ip address type
+	enum type
 	{
-		LINK_LOCAL_SCOPE,
-		GLOBAL_SCOPE,
-		ANYCAST_SCOPE,
-		MCAST_SCOPE,
-		ANY_SCOPE
+		LINK_LOCAL,//link local unicast
+		GLOBAL,	   //global unicast
+		ANYCAST,   //global anycast
+		MULTICAST, //multicast (no support for scoped multicast yet)
+		ANY	   //any type, just for look up purposes
 	};
 
 	/**

@@ -56,7 +56,7 @@ struct esix_ipaddr_table_row {
 	u32_t	expiration_date;//date at which this entry expires.
 				//0 : never expires (for now)
 	//u32_t	preferred_exp_date;//date at which this address shouldn't be used if possible
-	enum	scope scope;		//LINK_LOCAL_SCOPE or GLOBAL_SCOPE
+	enum	type type;		//address type : multicast, global unicast, etc...
 
 };
 
@@ -110,7 +110,7 @@ int esix_intf_add_address_row(struct esix_ipaddr_table_row *row);
 int esix_intf_add_address(struct ip6_addr *, u8_t, u32_t, u8_t);
 int esix_intf_remove_address(const struct ip6_addr *, u8_t, u8_t);
 int esix_intf_get_address_index(const struct ip6_addr *, u8_t, u8_t);
-int esix_intf_get_scope_address(enum scope);
+int esix_intf_get_type_address(enum type);
 
 void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu);	
 int esix_intf_add_route_row(struct esix_route_table_row *row);

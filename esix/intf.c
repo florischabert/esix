@@ -57,7 +57,7 @@ void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
 	esix_intf_add_address(&addr,
 			0x80,			// /128
 			0x0,			//this one never expires
-			LINK_LOCAL_SCOPE);
+			LINK_LOCAL);
 
 	//first row of the neighbors table is us
         addr.addr1 =    hton32(0xfe800000); //0xfe80
@@ -70,7 +70,7 @@ void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
                                 | (ntoh16(lla[1])<< 16 & 0xff0000)
                                 | (ntoh16(lla[2])) );
 
-	esix_intf_add_neighbor(&addr, // ip address FIXME: which one ?
+	esix_intf_add_neighbor(&addr,
 		lla, // MAC address
 		0, // never expires
 		INTERFACE);
@@ -83,7 +83,7 @@ void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
 	esix_intf_add_address(&addr,
 			0x80, 			// /128
 			0x0,			//this one never expires
-			MCAST_SCOPE);
+			MULTICAST);
 
 }
 
@@ -333,15 +333,15 @@ int esix_intf_remove_neighbor(const struct ip6_addr *addr, u8_t interface)
 }
 
 /*
- * Returns any address of specified scope.
+ * Returns any address of specified type.
  */
-int esix_intf_get_scope_address(enum scope scope)
+int esix_intf_get_type_address(enum type type)
 {
 	int i;
 	for(i=0; i<ESIX_MAX_IPADDR;i++)
 	{
 		if( (addrs[i] != NULL) &&
-			((addrs[i]->scope == scope) || (scope == ANY_SCOPE)) )
+			((addrs[i]->type == type) || (type == ANY)) )
 			return i;
 	}
 
@@ -357,9 +357,9 @@ int esix_intf_pick_source_address(const struct ip6_addr *daddr)
 	//try go get an address of the same scope. Note that we assume
 	//that a link local address is always avaiable (SLAAC link local)
 	if((daddr->addr1 & hton32(0xffff0000)) == hton32(0xfe800000))
-		i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
+		i = esix_intf_get_type_address(LINK_LOCAL);
 	else
-		i = esix_intf_get_scope_address(GLOBAL_SCOPE);
+		i = esix_intf_get_type_address(GLOBAL);
 
 	return i;
 }
@@ -367,14 +367,14 @@ int esix_intf_pick_source_address(const struct ip6_addr *daddr)
 /*
  * Return the address row index of the given address.
  */
-int esix_intf_get_address_index(const struct ip6_addr *addr, enum scope scope, u8_t masklen)
+int esix_intf_get_address_index(const struct ip6_addr *addr, enum type type, u8_t masklen)
 {
 	int j;
 	for(j = 0; j<ESIX_MAX_IPADDR; j++)
 	{
 		//check if we already stored this address
 		if((addrs[j] != NULL) &&
-			((addrs[j]->scope	== scope) || (scope == ANY_SCOPE)) &&
+			((addrs[j]->type == type) || (type == ANY)) &&
 			(addrs[j]->addr.addr1 == addr->addr1) &&
 			(addrs[j]->addr.addr2 == addr->addr2) &&
 			(addrs[j]->addr.addr3 == addr->addr3) &&
@@ -419,13 +419,13 @@ int esix_intf_get_route_index(const struct ip6_addr *daddr, const struct ip6_add
  * esix_new_addr : creates an addres with the passed arguments
  * and adds or updates it.
  */
-int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_date, enum scope scope)
+int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_date, enum type type)
 {
 	struct esix_ipaddr_table_row *row;
 	struct ip6_addr	mcast_sollicited, zero;
 	int i, j;
 
-	i = esix_intf_get_address_index(addr, scope, masklen);
+	i = esix_intf_get_address_index(addr, type, masklen);
 	if(i >= 0)
 	{
 		//if we already have it and if it's supposed to expire
@@ -433,7 +433,6 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 		if(addrs[i]->expiration_date != 0)
 			addrs[i]->expiration_date = expiration_date;
 
-		uart_printf("add_address: already have addr %x\n", i);
 		return 1;
 	}
 
@@ -449,8 +448,8 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	row->addr.addr3		= addr->addr3;
 	row->addr.addr4		= addr->addr4;
 	row->expiration_date	= expiration_date;
-	row->scope			= scope;
-	row->mask			= masklen;
+	row->type		= type;
+	row->mask		= masklen;
 
 	
 	//it's new. if it's unicast, perform DAD.
@@ -458,7 +457,7 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	//if it's multicast, don't do anything special.
 
 	//perform DAD
-	if(scope == LINK_LOCAL_SCOPE || scope == GLOBAL_SCOPE)	
+	if(type == LINK_LOCAL || type == GLOBAL)	
 	{
 		zero.addr1 = 0;
 		zero.addr2 = 0;
@@ -491,7 +490,7 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	//free it so we don't leak memory in case it fails
 	if(esix_intf_add_address_row(row)) 
 	{
-		if(scope != MCAST_SCOPE)
+		if(type != MULTICAST)
 		//try to add the multicast solicited-node address (for neighbor discovery)
 		{
 			mcast_sollicited.addr1 = 	hton32(0xff020000); 	//0xff02 
@@ -505,7 +504,7 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 			esix_intf_add_address(&mcast_sollicited,
 						0x80,			// /128
 					expiration_date, 	//expires with the main address
-					MCAST_SCOPE);
+					MULTICAST);
 
 		}
 		else
@@ -520,21 +519,23 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 
 
 	//if we're still here, something went wrong.
-	esix_intf_remove_address(&mcast_sollicited, 0x80, MCAST_SCOPE);
+	esix_intf_remove_address(&mcast_sollicited, 0x80, MULTICAST);
 	esix_w_free(row);
 	return 0;
 }
 
-int esix_intf_remove_address(const struct ip6_addr *addr, enum scope scope, u8_t masklen)
+int esix_intf_remove_address(const struct ip6_addr *addr, enum type type, u8_t masklen)
 {
 	int i;
 	struct esix_ipaddr_table_row *row;
+	//TODO : remove multicast sollicited-node address
+	//only if no other unicast address uses it
 	
-	i = esix_intf_get_address_index(addr, scope, masklen);
+	i = esix_intf_get_address_index(addr, type, masklen);
 	if(i >= 0)
 	{
               //send a MLD done report if this is a mcast address
-                if(scope == MCAST_SCOPE)
+                if(type == MULTICAST)
                         esix_icmp_send_mld(&row->addr, MLD_DNE);
 
 		row = addrs[i];
@@ -641,9 +642,9 @@ int esix_intf_check_source_addr(struct ip6_addr *saddr, const struct ip6_addr *d
 	{
 		//try to chose an address of the correct scope to replace it.
 		if((daddr->addr1 & hton32(0xffff0000)) == hton32(0xfe800000))
-			i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE);
+			i = esix_intf_get_type_address(LINK_LOCAL);
 		
-		if( (i < 0 ) && (i = esix_intf_get_scope_address(GLOBAL_SCOPE)) < 0)
+		if( (i < 0 ) && (i = esix_intf_get_type_address(GLOBAL)) < 0)
 			return -1;
 							
 		*saddr	= addrs[i]->addr; 

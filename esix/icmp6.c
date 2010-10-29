@@ -186,7 +186,7 @@ void esix_icmp_send_router_sol(u8_t intf_index)
 	for(i=0; i<3; i++)
 		opt->lla[i]	= neighbors[0]->lla[i];
 
-	if((i=esix_intf_get_scope_address(LINK_LOCAL_SCOPE)) >=  0)
+	if((i=esix_intf_get_type_address(LINK_LOCAL)) >=  0)
 		esix_icmp_send(&addrs[i]->addr, &dest, 255, RTR_SOL, 0, ra_sol, len);
 }
 
@@ -208,7 +208,7 @@ void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, 
 		return;
 
 	//check that the sollicitation is actually for us
-	if(esix_intf_get_address_index(&nb_sol->target_addr, ANY_SCOPE, ANY_MASK) < 0)
+	if(esix_intf_get_address_index(&nb_sol->target_addr, ANY, ANY_MASK) < 0)
 		return;
 
 	i = esix_intf_get_neighbor_index(&hdr->saddr, INTERFACE);
@@ -478,7 +478,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		if(pfx_info->valid_lifetime == 0x0)
 		{
 			//remove the prefix-associated address and route
-			esix_intf_remove_address(&addr, 0x40, GLOBAL_SCOPE);
+			esix_intf_remove_address(&addr, 0x40, GLOBAL);
 			addr.addr3 = 0;
 			addr.addr4 = 0;
 			esix_intf_remove_route(&addr, &mask, &addr2, INTERFACE);
@@ -488,7 +488,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 			esix_intf_add_address(&addr,
 					0x40,				// /64
 					esix_get_time() + ntoh32(pfx_info->valid_lifetime), //expiration date
-					GLOBAL_SCOPE);
+					GLOBAL);
 			addr.addr3 = 0;
 			addr.addr4 = 0;
 
@@ -590,7 +590,7 @@ void esix_icmp_send_mld2_report(void)
 void esix_icmp_process_mld_query(struct icmp6_mld1_hdr *mld, int len, struct ip6_hdr *ip_hdr)
 {
         int i=0;
-	int a = esix_intf_get_scope_address(LINK_LOCAL_SCOPE); 
+	int a = esix_intf_get_type_address(LINK_LOCAL); 
         //make sure we got enough data to process our packet
 	//and a valid link local address to send our reply
         if(len < sizeof(struct icmp6_mld1_hdr) || a < 0)
@@ -611,13 +611,13 @@ void esix_icmp_process_mld_query(struct icmp6_mld1_hdr *mld, int len, struct ip6
         }
         //specific query
         else if((len ==  sizeof(struct icmp6_mld1_hdr) +  sizeof(struct ip6_hdr))
-                && ((i = esix_intf_get_address_index((struct ip6_addr*) (mld+1), MCAST_SCOPE, ANY_MASK)) > 0))
+                && ((i = esix_intf_get_address_index((struct ip6_addr*) (mld+1), MULTICAST, ANY_MASK)) > 0))
         {
                 esix_icmp_send_mld(&addrs[a]->addr, MLD_RPT);
         }
 }
 
-void esix_icmp_send_mld(const struct ip6_addr *mcast_addr, int type)
+void esix_icmp_send_mld(const struct ip6_addr *mcast_addr, int mld_type)
 {
         //don't send any report for the all-nodes address
         if( (mcast_addr->addr1 == hton32(0xff020000)) &&
@@ -629,7 +629,7 @@ void esix_icmp_send_mld(const struct ip6_addr *mcast_addr, int type)
         //TODO: implement timers
         struct icmp6_mld1_hdr *hdr = esix_w_malloc(sizeof(struct icmp6_mld1_hdr) + sizeof(struct ip6_addr));
         struct ip6_addr *target = (struct ip6_addr*) (hdr+1);
-	int i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE); 
+	int i = esix_intf_get_type_address(LINK_LOCAL); 
 
         if(hdr == NULL)
                 return;
@@ -643,7 +643,7 @@ void esix_icmp_send_mld(const struct ip6_addr *mcast_addr, int type)
         hdr->max_resp_delay = 0;
         *target = *mcast_addr;
 
-        if(type == MLD_RPT)
+        if(mld_type == MLD_RPT)
         {
                 esix_icmp_send(&addrs[i]->addr, mcast_addr, 1, MLD_RPT, 0, hdr,
                         sizeof(struct icmp6_mld1_hdr) + sizeof(struct ip6_addr));

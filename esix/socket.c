@@ -97,8 +97,8 @@ int sendto(int sock, const void *buf, int len, u8_t flags, const struct sockaddr
 	// check the source address
 	if(esix_memcmp(&esix_sockets[sock].laddr, &in6addr_any, 16) == 0)
 	{
-		if(((i = esix_intf_get_scope_address(GLOBAL_SCOPE)) <0) && 
-			(i = esix_intf_get_scope_address(LINK_LOCAL_SCOPE)) <0)
+		if(((i = esix_intf_get_type_address(GLOBAL)) <0) && 
+			(i = esix_intf_get_type_address(LINK_LOCAL)) <0)
 			return -1;
 
 		esix_udp_send(&addrs[i]->addr, (struct ip6_addr*) &to->sin6_addr, 
