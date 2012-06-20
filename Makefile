@@ -25,7 +25,7 @@ OBJ=$(SRC:.c=.o)
 LIB=libesix.a
 
 $(LIB): $(OBJ)
-	$(AR) rcs lib/$(LIB) $(OBJ)
+	$(AR) rcs $(LIB) $(OBJ)
 
 clean:
-	rm -f $(OBJ) lib/$(LIB)
+	rm -f $(OBJ) $(LIB)

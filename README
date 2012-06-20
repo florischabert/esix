@@ -1,10 +1,29 @@
-IPv6 stack for embedded systems
+Esix: a light-weight IPv6 stack.
 
-..... a lot still needs to be done ....
+Stack
+-----
 
-esix/
-	esix source code
-doc/
-	esix documentation (including doxygen)
-demo/
-	demo code for the eval board
+UDP, TCPv6
+ICMPv6, MLD2
+IPv6, ND6
+Ethernet
+
+Esix provides a standard POSIX socket interface. 
+
+Integration
+-----------
+
+1. Customize the config.h file to make esix work with your hardware.
+2. Implement the needed wrappers (memory allocation, timer, ethernet frame management). These wrappers are OS dependant. See include/esix.h for details.
+
+- freertos/
+FreeRTOS integration for the ARM-based TI LM3S6965 eval board.
+
+- pcap/
+Integration with libcap (emulating a network interface). Allows you to play with esix on Linux, MacOS or Windows.
+
+Contributors
+------------
+
+Floris Chabert
+Simon Vetter

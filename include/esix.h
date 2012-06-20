@@ -31,58 +31,58 @@
 
 // Lib services
 
-	/**
-	 * Sets up the esix stack.
-	 *
-	 * @param lla is the 6 bytes link-layer address of the interface.
-	 */
-	void esix_init(u16_t lla[3]);
-	
-	/*
-	 * Process a received IPv6 packet.
-	 * 
-	 * @param packet is a pointer to the packet.
-	 * @param len is the packet size.
-	 */
-	void esix_ip_process(void *packet, int len);
+/**
+ * Sets up the esix stack.
+ *
+ * @param lla is the 6 bytes link-layer address of the interface.
+ */
+void esix_init(u16_t lla[3]);
 
-	/*
-	 * ipv6 stack clock signal.
-	 *
-	 * Needs to be called every second by the user.
-	 *
-	 */
-	void esix_periodic_callback();
-	
+/*
+ * Process a received IPv6 packet.
+ * 
+ * @param packet is a pointer to the packet.
+ * @param len is the packet size.
+ */
+void esix_ip_process(void *packet, int len);
+
+/*
+ * ipv6 stack clock signal.
+ *
+ * Needs to be called every second by the user.
+ *
+ */
+void esix_periodic_callback();
+
 // The following has to be implemented by the user
 
-	/*
-	 * Malloc wrapper for esix.
-	 * 
-	 * Needs to be implemented by the user.
-	 *
-	 * @param size is the number of byte needed for the allocation.
-	 */
-	void *esix_w_malloc(size_t size);
-	
-	/*
-	 * Free wrapper for esix.
-	 * 
-	 * Needs to be implemented by the user.
-	 *
-	 * @param is the a pointer to the zone to be freed.
-	 */
-	void esix_w_free(void *);
+/*
+ * Malloc wrapper for esix.
+ * 
+ * Needs to be implemented by the user.
+ *
+ * @param size is the number of byte needed for the allocation.
+ */
+void *esix_w_malloc(size_t size);
 
+/*
+ * Free wrapper for esix.
+ * 
+ * Needs to be implemented by the user.
+ *
+ * @param is the a pointer to the zone to be freed.
+ */
+void esix_w_free(void *);
 
-	/*
-	 * Send an IPv6 packet.
-	 *
-	 * Needs to be implemented by the user.
-	 *
-	 * @param lla is the target 6 bytes link-layer address.
-	 * @param packet is a ptr to the IPV6 packet. should be freed after copy.
-	 * @param len is the len of the IPv6 packet in bytes.
-	 */
-	void esix_w_send_packet(u16_t lla[3], void *packet, int len);
+/*
+ * Send an IPv6 packet.
+ *
+ * Needs to be implemented by the user.
+ *
+ * @param lla is the target 6 bytes link-layer address.
+ * @param packet is a ptr to the IPV6 packet. should be freed after copy.
+ * @param len is the len of the IPv6 packet in bytes.
+ */
+void esix_w_send_packet(u16_t lla[3], void *packet, int len);
+
 #endif
