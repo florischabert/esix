@@ -98,7 +98,7 @@ void esix_ip_process(void *packet, int len)
 			
 		//unknown (unimplemented) IP type
 		default:
-			uart_printf("esix_ip_process : unknown next header  %x\n", hdr->next_header);
+			;
 	}
 }
 
@@ -158,14 +158,7 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 	route_index = -1;
 	//routing
 	for(i=0; i < 4; i++)
-	{
-		/*
-		if(routes[i] != NULL)
-			uart_printf("\n\ndaddr : %x %x %x %x\nroute : %x %x %x %x\n", 
-				daddr->addr1, daddr->addr2 , daddr->addr3 , daddr->addr4,
-				routes[i]->mask.addr1, routes[i]->mask.addr2 , routes[i]->mask.addr3 , routes[i]->mask.addr4);
-		*/
-		
+	{		
 		if(	(routes[i] != NULL ) &&
 			((daddr->addr1 & routes[i]->mask.addr1) == routes[i]->addr.addr1) &&
 			((daddr->addr2 & routes[i]->mask.addr2) == routes[i]->addr.addr2) &&
@@ -180,7 +173,6 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 	//sorry dude, we didn't find any matching route...
 	if(route_index < 0)
 	{
-		uart_printf("esix_ip_send : no route.\n");
 		esix_w_free(hdr);
 		return;
 	}
@@ -224,7 +216,6 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 		}
 		else
 		{
-			uart_printf("esix_ip_send : neighbor unreachable\n");
 			esix_w_free(hdr);
 			return;
 		}
@@ -232,7 +223,6 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 	else
 	{
 		// we have to send a neighbor solicitation
-		//uart_printf("packet ready to be sent, but don't now the lla\n");
 		if((i=esix_intf_get_type_address(LINK_LOCAL)) >= 0)
 		{
 			if(dest_onlink)

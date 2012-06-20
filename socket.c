@@ -396,7 +396,6 @@ int socket(const int family, const u8_t type, const u8_t proto)
 	}
 
 	//the socket table is most likely full
-	uart_printf("socket : ressource temp. unavailable\n");
 	return -1;
 }
 
@@ -479,7 +478,6 @@ int close(const int socknum)
 			break;
 		}	
 	}
-	//uart_printf("close : closing %x\n", socknum);
 	esix_sockets[socknum].state = CLOSING;
 	esix_socket_free_queue(socknum);
 	esix_sockets[socknum].state = CLOSED;
@@ -633,7 +631,6 @@ void esix_socket_housekeep()
 				esix_sockets[s].state = CLOSING;
 				esix_socket_free_queue(s);
 				esix_sockets[s].state = CLOSED;
-				uart_printf("esix_socket_housekeep : socket %x timed out, closing.\n", s);
 				continue;
 			} 
 
@@ -654,7 +651,6 @@ void esix_socket_housekeep()
 			//no more packet to rexmit : either the ACKs we received
 			//triggered enough retransmissions or evicted multiple packets from the queue.
 			//disable retransmission.
-			//uart_printf("socket_housekeep : rexmit set on %x but nothing to retransmit\n", s);
 			esix_sockets[s].rexmit_date = 0;
 		}
 	}

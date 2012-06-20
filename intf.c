@@ -160,7 +160,6 @@ int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row)
 
 int esix_intf_add_neighbor(const struct ip6_addr *addr, esix_ll_addr lla, u32_t expiration_date, u8_t interface)
 {
-	//uart_printf("esix_intf_add_neighbor: adding %x:%x:%x:%x\n", addr->addr1, addr->addr2, addr->addr3, addr->addr4);
 	int j, i = 0;
 	struct esix_neighbor_table_row *nb;
 
@@ -316,10 +315,7 @@ int esix_intf_get_neighbor_index(const struct ip6_addr *addr, u8_t interface)
  */
 int esix_intf_remove_neighbor(const struct ip6_addr *addr, u8_t interface)
 {
-	/*
-	uart_printf("esix_intf_remove_neighbor: removing %x %x %x %x\n",
-		addr->addr1, addr->addr2, addr->addr3, addr->addr4);
-	*/
+
 	int i;
 	struct esix_neighbor_table_row *row;
 	
@@ -479,9 +475,6 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 		//if we received an answer, bail out.
 		if(esix_intf_get_neighbor_index(addr, INTERFACE) >= 0)
 		{
-			uart_printf("esix_intf_add_address: %x %x %x %x already in use. Aborting. \n",
-				addr->addr1, addr->addr2, addr->addr3, addr->addr4);
-
 			//memory leaks are evil
 			esix_w_free(row);
 			return 0;
@@ -516,11 +509,6 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 		return 1;
 	}
 
-
-//		uart_printf("esix_intf_add_address: added %x:%x:%x:%x\n",
-//			addr->addr1, addr->addr2, addr->addr3, addr->addr4);
-
-
 	//if we're still here, something went wrong.
 	esix_intf_remove_address(&mcast_sollicited, 0x80, MULTICAST);
 	esix_w_free(row);
@@ -544,8 +532,6 @@ int esix_intf_remove_address(const struct ip6_addr *addr, enum type type, u8_t m
 		row = addrs[i];
 		addrs[i] = NULL; 
 		esix_w_free(row);
-	//	uart_printf("esix_intf_remove_address: removed %x %x %x %x\n",
-          //      	addr->addr1, addr->addr2,  addr->addr3,  addr->addr4);
 
 		return 1;
 	}
@@ -554,13 +540,7 @@ int esix_intf_remove_address(const struct ip6_addr *addr, enum type type, u8_t m
 
 int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_addr, u32_t expiration_date,
 				u8_t ttl, u32_t mtu, u8_t interface)
-{
-	/*
-	uart_printf("esix_intf_add_route: adding %x:%x:%x:%x nxt_hop %x:%x:%x:%x\n",
-		daddr->addr1, daddr->addr2, daddr->addr3, daddr->addr4,
-		next_addr->addr1, next_addr->addr2, next_addr->addr3, next_addr->addr4);
-	*/
-		
+{		
 	int i=0;
 	struct esix_route_table_row *rt;
 
@@ -615,12 +595,6 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
  */
 int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_hop, u8_t intf)
 {
-	/*uart_printf("esix_intf_remove_route: removing %x %x %x %x mask %x %x %x %x via %x %x %x %x\n",
-	daddr->addr1, daddr->addr2,daddr->addr3,daddr->addr4,
-	mask->addr1, mask->addr2, mask->addr3, mask->addr4,
-	next_hop->addr1,next_hop->addr2,next_hop->addr3,next_hop->addr4);
-	*/
-
 	int i;
 	struct esix_route_table_row *rt;
 	if( (i = esix_intf_get_route_index(daddr, mask, next_hop, intf)) >= 0)

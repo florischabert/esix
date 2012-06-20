@@ -40,7 +40,6 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 	//do we have enough bytes to proces the header?
 	if(len < 20)
 	{
-		uart_printf("esix_tcp_process : packet too short\n");
 		return;
 	}
 	
@@ -200,8 +199,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 
 		default :
 			//uh oh
-			uart_printf("esix_tcp_process : unknown flag %x \n", t_hdr->flags);
-		break;
+			break;
 	}
 }
 

@@ -41,7 +41,6 @@ void esix_udp_process(const struct udp_hdr *u_hdr, int len, const struct ip6_hdr
 	//do we have enough bytes to proces the header?
 	if(len < 8)
 	{
-		uart_printf("esix_udp_process : packet too short\n");
 		return;
 	}
 	
@@ -52,7 +51,6 @@ void esix_udp_process(const struct udp_hdr *u_hdr, int len, const struct ip6_hdr
 	if((sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, u_hdr->s_port, u_hdr->d_port, 
 		UDP, FIND_LISTEN)) < 0)
 	{
-		uart_printf("esix_udp_process : port unreachable\n");
 		//don't send port unreach in response to multicasts
 		if( (ip_hdr->daddr.addr1 & hton32(0xff000000)) != hton32(0xff000000))
 			esix_icmp_send_unreachable(ip_hdr, PORT_UNREACHABLE); 	

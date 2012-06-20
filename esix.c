@@ -61,7 +61,7 @@ void esix_init(u16_t lla[3])
 	
 	esix_intf_add_default_routes(INTERFACE, 1500);
 	esix_intf_init_interface(lla, INTERFACE);
-	uart_printf("esix_init : init done.\n");
+
 	esix_icmp_send_router_sol(INTERFACE);
 }
 

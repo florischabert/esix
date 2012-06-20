@@ -72,7 +72,7 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 			//esix_icmp_send_mld2_report();
 			break;
 		default:
-			uart_printf("Unknown ICMP packet, type: %x\n", icmp_hdr->type);
+			;
 	}
 }
 
@@ -400,7 +400,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		switch(option_hdr->type)
 		{
 			case PRFX_INFO:
-				//toggle_led();
+
 				pfx_info = (struct icmp6_opt_prefix_info *) &option_hdr->payload; 
 				//the advertised prefix length MUST be 64 (0x40) in order to do
 				//stateless autoconfigration.
@@ -425,8 +425,6 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 				//(and should also be considered as a malformed packet. easy cure : drop it.)
 				if(option_hdr->length == 0)
 				{
-					uart_printf("esix_icmp_process_router_adv: unknown option with length 0 in RA, from %x:%x:%x:%x\n",
-						ip_hdr->saddr.addr1, ip_hdr->saddr.addr2, ip_hdr->saddr.addr3, ip_hdr->saddr.addr4);
 					return;
 				}
 				else
@@ -445,7 +443,6 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	if (got_prefix_info)
 	{
 	
-		toggle_led();
 		//builds a new global scope address
 		//not endian-safe for now, words in the prefix field
 		//are not aligned when received
