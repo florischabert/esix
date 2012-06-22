@@ -36,8 +36,19 @@
 
 #define MAC { 0x0080, 0xc580, 0xc53a }
 
-static pcap_t *pcap_handle;
 static u16_t mac[3] = MAC;
+
+static pcap_t *pcap_handle;
+static struct {
+	unsigned int in;
+	unsigned int out;
+	unsigned int ignored;
+} packetcnt = { 0, };
+
+void printcnt(void) {
+	printf("\rPackets: %u in, %u out, %u ignored", packetcnt.in, packetcnt.out, packetcnt.ignored);
+	fflush(stdout);
+}
 
 void *esix_w_malloc(int size)
 {
@@ -77,10 +88,7 @@ void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 	ether_frame -= 7;
 
 	sent = pcap_inject(pcap_handle, ether_frame, len);
-	if (sent == len) {
-		printf("Injected packet!\n");
-	}
-	else {
+	if (sent != len) {
 		if (sent >= 0) {
 			fprintf(stderr, "Error: Only %d bytes of %d injected\n", sent, len);
 		}
@@ -89,6 +97,11 @@ void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 		}
 		pcap_breakloop(pcap_handle);
 	}
+	else {
+		packetcnt.out++;
+	}
+
+	printcnt();
 }
 
 static void process_packet(u_char *user, const struct pcap_pkthdr *header, const u_char *bytes)
@@ -109,16 +122,18 @@ static void process_packet(u_char *user, const struct pcap_pkthdr *header, const
 		bytes += 6; // skip source MAC
 
 		if (*((u16_t *)bytes++) == 0xdd86) {
-			printf("Got IPv6 packet!\n");
+			packetcnt.in++;
 			esix_ip_process(bytes, header->len);
 		}
 		else {
-			printf("Ignoring non-IPv6 packet %04x.\n", *((u16_t *)bytes+1));
+			packetcnt.ignored++;
 		}
 	}
 	else {
-		printf("Ignoring packet, not for us.\n");
+		packetcnt.ignored++;
 	}
+
+	printcnt();
 }
 
 static void handle_signal(int sig)
@@ -126,7 +141,7 @@ static void handle_signal(int sig)
 	static int exiting = 0;
 	if (!exiting) {
 		exiting = 1;
-		fprintf(stderr, "Exiting...\n");
+		fprintf(stderr, "\nExiting...\n");
 		pcap_breakloop(pcap_handle);
 	}
 }
@@ -162,9 +177,9 @@ int main(int argc, char *argv[])
 
 	signal(SIGINT, handle_signal);
 
-	init_stack();
+	printf("Hooked %04x:%04x:%04x on %s...\n", mac[0], mac[1], mac[2], dev);
 
-	printf("Hooked to %s\n", dev);
+	init_stack();
 
 	err = pcap_loop(pcap_handle, -1, process_packet, NULL);
 	if (err == -1) {
