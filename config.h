@@ -54,6 +54,6 @@ typedef unsigned char u8_t;
 #define MAX_FRAME_SIZE 1520
 
 //endianess...
-//#define LITTLE_ENDIAN 
+#define LITTLE_ENDIAN 
 
 #endif

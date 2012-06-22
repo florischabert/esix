@@ -34,9 +34,10 @@
 #include <pcap.h>
 #include <esix.h>
 
-#define MAC 0x80c53a0080c5
+#define MAC { 0x0080, 0xc580, 0xc53a }
 
 static pcap_t *pcap_handle;
+static u16_t mac[3] = MAC;
 
 void *esix_w_malloc(int size)
 {
@@ -58,30 +59,24 @@ void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 	int sent;
 	u16_t *ether_frame;
 	int i;
-	u8_t *p;
-
-	len += 6+6+2; // ethernet header
-
-	ether_frame = malloc(len);
+	
+	ether_frame = malloc(len + 6+6+2);
 	if (!ether_frame) {
 		fprintf(stderr, "Error: Can't allocate memory\n");
 	}
-	p = ether_frame;
 
 	for (i = 0; i < 3; i++) {
 		*ether_frame++ = lla[i]; // destination MAC
 	}
 	for (i = 0; i < 3; i++) {
-		*ether_frame++ = MAC >> i*32; // source MAC
+		*ether_frame++ = hton16(mac[i]); // source MAC
 	}
 	*ether_frame++ = 0xdd86; // ethertype
-	memcpy(ether_frame, packet, len - (6+6+2)); // payload
+	memcpy(ether_frame, packet, len); // payload
+	len += 6+6+2; // add ethernet header
+	ether_frame -= 7;
 
-	for (i = 0; i < len; i++)
-		printf("%02x ", *(p + i));
-	printf("\n");
-
-	sent = pcap_inject(pcap_handle, p, len);
+	sent = pcap_inject(pcap_handle, ether_frame, len);
 	if (sent == len) {
 		printf("Injected packet!\n");
 	}
@@ -101,13 +96,14 @@ static void process_packet(u_char *user, const struct pcap_pkthdr *header, const
 	int for_us = 1;
 	int i;
 
-	for (i = 0; i < header->len; i++)
-		printf("%02x ", *(bytes + i));
-	printf("\n");
-
-	for (i = 0; i < 3; i++) {
-		if (*((u16_t *)bytes++) != MAC >> i*32)
-			for_us = 0;
+	if (*(u16_t *)bytes == 0x3333) {
+		bytes += 6; // multicast, skip destination MAC
+	}
+	else {
+		for (i = 0; i < 3; i++) {
+			if (*((u16_t *)bytes++) != hton16(mac[i]))
+				for_us = 0;
+		}
 	}
 	if (for_us) {
 		bytes += 6; // skip source MAC
@@ -117,7 +113,7 @@ static void process_packet(u_char *user, const struct pcap_pkthdr *header, const
 			esix_ip_process(bytes, header->len);
 		}
 		else {
-			printf("Ignoring non-IPv6 packet.\n");
+			printf("Ignoring non-IPv6 packet %04x.\n", *((u16_t *)bytes+1));
 		}
 	}
 	else {
@@ -137,13 +133,7 @@ static void handle_signal(int sig)
 
 static void init_stack(void)
 {
-	u16_t lla[3] = {
-		hton16(MAC >> 64),
-		hton16(MAC >> 32),
-		hton16(MAC >> 0)
-	};
-
-	esix_init(lla);
+	esix_init(mac);
 }
 
 int main(int argc, char *argv[])
