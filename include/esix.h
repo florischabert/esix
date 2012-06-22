@@ -63,7 +63,7 @@ void esix_periodic_callback();
  *
  * @param size is the number of byte needed for the allocation.
  */
-void *esix_w_malloc(size_t size);
+void *esix_w_malloc(int size);
 
 /*
  * Free wrapper for esix.

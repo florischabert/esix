@@ -20,14 +20,21 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS  SOFTWARE, 
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+EXE=glued
 SRC=$(wildcard *.c)
 OBJ=$(SRC:.c=.o)
-LIB=libesix.a
+CFLAGS=-I..
+LDFLAGS=-L.. -lesix -lpcap
 
-$(LIB): $(OBJ)
-	$(AR) rcs $(LIB) $(OBJ)
+all: esix $(EXE)
+
+esix:
+	@make -C ..
+
+$(EXE): $(OBJ) 
 
 clean:
-	@rm -f $(OBJ) $(LIB)
+	@make -C .. clean
+	@rm -f $(EXE) $(OBJ)
 
-.PHONY: clean
+.PHONY: esix clean

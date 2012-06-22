@@ -503,8 +503,8 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 					MULTICAST);
 
 		}
-		else
-			esix_icmp_send_mld(&row->addr, MLD_RPT);
+		//else
+		//	esix_icmp_send_mld(&row->addr, MLD_RPT);
 
 		return 1;
 	}
@@ -526,8 +526,8 @@ int esix_intf_remove_address(const struct ip6_addr *addr, enum type type, u8_t m
 	if(i >= 0)
 	{
               //send a MLD done report if this is a mcast address
-                if(type == MULTICAST)
-                        esix_icmp_send_mld(&row->addr, MLD_DNE);
+                //if(type == MULTICAST)
+                //        esix_icmp_send_mld(&row->addr, MLD_DNE);
 
 		row = addrs[i];
 		addrs[i] = NULL; 

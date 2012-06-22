@@ -44,15 +44,16 @@
 #define DEFAULT_TTL		64 	//default TTL when unspecified by
 						//router advertisements
 #define DEFAULT_MTU		1500
-	
-				
+
 typedef unsigned long long u64_t;
 typedef unsigned int u32_t;
 typedef unsigned short u16_t;
-typedef unsigned char u8_t; 
-typedef unsigned int size_t; 
+typedef unsigned char u8_t;
+//typedef unsigned int size_t; 
+
+#define MAX_FRAME_SIZE 1520
 
 //endianess...
-#define LITTLE_ENDIAN 
+//#define LITTLE_ENDIAN 
 
 #endif

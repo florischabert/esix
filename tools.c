@@ -67,7 +67,7 @@ int esix_memcmp(const void *p1, const void *p2, int len)
 /**
  * hton16 : converts host endianess to big endian (network order) 
  */
-inline u16_t hton16(u16_t v)
+u16_t hton16(u16_t v)
 {
 #ifdef LITTLE_ENDIAN
 	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
@@ -79,7 +79,7 @@ inline u16_t hton16(u16_t v)
 /**
  * hton32 : converts host endianess to big endian (network order) 
  */
-inline u32_t hton32(u32_t v)
+u32_t hton32(u32_t v)
 {
 #ifdef LITTLE_ENDIAN
 	return ((v << 24) & 0xff000000) |
@@ -94,7 +94,7 @@ inline u32_t hton32(u32_t v)
 /**
  * ntoh16 : converts network order to host endianess
  */
-inline u16_t ntoh16(u16_t v)
+u16_t ntoh16(u16_t v)
 {
 #ifdef LITTLE_ENDIAN
 	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
@@ -106,7 +106,7 @@ inline u16_t ntoh16(u16_t v)
 /**
  * ntoh32 : converts network order to host endianess 
  */
-inline u32_t ntoh32(u32_t v)
+u32_t ntoh32(u32_t v)
 {
 #ifdef LITTLE_ENDIAN
 	return ((v << 24) & 0xff000000) |

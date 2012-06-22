@@ -28,207 +28,208 @@
 
 #ifndef _ICMP6_H
 #define _ICMP6_H
-	#include "config.h"
-	#include "esix.h"
-	#include "include/esix.h"
-	#include "ip6.h"
-	#include "intf.h"
-	#include "tcp6.h"
-	#include "udp6.h"
+ 
+#include "config.h"
+#include "esix.h"
+#include "include/esix.h"
+#include "ip6.h"
+#include "intf.h"
+#include "tcp6.h"
+#include "udp6.h"
 
-	//neighbor discovery settings
-	#define NEW_NEIGHBOR_TIMEOUT 	5
-	#define NEIGHBOR_TIMEOUT	180	
-	#define STALE_DURATION 		3
-	#define DUP_ADDR_DETECT_TRANSMITS 1
-	
-        //list of ICMPv6 types
-        #define DST_UNR 0x01    //Destination Unreachable
-        #define TOO_BIG 0x02    //Packet Too Big
-        #define TTL_EXP 0x03    //TTL Exceeded
-        #define PARAM_P 0x04    //Parameter problem
-        #define ECHO_RQ 0x80    //Echo request
-        #define ECHO_RP 0x81    //Echo reply
-        #define MLD_QRY 0x82    //Multicast listener query
-        #define MLD_RPT 0x83    //Multicast listener report
-        #define MLD_DNE 0x84    //Multicast listener done
-        #define RTR_SOL 0x85    //Router sollicitation
-        #define RTR_ADV 0x86    //Router advertisement
-        #define NBR_SOL 0x87    //Neighbor sollicitation
-        #define NBR_ADV 0x88    //Neighbor advertisement
-        #define REDIR   0x89    //Redirect
-        #define MLD2_RP 0x8f    //Multicast Listener Report (MLDv2)
-	
-	//list of ICMPv6 options
-	#define PRFX_INFO 	0x3
-	#define MTU		0x5
-	#define S_LLA		0x1
+//neighbor discovery settings
+#define NEW_NEIGHBOR_TIMEOUT 	5
+#define NEIGHBOR_TIMEOUT	180	
+#define STALE_DURATION 		3
+#define DUP_ADDR_DETECT_TRANSMITS 1
 
-	//various icmp constants
-	#define PORT_UNREACHABLE 4
-	#define ADDR_UNREACHABLE 3
-	#define ADMIN_PROHIBITED 1
-	#define NO_ROUTE_TO_DEST 0
+//list of ICMPv6 types
+#define DST_UNR 0x01    //Destination Unreachable
+#define TOO_BIG 0x02    //Packet Too Big
+#define TTL_EXP 0x03    //TTL Exceeded
+#define PARAM_P 0x04    //Parameter problem
+#define ECHO_RQ 0x80    //Echo request
+#define ECHO_RP 0x81    //Echo reply
+#define MLD_QRY 0x82    //Multicast listener query
+#define MLD_RPT 0x83    //Multicast listener report
+#define MLD_DNE 0x84    //Multicast listener done
+#define RTR_SOL 0x85    //Router sollicitation
+#define RTR_ADV 0x86    //Router advertisement
+#define NBR_SOL 0x87    //Neighbor sollicitation
+#define NBR_ADV 0x88    //Neighbor advertisement
+#define REDIR   0x89    //Redirect
+#define MLD2_RP 0x8f    //Multicast Listener Report (MLDv2)
 
-	//mldv2 constants
-	#define MLD2_CHANGE_TO_INCLUDE 3  
-	#define MLD2_CHANGE_TO_EXCLUDE 4  
-	
-	/**
-	 * ICMPv6 header
-	 */
-	struct icmp6_hdr {
-		u8_t	type;
-		u8_t	code;
-		u16_t	chksum;
-		// ICMPv6 data
-	} __attribute__((__packed__));
+//list of ICMPv6 options
+#define PRFX_INFO 	0x3
+#define MTU		0x5
+#define S_LLA		0x1
 
-	/**
-	 * ICMP option header
-	 */
-	struct icmp6_option_hdr
-	{
-		u8_t	type;
-		u8_t	length;
-		u8_t	payload;
-	} __attribute__((__packed__));
-	
-	/**
-	 * ICMP neighbor solicitation header.
-	 */	
-	struct icmp6_neighbor_sol
-	{
-		u32_t reserved;
-		struct ip6_addr target_addr;
-	} __attribute__((__packed__));
-	
-	/**
-	 * ICMP neighbor advertisement header.
-	 */	
-	struct icmp6_neighbor_adv
-	{
-		u32_t r_s_o_reserved;
-		struct ip6_addr target_addr;
-	} __attribute__((__packed__));
-	
-	/**
-	 * ICMP option, link-layer address.
-	 */
-	struct icmp6_opt_lla {
-		u8_t type;
-		u8_t len8;
-		esix_ll_addr lla;
-	} __attribute__((__packed__));
+//various icmp constants
+#define PORT_UNREACHABLE 4
+#define ADDR_UNREACHABLE 3
+#define ADMIN_PROHIBITED 1
+#define NO_ROUTE_TO_DEST 0
 
-	/**
-	 * ICMP Router Sollicitation header.
-	 */
-	struct icmp6_router_sol {
-		u32_t reserved;
-	} __attribute__((__packed__));
+//mldv2 constants
+#define MLD2_CHANGE_TO_INCLUDE 3  
+#define MLD2_CHANGE_TO_EXCLUDE 4  
 
-	/**
-	 * ICMP Router Advertisement header.
-	 */
-	struct icmp6_router_adv {
-		u8_t	cur_hlim;	//hlim to be used 
-		u8_t	flags;		//other config, router preference, etc...
-		u16_t	rtr_lifetime;	//router lifetime
-		u32_t	reachable_time;
-		u32_t	retransm_timer;
-	} __attribute__((__packed__));
-	
-	/**
-	 * ICMP Echo Request/Reply header.
-	 */
-	struct icmp6_echo {
-		u16_t	identifier;
-		u16_t	seq_num;
-	} __attribute__((__packed__));
+/**
+ * ICMPv6 header
+ */
+struct icmp6_hdr {
+	u8_t	type;
+	u8_t	code;
+	u16_t	chksum;
+	// ICMPv6 data
+} __attribute__((__packed__));
 
-	/**
-	 * ICMP TTL expired header.
-	 */
-	struct icmp6_ttl_exp_hdr {
-		u32_t reserved; //do we really need such a header? hm...
-	} __attribute__((__packed__));
+/**
+ * ICMP option header
+ */
+struct icmp6_option_hdr
+{
+	u8_t	type;
+	u8_t	length;
+	u8_t	payload;
+} __attribute__((__packed__));
 
-	/**
-	 * ICMP unreachable header.
-	 */
-	struct icmp6_unreachable_hdr {
-		u32_t reserved; //do we really need such a header? hm...
-	} __attribute__((__packed__));
+/**
+ * ICMP neighbor solicitation header.
+ */	
+struct icmp6_neighbor_sol
+{
+	u32_t reserved;
+	struct ip6_addr target_addr;
+} __attribute__((__packed__));
 
-	/**
-	 * ICMP option, prefix info header.
-	 */
-	struct icmp6_opt_prefix_info {
-		u8_t	prefix_length;
-		u8_t	flags;		//onlink, autoconf,...
-		u32_t	valid_lifetime;
-		u32_t	preferred_lifetime;
-		u32_t	reserved;
-		u8_t p[16];
-	} __attribute__((__packed__));
+/**
+ * ICMP neighbor advertisement header.
+ */	
+struct icmp6_neighbor_adv
+{
+	u32_t r_s_o_reserved;
+	struct ip6_addr target_addr;
+} __attribute__((__packed__));
 
-	/**
-	 * ICMP option, MTU.
-	 */
-	struct icmp6_opt_mtu {
-		u16_t reserved;
-		u32_t	mtu;
-	} __attribute__((__packed__));
+/**
+ * ICMP option, link-layer address.
+ */
+struct icmp6_opt_lla {
+	u8_t type;
+	u8_t len8;
+	esix_ll_addr lla;
+} __attribute__((__packed__));
 
-        /**
-         * MLDv1 header
-         */
-        struct icmp6_mld1_hdr {
-                u16_t max_resp_delay;
-                u16_t reserved;
-        }  __attribute__((__packed__));
+/**
+ * ICMP Router Sollicitation header.
+ */
+struct icmp6_router_sol {
+	u32_t reserved;
+} __attribute__((__packed__));
 
-	/**
-	 * MDLv2 header
-	 */
-	struct icmp6_mld2_hdr {
-		u16_t reserved;
-		u16_t num_mcast_addr_records;
-	} __attribute__((__packed__));
+/**
+ * ICMP Router Advertisement header.
+ */
+struct icmp6_router_adv {
+	u8_t	cur_hlim;	//hlim to be used 
+	u8_t	flags;		//other config, router preference, etc...
+	u16_t	rtr_lifetime;	//router lifetime
+	u32_t	reachable_time;
+	u32_t	retransm_timer;
+} __attribute__((__packed__));
 
-	/**
-	 * MLDv2 option, mcast address record header
-	 */
-	struct icmp6_mld2_opt_mcast_addr_record {
-		u8_t 	record_type;
-		u8_t	aux_data_len;
-		u16_t	num_sources;
-		struct 	ip6_addr addr;
-	} __attribute__((__packed__));
+/**
+ * ICMP Echo Request/Reply header.
+ */
+struct icmp6_echo {
+	u16_t	identifier;
+	u16_t	seq_num;
+} __attribute__((__packed__));
 
-	/**
-	 * MLDv2 option, source address specifier (for SSM)
-	 */
-	struct mld2_opt_source_addr {
-		struct ip6_addr addr;
-	} __attribute__((__packed__));
+/**
+ * ICMP TTL expired header.
+ */
+struct icmp6_ttl_exp_hdr {
+	u32_t reserved; //do we really need such a header? hm...
+} __attribute__((__packed__));
 
-	void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr );
-	void esix_icmp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len);
+/**
+ * ICMP unreachable header.
+ */
+struct icmp6_unreachable_hdr {
+	u32_t reserved; //do we really need such a header? hm...
+} __attribute__((__packed__));
 
-	void esix_icmp_send_ttl_expired(const struct ip6_hdr *hdr);
-	void esix_icmp_send_router_sol(u8_t intf_index);
-	void esix_icmp_send_neighbor_adv(const struct ip6_addr *, const struct ip6_addr *, int);
-	void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, struct ip6_hdr *hdr);
-	void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length, struct ip6_hdr *ip_hdr);
-	void esix_icmp_process_echo_req(struct icmp6_echo *echo_rq, int length, struct ip6_hdr *ip_hdr);
-	void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *, int , struct ip6_hdr *);
-	void esix_icmp_send_neighbor_sol(const struct ip6_addr*, const struct ip6_addr*);
-	void esix_icmp_send_router_sol(u8_t);
-	void esix_icmp_send_unreachable(const struct ip6_hdr *ip_hdr, u8_t type);
-        void esix_icmp_process_mld_query(struct icmp6_mld1_hdr *, int, struct ip6_hdr *);
-        void esix_icmp_send_mld(const struct ip6_addr *, int);
-        void esix_icmp_send_mld2_report(void);
+/**
+ * ICMP option, prefix info header.
+ */
+struct icmp6_opt_prefix_info {
+	u8_t	prefix_length;
+	u8_t	flags;		//onlink, autoconf,...
+	u32_t	valid_lifetime;
+	u32_t	preferred_lifetime;
+	u32_t	reserved;
+	u8_t p[16];
+} __attribute__((__packed__));
+
+/**
+ * ICMP option, MTU.
+ */
+struct icmp6_opt_mtu {
+	u16_t reserved;
+	u32_t	mtu;
+} __attribute__((__packed__));
+
+/**
+ * MLDv1 header
+ */
+struct icmp6_mld1_hdr {
+        u16_t max_resp_delay;
+        u16_t reserved;
+}  __attribute__((__packed__));
+
+/**
+ * MDLv2 header
+ */
+struct icmp6_mld2_hdr {
+	u16_t reserved;
+	u16_t num_mcast_addr_records;
+} __attribute__((__packed__));
+
+/**
+ * MLDv2 option, mcast address record header
+ */
+struct icmp6_mld2_opt_mcast_addr_record {
+	u8_t 	record_type;
+	u8_t	aux_data_len;
+	u16_t	num_sources;
+	struct 	ip6_addr addr;
+} __attribute__((__packed__));
+
+/**
+ * MLDv2 option, source address specifier (for SSM)
+ */
+struct mld2_opt_source_addr {
+	struct ip6_addr addr;
+} __attribute__((__packed__));
+
+void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr );
+void esix_icmp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len);
+
+void esix_icmp_send_ttl_expired(const struct ip6_hdr *hdr);
+void esix_icmp_send_router_sol(u8_t intf_index);
+void esix_icmp_send_neighbor_adv(const struct ip6_addr *, const struct ip6_addr *, int);
+void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, struct ip6_hdr *hdr);
+void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length, struct ip6_hdr *ip_hdr);
+void esix_icmp_process_echo_req(struct icmp6_echo *echo_rq, int length, struct ip6_hdr *ip_hdr);
+void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *, int , struct ip6_hdr *);
+void esix_icmp_send_neighbor_sol(const struct ip6_addr*, const struct ip6_addr*);
+void esix_icmp_send_router_sol(u8_t);
+void esix_icmp_send_unreachable(const struct ip6_hdr *ip_hdr, u8_t type);
+void esix_icmp_process_mld_query(struct icmp6_mld1_hdr *, int, struct ip6_hdr *);
+void esix_icmp_send_mld(const struct ip6_addr *, int);
+void esix_icmp_send_mld2_report(void);
 
 #endif
