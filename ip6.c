@@ -105,15 +105,15 @@ void esix_ip_process(void *packet, int len)
 /*
  * Compute upper-level checksum
  */
-u16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u8_t proto, const void *payload, u16_t len)
+uint16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint8_t proto, const void *payload, uint16_t len)
 {
-	u32_t sum = 0;
-	u16_t const *data;
+	uint32_t sum = 0;
+	uint16_t const *data;
 	
 	// IPv6 pseudo-header sum : saddr, daddr, type and payload lenght
-	for(data = (u16_t *) saddr; data < (u16_t *) (saddr+1); data++)
+	for(data = (uint16_t *) saddr; data < (uint16_t *) (saddr+1); data++)
 		sum += *data;
-	for(data = (u16_t *) daddr; data < (u16_t *) (daddr+1); data++)
+	for(data = (uint16_t *) daddr; data < (uint16_t *) (daddr+1); data++)
 		sum += *data;
 	sum += hton16(len);
 	sum += hton16(proto);
@@ -122,12 +122,12 @@ u16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr
 	for(data = payload; len > 1; len -= 2)
 		sum += *data++;
 	if(len)
-		sum += *((u8_t *) data);
+		sum += *((uint8_t *) data);
 
 	while(sum >> 16)
 		sum = (sum & 0xffff) + (sum >> 16);
 	
-	return (u16_t) ~sum;
+	return (uint16_t) ~sum;
 }
 
 /*
@@ -136,13 +136,13 @@ u16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr
  * when to do it. Non-retransmitting procotols like UDP or ICMP will typically do it ASAP, but TCP might
  * want to keep it while waiting for an ACK. 
  */
-void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u8_t hlimit, const u8_t type, const void *data, const u16_t len)
+void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint8_t hlimit, const uint8_t type, const void *data, const uint16_t len)
 {
 	struct ip6_hdr *hdr;
 	int i, route_index, dest_onlink;
 	esix_ll_addr lla;
 	
-	hdr = esix_w_malloc(sizeof(struct ip6_hdr) + len);
+	hdr = malloc(sizeof(struct ip6_hdr) + len);
 	//hmmm... I smell gas...
 	if(hdr == NULL)
 		return;
@@ -173,9 +173,10 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 	//sorry dude, we didn't find any matching route...
 	if(route_index < 0)
 	{
-		esix_w_free(hdr);
+		free(hdr);
 		return;
 	}
+
 	// try to find our next hop lla
 	if(routes[route_index]->next_hop.addr1 == 0 && routes[route_index]->next_hop.addr2 == 0 &&
 		routes[route_index]->next_hop.addr3 == 0 && routes[route_index]->next_hop.addr4 == 0)
@@ -188,10 +189,11 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 		if(	(daddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
 		{
 			lla[0]	=	0x3333;
-			lla[1]	=	(u16_t) daddr->addr4;
-			lla[2]	= 	(u16_t) (daddr->addr4 >> 16);
+			lla[1]	=	(uint16_t) daddr->addr4;
+			lla[2]	= 	(uint16_t) (daddr->addr4 >> 16);
 
-			esix_w_send_packet(lla, hdr, len + sizeof(struct ip6_hdr));
+			esix_eth_send((uint8_t *)lla, esix_eth_type_ipv6, hdr, len + sizeof(struct ip6_hdr));
+
 			return;
 		}
 		else
@@ -212,11 +214,11 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 			neighbors[i]->flags.status == ND_STALE)
 		{
 			//packet leaves here.
-			esix_w_send_packet(neighbors[i]->lla, hdr, len + sizeof(struct ip6_hdr));
+			esix_eth_send((uint8_t *)neighbors[i]->lla, esix_eth_type_ipv6, hdr, len + sizeof(struct ip6_hdr));
 		}
 		else
 		{
-			esix_w_free(hdr);
+			free(hdr);
 			return;
 		}
 	}
@@ -230,7 +232,7 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 			else
 				esix_icmp_send_neighbor_sol(&addrs[i]->addr, &routes[route_index]->next_hop);
 		}
-		esix_w_free(hdr);
+		free(hdr);
 	}
 	return;
 }

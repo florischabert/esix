@@ -29,8 +29,10 @@
 #ifndef _INTF_H
 #define _INTF_H
 
+#include "tools.h"
+
 #include "ip6.h"
-#include "intf.h"
+#include "eth.h"
 #include "config.h"
 #include "include/esix.h"
 
@@ -45,17 +47,17 @@
 /*
  * Link-layer address (48 bits).
  */
-typedef u16_t esix_ll_addr[3];
+typedef uint16_t esix_ll_addr[3];
 	
 /**
  * IP address table entry
  */
 struct esix_ipaddr_table_row {
 	struct ip6_addr addr;	//Actual ip address
-	u8_t	mask;
-	u32_t	expiration_date;//date at which this entry expires.
+	uint8_t	mask;
+	uint32_t	expiration_date;//date at which this entry expires.
 				//0 : never expires (for now)
-	//u32_t	preferred_exp_date;//date at which this address shouldn't be used if possible
+	//uint32_t	preferred_exp_date;//date at which this address shouldn't be used if possible
 	enum	type type;		//address type : multicast, global unicast, etc...
 
 };
@@ -67,11 +69,11 @@ struct esix_route_table_row {
 	struct 	ip6_addr addr;	//Network address
 	struct 	ip6_addr mask;	//netmask
 	struct 	ip6_addr next_hop;	//next hop address (should be link-local)
-	u32_t	expiration_date;
-	u8_t	ttl;		//TTL for this route (per-router TTL values are learnt
+	uint32_t	expiration_date;
+	uint8_t	ttl;		//TTL for this route (per-router TTL values are learnt
 				//from router advertisements)
-	u32_t	mtu;		//MTU for this route
-	u8_t 	interface;	//interface index
+	uint32_t	mtu;		//MTU for this route
+	uint8_t 	interface;	//interface index
 };
 
 struct nb_flags {
@@ -82,8 +84,8 @@ struct nb_flags {
 struct esix_neighbor_table_row {
 	struct ip6_addr addr;
 	esix_ll_addr lla;
-	u32_t	expiration_date;
-	u8_t 	interface;
+	uint32_t	expiration_date;
+	uint8_t 	interface;
 	struct nb_flags flags;
 };
 
@@ -97,29 +99,29 @@ struct esix_route_table_row *routes[ESIX_MAX_RT];
 //table of the neighbors
 struct esix_neighbor_table_row *neighbors[ESIX_MAX_NB];
 
-
-void esix_intf_init_interface(esix_ll_addr, u8_t);
+esix_eth_addr *esix_intf_get_lla(void);
+void esix_intf_init_interface(esix_eth_addr, uint8_t);
 void esix_intf_add_default_neighbors(esix_ll_addr);
 int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row);
-int esix_intf_add_neighbor(const struct ip6_addr *, esix_ll_addr, u32_t, u8_t);
-int esix_intf_get_neighbor_index(const struct ip6_addr *, u8_t);
+int esix_intf_add_neighbor(const struct ip6_addr *, esix_ll_addr, uint32_t, uint8_t);
+int esix_intf_get_neighbor_index(const struct ip6_addr *, uint8_t);
 int esix_intf_pick_source_address(const struct ip6_addr *);
 
 void esix_intf_add_default_addresses(void);
 int esix_intf_add_address_row(struct esix_ipaddr_table_row *row);
-int esix_intf_add_address(struct ip6_addr *, u8_t, u32_t, enum type);
-int esix_intf_remove_address(const struct ip6_addr *, enum type, u8_t);
-int esix_intf_get_address_index(const struct ip6_addr *, enum type, u8_t);
+int esix_intf_add_address(struct ip6_addr *, uint8_t, uint32_t, enum type);
+int esix_intf_remove_address(const struct ip6_addr *, enum type, uint8_t);
+int esix_intf_get_address_index(const struct ip6_addr *, enum type, uint8_t);
 int esix_intf_get_type_address(enum type);
 
-void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu);	
+void esix_intf_add_default_routes(uint8_t intf_index, int intf_mtu);	
 int esix_intf_add_route_row(struct esix_route_table_row *row);
-int esix_intf_add_route(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, u32_t, u8_t, u32_t, u8_t);
+int esix_intf_add_route(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, uint32_t, uint8_t, uint32_t, uint8_t);
 int esix_intf_check_source_addr(struct ip6_addr *, const struct ip6_addr *);
-int esix_intf_get_route_index(const struct ip6_addr *, const struct ip6_addr *, const struct ip6_addr *, const u8_t);
-int esix_intf_remove_neighbor(const struct ip6_addr *, u8_t);
-int esix_intf_remove_route(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, u8_t);
-//int esix_intf_get_route_index(struct ip6_addr *, struct ip6_addr *, struct ip6_addr*, u8_t);
+int esix_intf_get_route_index(const struct ip6_addr *, const struct ip6_addr *, const struct ip6_addr *, const uint8_t);
+int esix_intf_remove_neighbor(const struct ip6_addr *, uint8_t);
+int esix_intf_remove_route(struct ip6_addr *, struct ip6_addr *, struct ip6_addr *, uint8_t);
+//int esix_intf_get_route_index(struct ip6_addr *, struct ip6_addr *, struct ip6_addr*, uint8_t);
 
 
 #endif

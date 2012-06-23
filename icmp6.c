@@ -79,14 +79,14 @@ void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *i
 /*
  * Send an ICMPv6 packet
  */
-void esix_icmp_send(const struct ip6_addr *_saddr, const struct ip6_addr *daddr, u8_t hlimit, u8_t type, u8_t code, void *data, u16_t len)
+void esix_icmp_send(const struct ip6_addr *_saddr, const struct ip6_addr *daddr, uint8_t hlimit, uint8_t type, uint8_t code, void *data, uint16_t len)
 {
 	struct icmp6_hdr *hdr;
 	struct ip6_addr saddr = *_saddr;
 
-	if((hdr = esix_w_malloc(sizeof(struct icmp6_hdr) + len)) == NULL)
+	if((hdr = malloc(sizeof(struct icmp6_hdr) + len)) == NULL)
 	{
-		esix_w_free(data);	
+		free(data);	
 		return;
 	}
 
@@ -95,14 +95,14 @@ void esix_icmp_send(const struct ip6_addr *_saddr, const struct ip6_addr *daddr,
 	hdr->chksum = 0;
 	esix_memcpy(hdr + 1, data, len);
 	
-	esix_w_free(data);	
+	free(data);	
 	
 	//check the source address. If it's multicast, replace it.
 	//If we can't replace it (no adress available, which should never happen),
 	//abort and destroy the packet.
 	if(esix_intf_check_source_addr(&saddr, daddr) < 0)
 	{
-		esix_w_free(hdr);
+		free(hdr);
 		return;
 	}
 	
@@ -110,7 +110,7 @@ void esix_icmp_send(const struct ip6_addr *_saddr, const struct ip6_addr *daddr,
 	
 	esix_ip_send(&saddr, daddr, hlimit, ICMP, hdr, len + sizeof(struct icmp6_hdr));
 
-	esix_w_free(hdr);
+	free(hdr);
 	
 }
 
@@ -127,7 +127,7 @@ void esix_icmp_send_ttl_expired(const struct ip6_hdr *ip_hdr)
 	if(n_len > 1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr))
 		n_len=1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
 
-	struct icmp6_ttl_exp_hdr *ttl_exp = esix_w_malloc(n_len);
+	struct icmp6_ttl_exp_hdr *ttl_exp = malloc(n_len);
 	//hmm, I smell gas...
 	if(ttl_exp == NULL)
 		return;
@@ -141,7 +141,7 @@ void esix_icmp_send_ttl_expired(const struct ip6_hdr *ip_hdr)
 /**
  * Sends an ICMP unreachable message back to its source.
  */
-void esix_icmp_send_unreachable(const struct ip6_hdr *ip_hdr, u8_t type)
+void esix_icmp_send_unreachable(const struct ip6_hdr *ip_hdr, uint8_t type)
 {
 	//TODO : don't reply to an icmp error message
 
@@ -151,7 +151,7 @@ void esix_icmp_send_unreachable(const struct ip6_hdr *ip_hdr, u8_t type)
 	if(n_len > 1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr))
 		n_len=1280 - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
 
-	struct icmp6_unreachable_hdr *unreach = esix_w_malloc(n_len);
+	struct icmp6_unreachable_hdr *unreach = malloc(n_len);
 	//hmm, I smell gas...
 	if(unreach == NULL)
 		return;
@@ -166,7 +166,7 @@ void esix_icmp_send_unreachable(const struct ip6_hdr *ip_hdr, u8_t type)
  * Crafts and sends a router sollicitation
  * on the interface specified by index. 
  */
-void esix_icmp_send_router_sol(u8_t intf_index)
+void esix_icmp_send_router_sol(uint8_t intf_index)
 {
 	int i;
 	struct ip6_addr dest;
@@ -175,8 +175,8 @@ void esix_icmp_send_router_sol(u8_t intf_index)
 	dest.addr3	= hton32(0x00000000);
 	dest.addr4	= hton32(0x00000002);
 	
-	u16_t len = sizeof(struct icmp6_router_sol) + sizeof(struct icmp6_opt_lla);
-	struct icmp6_router_sol *ra_sol = esix_w_malloc(len);
+	uint16_t len = sizeof(struct icmp6_router_sol) + sizeof(struct icmp6_opt_lla);
+	struct icmp6_router_sol *ra_sol = malloc(len);
 
 	//hmm, I smell gas...
 	if(ra_sol == NULL)
@@ -279,7 +279,7 @@ void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, 
  */
 void esix_icmp_process_echo_req(struct icmp6_echo *echo_req, int len, struct ip6_hdr *ip_hdr)
 {
-	struct icmp6_echo *echo_rep = esix_w_malloc(len);
+	struct icmp6_echo *echo_rep = malloc(len);
 	if(echo_rep == NULL)
 		return;
 	//copying the whole packet and sending it back to its source should do the trick.	
@@ -293,9 +293,9 @@ void esix_icmp_process_echo_req(struct icmp6_echo *echo_req, int len, struct ip6
  */
 void esix_icmp_send_neighbor_adv(const struct ip6_addr *saddr, const struct ip6_addr *daddr, int is_solicited)
 {
-	u16_t len = sizeof(struct icmp6_neighbor_adv) + sizeof(struct icmp6_opt_lla);
+	uint16_t len = sizeof(struct icmp6_neighbor_adv) + sizeof(struct icmp6_opt_lla);
 
-	struct icmp6_neighbor_adv *nb_adv = esix_w_malloc(len);
+	struct icmp6_neighbor_adv *nb_adv = malloc(len);
 	if(nb_adv == NULL)
 		return;
 
@@ -320,13 +320,13 @@ void esix_icmp_send_neighbor_sol(const struct ip6_addr *saddr, const struct ip6_
 {
 	//don't add a l2 address if we don't have one yet (which can only happen
 	//when performing first DAD)
-	u16_t len;
+	uint16_t len;
 	if(neighbors[0] != NULL)
 		len = sizeof(struct icmp6_neighbor_sol) + sizeof(struct icmp6_opt_lla);
 	else
 		len = sizeof(struct icmp6_neighbor_sol);
 
-	struct icmp6_neighbor_sol *nb_sol = esix_w_malloc(len);
+	struct icmp6_neighbor_sol *nb_sol = malloc(len);
 	if(nb_sol == NULL)
 		return;
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_sol + 1);
@@ -371,7 +371,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 {
 	struct ip6_addr addr, addr2, mask;
 	int i=0;
-	u32_t mtu;
+	uint32_t mtu;
 	struct icmp6_opt_prefix_info *pfx_info = NULL;
 	struct icmp6_opt_mtu *mtu_info;
 	struct icmp6_option_hdr *option_hdr;
@@ -396,7 +396,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 			//the first option field (those are TLVs)
 	while (i + 2 < length) // is the ip packet long enough to continue?
 	{
-		option_hdr = (struct icmp6_option_hdr *) ((u8_t *) rtr_adv + i);
+		option_hdr = (struct icmp6_option_hdr *) ((uint8_t *) rtr_adv + i);
 		switch(option_hdr->type)
 		{
 			case PRFX_INFO:
@@ -531,7 +531,7 @@ void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 void esix_icmp_send_mld2_report(void)
 {
 	int i=0;
-	u16_t count=0;
+	uint16_t count=0;
 	int len;
 	int index_list[ESIX_MAX_IPADDR];
 
@@ -554,7 +554,7 @@ void esix_icmp_send_mld2_report(void)
 	}
 
 	len	= sizeof(struct icmp6_mld2_hdr) + sizeof(struct icmp6_mld2_opt_mcast_addr_record)*count;
-	struct icmp6_mld2_hdr *mld = esix_w_malloc(len);
+	struct icmp6_mld2_hdr *mld = malloc(len);
 
 	//hm, I smell gas...
 	if(mld == NULL)
@@ -635,7 +635,7 @@ void esix_icmp_send_mld(const struct ip6_addr *mcast_addr, int mld_type)
 	if(i < 0)
 		return;
 
-        if((hdr = esix_w_malloc(sizeof(struct icmp6_mld1_hdr) + sizeof(struct ip6_addr))) == NULL)
+        if((hdr = malloc(sizeof(struct icmp6_mld1_hdr) + sizeof(struct ip6_addr))) == NULL)
                 return;
 
         hdr->max_resp_delay = 0;

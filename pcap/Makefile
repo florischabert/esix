@@ -23,7 +23,7 @@
 EXE=glued
 SRC=$(wildcard *.c)
 OBJ=$(SRC:.c=.o)
-CFLAGS=-I..
+CFLAGS=-I../include
 LDFLAGS=-L.. -lesix -lpcap
 
 all: esix $(EXE)

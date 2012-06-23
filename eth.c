@@ -30,13 +30,14 @@
 #include "intf.h"
 #include "tools.h"
 
+extern esix_eth_addr esix_intf_lla;
 
 static int addr_is_multicast(esix_eth_addr addr)
 {
 	return *(uint16_t *)addr == 0x3333;
 }
 
-int esix_eth_addr_cmp(esix_eth_addr addr1, esix_eth_addr addr2)
+int esix_eth_addr_match(esix_eth_addr addr1, esix_eth_addr addr2)
 {
 	int i;
 	int does_match = 1;
@@ -49,7 +50,7 @@ int esix_eth_addr_cmp(esix_eth_addr addr1, esix_eth_addr addr2)
 	return does_match;
 }
 
-void esix_eth_addr_cpy(esix_eth_addr dst, esix_eth_addr src)
+void esix_eth_addr_cpy(esix_eth_addr dst, const esix_eth_addr src)
 {
 	int i;
 	for (i = 0; i < 3; i++) {
@@ -57,14 +58,14 @@ void esix_eth_addr_cpy(esix_eth_addr dst, esix_eth_addr src)
 	}
 }
 
-void esix_eth_process(void *bytes, int len);
+void esix_eth_process(void *bytes, int len)
 {
-	eth_hdr *hdr = bytes;
+	esix_eth_hdr *hdr = bytes;
 	int for_us = 1;
 	int i;
 
-	if (esix_eth_addr_match(dst_addr, esix_intf_get_lla()) ||
-		eth_addr_is_multicast(hdr->dst_addr)) {
+	if (esix_eth_addr_match(hdr->dst_addr, esix_intf_lla) ||
+		addr_is_multicast(hdr->dst_addr)) {
 
 		if (hdr->type == esix_eth_type_ipv6) {
 			esix_ip_process(hdr + 1, len - sizeof(esix_eth_hdr));
@@ -72,39 +73,24 @@ void esix_eth_process(void *bytes, int len);
 	}
 }
 
-void esix_eth_send(void *bytes, int len);
+void esix_send_callback(void *data, int len);
+
+void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const void *payload, const uint16_t len)
 {
 	int i;
+	esix_eth_hdr *hdr;
+
+	hdr = malloc(sizeof(esix_eth_hdr) + len);
+	if (!hdr) {
+		return;
+	}
+
+	esix_eth_addr_cpy(hdr->dst_addr, dst_addr);
+	esix_eth_addr_cpy(hdr->src_addr, esix_intf_lla);
 	
-	ether_frame = malloc(len + 6+6+2);
-	if (!ether_frame) {
-		fprintf(stderr, "Error: Can't allocate memory\n");
-	}
+	hdr->type = type;
 
-	for (i = 0; i < 3; i++) {
-		*ether_frame++ = lla[i]; // destination MAC
-	}
-	for (i = 0; i < 3; i++) {
-		*ether_frame++ = hton16(mac[i]); // source MAC
-	}
-	*ether_frame++ = 0xdd86; // ethertype
-	memcpy(ether_frame, packet, len); // payload
-	len += 6+6+2; // add ethernet header
-	ether_frame -= 7;
+	memcpy(hdr + 1, payload, len);
 
-	sent = pcap_inject(pcap_handle, ether_frame, len);
-	if (sent != len) {
-		if (sent >= 0) {
-			fprintf(stderr, "Error: Only %d bytes of %d injected\n", sent, len);
-		}
-		else {
-			fprintf(stderr, "Error: Can't inject a packet\n");
-		}
-		pcap_breakloop(pcap_handle);
-	}
-	else {
-		packetcnt.out++;
-	}
-
-	printcnt();
+	esix_send_callback(hdr, len + sizeof(struct ip6_hdr));
 }

@@ -1,26 +1,35 @@
-Esix: a light-weight IPv6 stack.
++---------------------------------+
+| Esix, a light-weight IPv6 stack |
++---------------------------------+
 
 Stack
 -----
 
-UDP, TCPv6
-ICMPv6, MLD2
-IPv6, ND6
-Ethernet
+- TCPv6
+- UDP
+- ICMPv6, ND, MLD
+- IPv6
+- Ethernet
 
-Esix provides a standard POSIX socket interface. 
+- POSIX socket interface.
 
 Integration
 -----------
 
-1. Customize the config.h file to make esix work with your hardware.
-2. Implement the needed wrappers (memory allocation, timer, ethernet frame management). These wrappers are OS dependant. See include/esix.h for details.
+Integrating esix with your software stack is the easiest thing:
 
-- freertos/
-FreeRTOS integration for the ARM-based TI LM3S6965 eval board.
+1. Customize the stack at compile time using config.h
+2. Create a send handler so esix can easily send data to your network interface.
+3. Call esix_eth_process from your incoming frame handler so esix can deal with it.
+2. Setup esix by calling esix_init. See include/esix.h for details.
+4. Enjoy.
 
-- pcap/
-Integration with libcap (emulating a network interface). Allows you to play with esix on Linux, MacOS or Windows.
+Sample Code
+-----------
+
+- Esix works well with libcap. The glued daemon emulates a network interface that uses the esix stack and allows you to play with it on Dsktop. More in pcap/.
+
+- A FreeRTOS integration for the ARM-based TI LM3S6965 eval board is provided. See freertos/.
 
 Contributors
 ------------

@@ -26,8 +26,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SOCKET_USER_H
-#define _SOCKET_USER_H
+#ifndef _SOCKET_API_H
+#define _SOCKET_API_H
 
 #define AF_INET6 10
 
@@ -44,9 +44,9 @@ struct in6_addr
 {
 	union
 	{
-		u8_t u6_addr8[16];
-		u16_t u6_addr16[8];
-		u32_t u6_addr32[4];
+		uint8_t u6_addr8[16];
+		uint16_t u6_addr16[8];
+		uint32_t u6_addr32[4];
 	};
 };
 
@@ -58,11 +58,11 @@ extern const struct in6_addr in6addr_loopback;
  */
 struct sockaddr_in6
 {
-	u16_t sin6_family; // AF_INET6
-	u16_t sin6_port; // Transport layer port
-	u32_t sin6_flowinfo; // IPv6 flow information, not used
+	uint16_t sin6_family; // AF_INET6
+	uint16_t sin6_port; // Transport layer port
+	uint32_t sin6_flowinfo; // IPv6 flow information, not used
 	struct in6_addr sin6_addr; // IPv6 address
-	u32_t sin6_scope_id; // Scope ID, not used
+	uint32_t sin6_scope_id; // Scope ID, not used
 };
 
 /*
@@ -73,7 +73,7 @@ struct sockaddr_in6
  * @param proto. wait... what ?
  * @return the socket identifier.
  */
-int socket(const int family, const u8_t type, const u8_t proto);
+int socket(const int family, const uint8_t type, const uint8_t proto);
 
 /*
  * Change properties of a socket.
@@ -131,7 +131,7 @@ int close(int socket);
  * @param flags could contain the following flags: MSG_PEEK, MSG_DONTWAIT.
  * @return the number of bytes read.
  */
-int recv(int socket, void *buff, int len, u8_t flags);
+int recv(int socket, void *buff, int len, uint8_t flags);
 
 /*
  * Send data through a socket (for a connected socket).
@@ -144,7 +144,7 @@ int recv(int socket, void *buff, int len, u8_t flags);
  * @param fromaddrlen is a pointer to the size of from.
  * @return the number of bytes sent.
  */
-int send(int socket, const void *buff, int len, u8_t flags);
+int send(int socket, const void *buff, int len, uint8_t flags);
 
 /*
  * Receive data from the socket.
@@ -171,6 +171,6 @@ int recvfrom(int, void *, int, int, struct sockaddr_in6*, int *);
  * @return the number of bytes sent.
  */
 
-int sendto(int socket, const void *buff, int len, u8_t flags, const struct sockaddr_in6 *to, int toaddrlen);
+int sendto(int socket, const void *buff, int len, uint8_t flags, const struct sockaddr_in6 *to, int toaddrlen);
 
 #endif

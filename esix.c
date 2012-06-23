@@ -27,24 +27,53 @@
  */
 
 #include "config.h"
-#include "esix.h"
 #include "icmp6.h"
 #include "socket.h"
 #include "include/esix.h"
 #include "intf.h"
-#include "tools.h"
+#include "eth.h"
 
-static u32_t	current_time;
+static uint32_t	current_time;
+void (*esix_send_callback)(void *data, int len);
+
+static int eth_addr_from_str(esix_eth_addr addr, char *str)
+{
+	int i;
+
+	if (esix_strlen(str) != esix_strlen("xx:xx:xx:xx:xx:xx")) {
+		return -1;
+	}
+
+	for (i = 0; i < 6; i++, str += 3) {
+		int j;
+		uint8_t byte = 0;
+
+		for (j = 0; j < 2; j++) {
+			uint8_t val = (str[j] > '9')? str[j]-'a'+10 : str[j]-'0';
+			byte +=  val << (4*(1-j));
+		}
+
+		addr[i] = byte;
+	}
+	return 0;
+}
 
 /**
  * Sets up the esix stack.
  */
-void esix_init(u16_t lla[3])
+void esix_init(char *lla, void (*send_callback)())
 {
-	//big fat wait loop...
 	int i;
-	for(i=0; i<20000000;i++)
-		asm("nop");
+	esix_eth_addr eth_addr;
+
+	if (!send_callback) {
+		return;
+	}
+	esix_send_callback = send_callback;
+
+	if (eth_addr_from_str(eth_addr, lla) == -1) {
+		return;
+	}
 
 	current_time = 1;	// 0 means "infinite lifetime" in our caches
 	
@@ -60,36 +89,20 @@ void esix_init(u16_t lla[3])
 	esix_socket_init();
 	
 	esix_intf_add_default_routes(INTERFACE, 1500);
-	esix_intf_init_interface(lla, INTERFACE);
+	esix_intf_init_interface(eth_addr, INTERFACE);
 
 	esix_icmp_send_router_sol(INTERFACE);
 }
 
-u32_t esix_get_time()
+uint32_t esix_get_time()
 {
 	return current_time;
 }
 
 /*
- * esix_periodic_callback : must be called every second by the OS.
- */
-void esix_periodic_callback()
-{
-	current_time++;
-
-	//call ip_housekeep every 2 ticks
-	if(current_time%2)
-		esix_ip_housekeep();
-
-	//call socket_housekeep every tick
-	esix_socket_housekeep();
-}
-
-
-/*
  * esix_ip_housekeep : takes care of cache entries expiration at the ip level
  */
-void esix_ip_housekeep()
+static void esix_ip_housekeep()
 {
 	int i,j;
 	//loop through the routing table
@@ -135,4 +148,20 @@ void esix_ip_housekeep()
 		}
 	}
 	return;
+}
+
+
+/*
+ * esix_periodic_callback : must be called every second by the OS.
+ */
+void esix_periodic_callback()
+{
+	current_time++;
+
+	//call ip_housekeep every 2 ticks
+	if(current_time%2)
+		esix_ip_housekeep();
+
+	//call socket_housekeep every tick
+	esix_socket_housekeep();
 }

@@ -120,7 +120,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 						//grab received data, if any
 						if((len-((t_hdr->data_offset>>4)*4)) >0)
 						{
-							if((esix_queue_data(session_sock, (u8_t*) t_hdr + ((t_hdr->data_offset>>4)*4) ,
+							if((esix_queue_data(session_sock, (uint8_t*) t_hdr + ((t_hdr->data_offset>>4)*4) ,
 									len-(t_hdr->data_offset>>4)*4, NULL, IN)) <0 )
 								return;
 							esix_sockets[session_sock].ackn += len-((t_hdr->data_offset>>4)*4);
@@ -203,8 +203,8 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 	}
 }
 
-void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u16_t s_port, const u16_t d_port, 
-	const u32_t seqn, const u32_t ackn, const u8_t flags, const void *data, const u16_t len)
+void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint16_t s_port, const uint16_t d_port, 
+	const uint32_t seqn, const uint32_t ackn, const uint8_t flags, const void *data, const uint16_t len)
 {
 	int laddr;
 	struct tcp_hdr *hdr;
@@ -213,7 +213,7 @@ void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, c
 	if((laddr = esix_intf_check_source_addr(saddr, daddr)) < 0)
 		return;	
 
-	if((hdr = esix_w_malloc(sizeof(struct tcp_hdr) + len)) == NULL)
+	if((hdr = malloc(sizeof(struct tcp_hdr) + len)) == NULL)
 		return;
 	
 	hdr->d_port = d_port;
@@ -231,6 +231,6 @@ void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, c
 
 	esix_ip_send(saddr, daddr, DEFAULT_TTL, TCP, hdr, len + sizeof(struct tcp_hdr));
 
-	esix_w_free(hdr);
+	free(hdr);
 }
 

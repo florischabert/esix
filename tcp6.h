@@ -41,27 +41,27 @@
 
 	struct tcp_hdr
 	{
-		u16_t s_port;	
-		u16_t d_port;	
-		u32_t	seqn;
-		u32_t	ackn;
-		u8_t data_offset; //mind it's actually 4 data offset
+		uint16_t s_port;	
+		uint16_t d_port;	
+		uint32_t	seqn;
+		uint32_t	ackn;
+		uint8_t data_offset; //mind it's actually 4 data offset
 				//bits plus 4 reserved (all zeroes) bits here
-		u8_t flags;
-		u16_t w_size;
-		u16_t chksum;
-		u16_t urg_pointer;
+		uint8_t flags;
+		uint16_t w_size;
+		uint16_t chksum;
+		uint16_t urg_pointer;
 	} __attribute__((__packed__));
 	
 	struct tcp_packet
 	{
-		u16_t	len;
-		u8_t *data;
+		uint16_t	len;
+		uint8_t *data;
 		struct udp_packet *next;
 	} __attribute__((__packed__));
 
 	void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct ip6_hdr *ip_hdr);
-	void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u16_t s_port, 
-		const u16_t d_port, const u32_t	seqn, const u32_t ackn, const u8_t flags, const void *data, const u16_t len);
+	void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint16_t s_port, 
+		const uint16_t d_port, const uint32_t	seqn, const uint32_t ackn, const uint8_t flags, const void *data, const uint16_t len);
 		
 #endif

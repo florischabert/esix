@@ -28,54 +28,55 @@
 
 #ifndef _IP6_H
 #define _IP6_H
-	#include "config.h"
-	#include "include/esix.h"
-	
-	//list of IP protocol numbers (some are IPv6-specific)
-	#define HOPOPT 	0x00
-	#define ICMP	0x3A
-	#define NONXT	0x3B
-	#define TCP	0x06
-	#define UDP	0x11
-	#define FRAG	0x2C
-	
-	#define ANY_MASK		255
 
-	//ip address type
-	enum type
-	{
-		LINK_LOCAL,//link local unicast
-		GLOBAL,	   //global unicast
-		ANYCAST,   //global anycast
-		MULTICAST, //multicast (no support for scoped multicast yet)
-		ANY	   //any type, just for look up purposes
-	};
+#include "tools.h"
+#include "config.h"
+#include "include/esix.h"
 
-	/**
-	 * IPv6 address
-	 */
-	struct ip6_addr {
-		u32_t	addr1;
-		u32_t	addr2;
-		u32_t	addr3;
-		u32_t	addr4;
-	} __attribute__((__packed__));
-	
-	/**
-	 * IPv6 header 
-	 */
-	struct ip6_hdr {
-		u32_t 	ver_tc_flowlabel; //version (4bits), trafic class (8 bits), flow label (20 bytes)		
-		u16_t 	payload_len;	//payload length (next headers + upper protocols)
-		u8_t  	next_header;	//next header type
-		u8_t  	hlimit; 	//hop limit
-		struct ip6_addr saddr;		//first word of source address
-		struct ip6_addr daddr;		//first word of destination address
-		// IPv6 data;
-	} __attribute__((__packed__));
-	
-	void esix_ip_process_packet(void *, int);
-	void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u8_t hlimit, const u8_t type, const void *data, const u16_t len);
-	u16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const u8_t proto, const void *data, u16_t len);
-	
+//list of IP protocol numbers (some are IPv6-specific)
+#define HOPOPT   0x00
+#define ICMP     0x3A
+#define NONXT    0x3B
+#define TCP      0x06
+#define UDP      0x11
+#define FRAG     0x2C
+#define ANY_MASK 0xff
+
+//ip address type
+enum type
+{
+	LINK_LOCAL,//link local unicast
+	GLOBAL,	   //global unicast
+	ANYCAST,   //global anycast
+	MULTICAST, //multicast (no support for scoped multicast yet)
+	ANY	   //any type, just for look up purposes
+};
+
+/**
+ * IPv6 address
+ */
+struct ip6_addr {
+	uint32_t	addr1;
+	uint32_t	addr2;
+	uint32_t	addr3;
+	uint32_t	addr4;
+} __attribute__((__packed__));
+
+/**
+ * IPv6 header 
+ */
+struct ip6_hdr {
+	uint32_t 	ver_tc_flowlabel; //version (4bits), trafic class (8 bits), flow label (20 bytes)		
+	uint16_t 	payload_len;	//payload length (next headers + upper protocols)
+	uint8_t  	next_header;	//next header type
+	uint8_t  	hlimit; 	//hop limit
+	struct ip6_addr saddr;		//first word of source address
+	struct ip6_addr daddr;		//first word of destination address
+	// IPv6 data;
+} __attribute__((__packed__));
+
+void esix_ip_process(void *, int);
+void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint8_t hlimit, const uint8_t type, const void *data, const uint16_t len);
+uint16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint8_t proto, const void *data, uint16_t len);
+
 #endif

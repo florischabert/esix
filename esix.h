@@ -1,6 +1,6 @@
 /**
  * @file
- * UDP protocol implementation
+ * Esix main tasks.
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -26,33 +26,11 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _UDP6_H
-#define _UDP6_H
+#ifndef _ESIX_H
+#define _ESIX_H
 
-#include "ip6.h"
+#include "config.h"
 
-	#define MAX_UDP_LEN 1452
-	
-	struct udp_hdr 
-	{
-		uint16_t s_port;
-		uint16_t	d_port;
-		uint16_t	len;
-		uint16_t	chksum;
-		// UDP data
-	} __attribute__((__packed__));
-
-	struct udp_packet
-	{
-		uint16_t s_port;
-		struct ip6_addr s_addr;
-		uint16_t	len;
-		uint8_t *data;
-		struct udp_packet *next;
-	} __attribute__((__packed__));
-	
-	void esix_udp_process(const struct udp_hdr *u_hdr, int len, const struct ip6_hdr *ip_hdr);
-	void esix_udp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint16_t s_port, 
-		const uint16_t d_port, const void *data, const uint16_t len);
+uint32_t esix_get_time();
 
 #endif

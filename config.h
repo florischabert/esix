@@ -1,6 +1,6 @@
 /**
  * @file
- * Comment
+ * Esix compile-time configuration
  *
  * @section LICENSE
  * Copyright (c) 2009, Floris Chabert, Simon Vetter. All rights reserved.
@@ -29,6 +29,11 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
+// TODO: get rid of mm...
+#include <string.h>
+#include <stdlib.h>
+
+
 #define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
 #define ESIX_MAX_RT	8 	//max number of routes the node can have
 #define ESIX_MAX_NB 16 //max number of neighbors in the table
@@ -45,15 +50,6 @@
 						//router advertisements
 #define DEFAULT_MTU		1500
 
-typedef unsigned long long u64_t;
-typedef unsigned int u32_t;
-typedef unsigned short u16_t;
-typedef unsigned char u8_t;
-//typedef unsigned int size_t; 
-
 #define MAX_FRAME_SIZE 1520
-
-//endianess...
-#define LITTLE_ENDIAN 
 
 #endif

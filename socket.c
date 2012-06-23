@@ -21,7 +21,7 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 	//sock queue element 
 	struct sock_queue *sqe, *cur_sqe;
 	int i;
-	u8_t *buf;
+	uint8_t *buf;
 
 	//don't queue up more than ESIX_QUEUE_DEPHT packets
 	cur_sqe = esix_sockets[sock].queue; 
@@ -36,14 +36,14 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 	switch(esix_sockets[sock].proto)
 	{
 		case SOCK_DGRAM:
-			if((buf = esix_w_malloc(len+sizeof(struct sockaddr_in6))) == NULL ) 
+			if((buf = malloc(len+sizeof(struct sockaddr_in6))) == NULL ) 
 				return -1;
 
 			esix_memcpy(buf, sockaddr, sizeof(struct sockaddr_in6));
 			esix_memcpy(buf+sizeof(struct sockaddr_in6), data, len);
 		break;
 		case SOCK_STREAM:
-			if((buf = esix_w_malloc(len)) == NULL ) 
+			if((buf = malloc(len)) == NULL ) 
 				return -1;
 
 			esix_memcpy(buf, data, len);
@@ -53,9 +53,9 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 		break;
 	}
 
-	if((sqe = esix_w_malloc(sizeof(struct sock_queue))) == NULL) 
+	if((sqe = malloc(sizeof(struct sock_queue))) == NULL) 
 	{
-		esix_w_free(buf);
+		free(buf);
 		return -1;
 	}
 
@@ -88,7 +88,7 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 	return len;
 }
 
-int sendto(int sock, const void *buf, int len, u8_t flags, const struct sockaddr_in6 *to, int to_len)
+int sendto(int sock, const void *buf, int len, uint8_t flags, const struct sockaddr_in6 *to, int to_len)
 {
 	int i;
 	//only to be used with UDP
@@ -190,7 +190,7 @@ struct sock_queue * esix_socket_find_e(int sock, enum qe_type qe_type, enum acti
 	return sqe;
 }
 
-int recv(int sock, void *buf, int max_len, u8_t flags)
+int recv(int sock, void *buf, int max_len, uint8_t flags)
 {
 	return recvfrom(sock, buf, max_len, flags, NULL, NULL);
 }
@@ -240,8 +240,8 @@ int recvfrom(int sock, void *buf, int max_len, int flags, struct sockaddr_in6 *s
 		*sockaddr_len = sizeof(struct sockaddr_in6);
 
 	//free data buffer and socket queue element
-	esix_w_free(sqe->data);
-	esix_w_free(sqe);
+	free(sqe->data);
+	free(sqe);
 
 	return len;
 }
@@ -254,7 +254,7 @@ int accept(int sock, struct sockaddr_in6 *saddr, int *sockaddr_len)
 		return -1;
 
 	session_sock = sqe->socknum;
-	esix_w_free(sqe);
+	free(sqe);
 
 	if(saddr != NULL)
 	{
@@ -266,7 +266,7 @@ int accept(int sock, struct sockaddr_in6 *saddr, int *sockaddr_len)
 }
 
 //creates a session socket (actually only used by TCP when accept()'ing a client connection)
-int esix_socket_create_child(const struct ip6_addr *saddr, const struct ip6_addr *daddr, u16_t sport, u16_t dport, u8_t proto)
+int esix_socket_create_child(const struct ip6_addr *saddr, const struct ip6_addr *daddr, uint16_t sport, uint16_t dport, uint8_t proto)
 {
 	struct sock_queue *sqe, *cur_sqe;
 	//check if we're actually listening, if we are, create a new socket entry,
@@ -280,7 +280,7 @@ int esix_socket_create_child(const struct ip6_addr *saddr, const struct ip6_addr
 	if((session_sock = socket(AF_INET6, proto, 0)) < 0)
 		return -1;
 
-	if((sqe = esix_w_malloc(sizeof(struct sock_queue))) == NULL)
+	if((sqe = malloc(sizeof(struct sock_queue))) == NULL)
 	{
 		esix_sockets[session_sock].state = CLOSED;
 		return -1;
@@ -313,7 +313,7 @@ int esix_socket_create_child(const struct ip6_addr *saddr, const struct ip6_addr
 	return session_sock;
 }
 
-int esix_find_socket(const struct ip6_addr *saddr, const struct ip6_addr *daddr, u16_t sport, u16_t dport, u8_t proto, u8_t mask)
+int esix_find_socket(const struct ip6_addr *saddr, const struct ip6_addr *daddr, uint16_t sport, uint16_t dport, uint8_t proto, uint8_t mask)
 {
 	int i=0;
 	while(i<ESIX_MAX_SOCK)
@@ -353,7 +353,7 @@ int esix_find_socket(const struct ip6_addr *saddr, const struct ip6_addr *daddr,
 	return -1;
 }
 
-int socket(const int family, const u8_t type, const u8_t proto)
+int socket(const int family, const uint8_t type, const uint8_t proto)
 {
 	int i;
 	//TODO : allow the same socket number on TCP & UDP
@@ -498,13 +498,13 @@ void esix_socket_free_queue(int socknum)
 		esix_sockets[socknum].queue = sqe->next_e;
 		//free its payload, if any
 		if(sqe->qe_type == RECV_PKT || sqe->qe_type == SENT_PKT)
-			esix_w_free(sqe->data);
+			free(sqe->data);
 		//finally free it.
-		esix_w_free(sqe);
+		free(sqe);
 	}
 }
 
-int send(const int socknum, const void *buf, const int len, const u8_t flags)
+int send(const int socknum, const void *buf, const int len, const uint8_t flags)
 {
 	//send can be used with both TCP or UDP sockets but in case of
 	//UDP we need to make sure we're in connected state
@@ -548,7 +548,7 @@ int send(const int socknum, const void *buf, const int len, const u8_t flags)
 		return -1;
 }
 
-int esix_port_available(const u16_t port)
+int esix_port_available(const uint16_t port)
 {
 	int i=0;
 	while(i<ESIX_MAX_SOCK)
@@ -562,7 +562,7 @@ int esix_port_available(const u16_t port)
 }
 
 //expires every sent packet with (seq number + payload_len) < ackn
-int esix_socket_expire_e(int s, u32_t ackn)
+int esix_socket_expire_e(int s, uint32_t ackn)
 {
 	int i=0;
 	struct sock_queue *sqe, *prev_sqe, *tmp;
@@ -587,8 +587,8 @@ int esix_socket_expire_e(int s, u32_t ackn)
 					sqe 	= sqe->next_e;
 
 				//free the element and its data
-				esix_w_free(tmp->data);
-				esix_w_free(tmp);
+				free(tmp->data);
+				free(tmp);
 	
 				i++;
 			}

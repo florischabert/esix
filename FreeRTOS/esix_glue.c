@@ -37,7 +37,7 @@
 
 int alloc_count=0;
 
-void *esix_w_malloc(size_t size)
+void *malloc(size_t size)
 {
 	int i;
 	u32_t *ptr;
@@ -52,18 +52,18 @@ void *esix_w_malloc(size_t size)
 	return ptr;
 }
 
-void esix_w_free(void *ptr)
+void free(void *ptr)
 {
 	alloc_count--;
 	vPortFree(ptr);
 }
 
-u32_t esix_w_get_time(void)
+u32_t get_time(void)
 {
 	return 0;
 }
 
-void esix_w_send_packet(u16_t lla[3], void *packet, int len)
+void send_packet(u16_t lla[3], void *packet, int len)
 {
 	struct ether_frame_t eth_f;
 

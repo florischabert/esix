@@ -34,60 +34,15 @@
 #include <pcap.h>
 #include <esix.h>
 
-#define MAC { 0x0080, 0xc580, 0xc53a }
-
-static u16_t mac[3] = MAC;
+#define MAC_ADDR "00:80:c5:80:c5:3a"
 
 static pcap_t *pcap_handle;
-static struct {
-	unsigned int in;
-	unsigned int out;
-	unsigned int ignored;
-} packetcnt = { 0, };
 
-void printcnt(void) {
-	printf("\rPackets: %u in, %u out, %u ignored", packetcnt.in, packetcnt.out, packetcnt.ignored);
-	fflush(stdout);
-}
-
-void *esix_w_malloc(int size)
-{
-	return malloc(size);
-}
-
-void esix_w_free(void *ptr)
-{
-	free(ptr);
-}
-
-u32_t esix_w_get_time(void)
-{
-	return 0;
-}
-
-void esix_w_send_packet(u16_t lla[3], void *packet, int len)
+static void send_packet(void *packet, int len)
 {
 	int sent;
-	u16_t *ether_frame;
-	int i;
-	
-	ether_frame = malloc(len + 6+6+2);
-	if (!ether_frame) {
-		fprintf(stderr, "Error: Can't allocate memory\n");
-	}
 
-	for (i = 0; i < 3; i++) {
-		*ether_frame++ = lla[i]; // destination MAC
-	}
-	for (i = 0; i < 3; i++) {
-		*ether_frame++ = hton16(mac[i]); // source MAC
-	}
-	*ether_frame++ = 0xdd86; // ethertype
-	memcpy(ether_frame, packet, len); // payload
-	len += 6+6+2; // add ethernet header
-	ether_frame -= 7;
-
-	sent = pcap_inject(pcap_handle, ether_frame, len);
+	sent = pcap_inject(pcap_handle, packet, len);
 	if (sent != len) {
 		if (sent >= 0) {
 			fprintf(stderr, "Error: Only %d bytes of %d injected\n", sent, len);
@@ -97,43 +52,11 @@ void esix_w_send_packet(u16_t lla[3], void *packet, int len)
 		}
 		pcap_breakloop(pcap_handle);
 	}
-	else {
-		packetcnt.out++;
-	}
-
-	printcnt();
 }
 
 static void process_packet(u_char *user, const struct pcap_pkthdr *header, const u_char *bytes)
 {
-	int for_us = 1;
-	int i;
-
-	if (*(u16_t *)bytes == 0x3333) {
-		bytes += 6; // multicast, skip destination MAC
-	}
-	else {
-		for (i = 0; i < 3; i++) {
-			if (*((u16_t *)bytes++) != hton16(mac[i]))
-				for_us = 0;
-		}
-	}
-	if (for_us) {
-		bytes += 6; // skip source MAC
-
-		if (*((u16_t *)bytes++) == 0xdd86) {
-			packetcnt.in++;
-			esix_ip_process(bytes, header->len);
-		}
-		else {
-			packetcnt.ignored++;
-		}
-	}
-	else {
-		packetcnt.ignored++;
-	}
-
-	printcnt();
+	esix_eth_process((void *)bytes, header->len);
 }
 
 static void handle_signal(int sig)
@@ -144,11 +67,6 @@ static void handle_signal(int sig)
 		fprintf(stderr, "\nExiting...\n");
 		pcap_breakloop(pcap_handle);
 	}
-}
-
-static void init_stack(void)
-{
-	esix_init(mac);
 }
 
 int main(int argc, char *argv[])
@@ -177,9 +95,9 @@ int main(int argc, char *argv[])
 
 	signal(SIGINT, handle_signal);
 
-	printf("Hooked %04x:%04x:%04x on %s...\n", mac[0], mac[1], mac[2], dev);
+	printf("Hooked %s on %s\n", MAC_ADDR, dev);
 
-	init_stack();
+	esix_init(MAC_ADDR, send_packet);
 
 	err = pcap_loop(pcap_handle, -1, process_packet, NULL);
 	if (err == -1) {

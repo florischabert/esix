@@ -30,12 +30,13 @@
 #define _ETH_H
 
 #include "config.h"
+#include "tools.h"
 #include "include/esix.h"
 
 /**
  * Ethernet address
  */
-typedef u8_t esix_eth_addr[6];
+typedef uint8_t esix_eth_addr[6];
 
 /**
  * Compare two ethernet addresses.
@@ -52,16 +53,16 @@ int esix_eth_addr_match(esix_eth_addr addr1, esix_eth_addr addr2);
  * @param dst Destination address.
  * @param src Ethernet address to copy.
  */
-void esix_eth_addr_cpy(esix_eth_addr dst, esix_eth_addr src);
+void esix_eth_addr_cpy(esix_eth_addr dst, const esix_eth_addr src);
 
 /**
  * Ethernet header 
  */
 typedef struct {
 	esix_eth_addr dst_addr;
-	esix_th_addr src_addr;
+	esix_eth_addr src_addr;
 	uint16_t type;
-} esix_eth_hdr __attribute__((__packed__));
+} __attribute__((__packed__)) esix_eth_hdr;
 
 /**
  * Ethertype values
@@ -77,18 +78,17 @@ typedef enum {
  * @param bytes The actual received frame.
  * @param len   Length in bytes of the frame (including header).
  */
-void esix_eth_process(void *bytes, int len);
+void esix_eth_process(void *payload, int len);
 
 /**
  * Send an ethernet frame.
  * Encapsule the payload in an ethernet frame and send it.
  *
  * @param dst_addr  Destination link-layer address.
- * @param src_addr  Source link-layer address.
  * @param ethertype Protocol type of the payload.
  * @param payload   Pointer to the payload (the upper-layer packet).
  * @param len       Length in bytes of the payload.
  */
-void esix_eth_send(const esix_eth_hdr dst_addr, const esix_eth_hdr src_addr, const esix_eth_type type, const void *payload, const uint16_t len);
+void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const void *payload, const uint16_t len);
 
 #endif

@@ -31,14 +31,19 @@
 #include "ip6.h"
 #include "icmp6.h"
 #include "include/esix.h"
+#include "eth.h"
+
+esix_eth_addr esix_intf_lla;
 
 /**
  * Adds a link local address/route based on the MAC address
  * and joins the all-nodes mcast group
  */
-void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
+void esix_intf_init_interface(esix_eth_addr lla, uint8_t  interface)
 {
 	struct ip6_addr addr;
+
+	esix_eth_addr_cpy(esix_intf_lla, lla);
 
 	//builds our link local and associated multicast addresses
 	//from the MAC address given by the L2 layer.
@@ -71,7 +76,7 @@ void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
                                 | (ntoh16(lla[2])) );
 
 	esix_intf_add_neighbor(&addr,
-		lla, // MAC address
+		(uint16_t *)lla, // MAC address
 		0, // never expires
 		INTERFACE);
 
@@ -87,10 +92,10 @@ void esix_intf_init_interface(esix_ll_addr lla, u8_t  interface)
 
 }
 
-void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu)
+void esix_intf_add_default_routes(uint8_t intf_index, int intf_mtu)
 {
 	//link local route (fe80::/64)
-	struct esix_route_table_row *ll_rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
+	struct esix_route_table_row *ll_rt	= malloc(sizeof(struct esix_route_table_row));
 	if(ll_rt == NULL)
 		return;
 	
@@ -112,10 +117,10 @@ void esix_intf_add_default_routes(u8_t intf_index, int intf_mtu)
 	ll_rt->interface	= intf_index;
 
 	//multicast route (ff00:: /8)
-	struct esix_route_table_row *mcast_rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
+	struct esix_route_table_row *mcast_rt	= malloc(sizeof(struct esix_route_table_row));
 	if(mcast_rt == NULL)
 	{
-		esix_w_free(ll_rt);
+		free(ll_rt);
 		return;
 	}
 	
@@ -158,7 +163,7 @@ int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row)
 	return 0;
 }
 
-int esix_intf_add_neighbor(const struct ip6_addr *addr, esix_ll_addr lla, u32_t expiration_date, u8_t interface)
+int esix_intf_add_neighbor(const struct ip6_addr *addr, esix_ll_addr lla, uint32_t expiration_date, uint8_t interface)
 {
 	int j, i = 0;
 	struct esix_neighbor_table_row *nb;
@@ -173,7 +178,7 @@ int esix_intf_add_neighbor(const struct ip6_addr *addr, esix_ll_addr lla, u32_t 
 	}
 
 	//we're still here, create the new neighbor.
-	nb	= esix_w_malloc(sizeof(struct esix_neighbor_table_row));
+	nb	= malloc(sizeof(struct esix_neighbor_table_row));
 
 	//hmmmm... I smell gas...
 	if(nb == NULL)
@@ -193,7 +198,7 @@ int esix_intf_add_neighbor(const struct ip6_addr *addr, esix_ll_addr lla, u32_t 
 		return 1;
 
 	//we're still here, clean our mess up.
-	esix_w_free(nb);
+	free(nb);
 	
 	return 0;
 }
@@ -271,7 +276,7 @@ int esix_intf_add_route_row(struct esix_route_table_row *row)
 
 			for(k=0; k<4; k++)
 			{
-				if( *((u32_t*) (&routes[i]->mask.addr1)+k) < *((u32_t*) (&routes[j]->mask.addr1)+k) )
+				if( *((uint32_t*) (&routes[i]->mask.addr1)+k) < *((uint32_t*) (&routes[j]->mask.addr1)+k) )
 				{
 					unsorted = 1;
 					tmp 		= routes[i];
@@ -288,7 +293,7 @@ int esix_intf_add_route_row(struct esix_route_table_row *row)
 /*
  * Return the neighbor row index of the given address.
  */
-int esix_intf_get_neighbor_index(const struct ip6_addr *addr, u8_t interface)
+int esix_intf_get_neighbor_index(const struct ip6_addr *addr, uint8_t interface)
 {
 	int i = 0;
 
@@ -313,7 +318,7 @@ int esix_intf_get_neighbor_index(const struct ip6_addr *addr, u8_t interface)
 /*
  * esix_intf_remove_neighbor : removes a neighbor from the cache.
  */
-int esix_intf_remove_neighbor(const struct ip6_addr *addr, u8_t interface)
+int esix_intf_remove_neighbor(const struct ip6_addr *addr, uint8_t interface)
 {
 
 	int i;
@@ -324,7 +329,7 @@ int esix_intf_remove_neighbor(const struct ip6_addr *addr, u8_t interface)
 	{
 		row = neighbors[i];
 		neighbors[i] = NULL; 
-		esix_w_free(row);
+		free(row);
 		return 1;
 	}
 
@@ -366,7 +371,7 @@ int esix_intf_pick_source_address(const struct ip6_addr *daddr)
 /*
  * Return the address row index of the given address.
  */
-int esix_intf_get_address_index(const struct ip6_addr *addr, enum type type, u8_t masklen)
+int esix_intf_get_address_index(const struct ip6_addr *addr, enum type type, uint8_t masklen)
 {
 	int j;
 	for(j = 0; j<ESIX_MAX_IPADDR; j++)
@@ -388,7 +393,7 @@ int esix_intf_get_address_index(const struct ip6_addr *addr, enum type type, u8_
 /*
  * Return the route row index of the given route.
  */
-int esix_intf_get_route_index(const struct ip6_addr *daddr, const struct ip6_addr *mask, const struct ip6_addr *next_hop, const u8_t intf)
+int esix_intf_get_route_index(const struct ip6_addr *daddr, const struct ip6_addr *mask, const struct ip6_addr *next_hop, const uint8_t intf)
 {
 	int i;
 	for(i = 0; i<ESIX_MAX_RT; i++)
@@ -418,7 +423,7 @@ int esix_intf_get_route_index(const struct ip6_addr *daddr, const struct ip6_add
  * esix_new_addr : creates an addres with the passed arguments
  * and adds or updates it.
  */
-int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_date, enum type type)
+int esix_intf_add_address(struct ip6_addr *addr, uint8_t masklen, uint32_t expiration_date, enum type type)
 {
 	struct esix_ipaddr_table_row *row;
 	struct ip6_addr	mcast_sollicited, zero;
@@ -436,7 +441,7 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 	}
 
 	//we're still here, let's create our new address.
-	row = esix_w_malloc(sizeof(struct esix_ipaddr_table_row)); 
+	row = malloc(sizeof(struct esix_ipaddr_table_row)); 
 
 	//hmmmm... I smell gas...
 	if(row == NULL)
@@ -476,7 +481,7 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 		if(esix_intf_get_neighbor_index(addr, INTERFACE) >= 0)
 		{
 			//memory leaks are evil
-			esix_w_free(row);
+			free(row);
 			return 0;
 		}
 	}//DAD succeeded, we can go on.
@@ -511,11 +516,11 @@ int esix_intf_add_address(struct ip6_addr *addr, u8_t masklen, u32_t expiration_
 
 	//if we're still here, something went wrong.
 	esix_intf_remove_address(&mcast_sollicited, 0x80, MULTICAST);
-	esix_w_free(row);
+	free(row);
 	return 0;
 }
 
-int esix_intf_remove_address(const struct ip6_addr *addr, enum type type, u8_t masklen)
+int esix_intf_remove_address(const struct ip6_addr *addr, enum type type, uint8_t masklen)
 {
 	int i;
 	struct esix_ipaddr_table_row *row;
@@ -531,15 +536,15 @@ int esix_intf_remove_address(const struct ip6_addr *addr, enum type type, u8_t m
 
 		row = addrs[i];
 		addrs[i] = NULL; 
-		esix_w_free(row);
+		free(row);
 
 		return 1;
 	}
 	return 0;
 }
 
-int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_addr, u32_t expiration_date,
-				u8_t ttl, u32_t mtu, u8_t interface)
+int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_addr, uint32_t expiration_date,
+				uint8_t ttl, uint32_t mtu, uint8_t interface)
 {		
 	int i=0;
 	struct esix_route_table_row *rt;
@@ -558,7 +563,7 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
 	}
 
 	//we're still here, create the new route.
-	rt	= esix_w_malloc(sizeof(struct esix_route_table_row));
+	rt	= malloc(sizeof(struct esix_route_table_row));
 
 	//hmmmm... I smell gas...
 	if(rt == NULL)
@@ -586,14 +591,14 @@ int esix_intf_add_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip
 		return 1;
 
 	//we're still here, clean our mess up.
-	esix_w_free(rt);
+	free(rt);
 	return 0;
 } 
 
 /*
  * esix_intf_remove_route : removes a route from the routing table.
  */
-int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_hop, u8_t intf)
+int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct ip6_addr *next_hop, uint8_t intf)
 {
 	int i;
 	struct esix_route_table_row *rt;
@@ -601,7 +606,7 @@ int esix_intf_remove_route(struct ip6_addr *daddr, struct ip6_addr *mask, struct
 	{
 		rt	= routes[i];
 		routes[i] = NULL;
-		esix_w_free(rt);
+		free(rt);
 		return 1;
 	}
 	return -1;
