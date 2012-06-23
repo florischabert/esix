@@ -31,15 +31,22 @@
 
 #include "config.h"
 
+#include <stdint.h>
+
+#ifndef NULL
 #define NULL ((void *) 0)
+#endif
 
 void esix_memcpy(void *dst, const void *src, int len);
 int esix_memcmp(const void *p1, const void *p2, int len);
+int esix_strlen(const char *s);
 
-u16_t hton16(u16_t v);
-u32_t hton32(u32_t v);
-u16_t ntoh16(u16_t v);
-u32_t ntoh32(u32_t v);
+uint32_t esix_get_time();
 
+uint16_t hton16(uint16_t v);
+uint32_t hton32(uint32_t v);
+
+#define ntoh16 hton16
+#define ntoh32 hton32
 
 #endif

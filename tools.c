@@ -35,8 +35,8 @@ void esix_memcpy(void *dst, const void *src, int len)
 {
 	char *bdst;
 	const char *bsrc;
-	u32_t *wdst = dst;
-	const u32_t *wsrc = src;
+	uint32_t *wdst = dst;
+	const uint32_t *wsrc = src;
 
 	for(; len >= 4; len -= 4) // TODO: optimize for other bus width
 		*wdst++ = *wsrc++;
@@ -64,56 +64,39 @@ int esix_memcmp(const void *p1, const void *p2, int len)
 	return 0;
 }
 
+int esix_strlen(const char *s)
+{
+	int i = 0;
+
+	if (!s) {
+		return 0;
+	}
+
+	while (*s++) {
+		i++;
+	}
+
+	return i;
+}
+
 /**
  * hton16 : converts host endianess to big endian (network order) 
  */
-u16_t hton16(u16_t v)
+uint16_t hton16(uint16_t v)
 {
-#ifdef LITTLE_ENDIAN
-	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
-#else
-	return v;
-#endif
+	unsigned char *cv = (unsigned char *)&v;
+	return ((uint16_t)cv[0] << 8 ) |
+	       ((uint16_t)cv[1] << 0 );
 }
 
 /**
- * hton32 : converts host endianess to big endian (network order) 
+ * hton32 : converts host endianess to network order
  */
-u32_t hton32(u32_t v)
+uint32_t hton32(uint32_t v)
 {
-#ifdef LITTLE_ENDIAN
-	return ((v << 24) & 0xff000000) |
-	       ((v << 8) & 0x00ff0000) |
-	       ((v >> 8) & 0x0000ff00) |
-	       ((v >> 24) & 0x000000ff);
-#else
-	return v;
-#endif
-}
-
-/**
- * ntoh16 : converts network order to host endianess
- */
-u16_t ntoh16(u16_t v)
-{
-#ifdef LITTLE_ENDIAN
-	return ((v << 8) & 0xff00) | ((v >> 8) & 0x00ff);
-#else
-	return v;
-#endif
-}
-
-/**
- * ntoh32 : converts network order to host endianess 
- */
-u32_t ntoh32(u32_t v)
-{
-#ifdef LITTLE_ENDIAN
-	return ((v << 24) & 0xff000000) |
-	       ((v << 8) & 0x00ff0000) |
-	       ((v >> 8) & 0x0000ff00) |
-	       ((v >> 24) & 0x000000ff);
-#else
-	return v;
-#endif
+	unsigned char *cv = (unsigned char *)&v;
+	return ((uint32_t)cv[0] << 24) |
+	       ((uint32_t)cv[1] << 16) |
+	       ((uint32_t)cv[2] << 8 ) |
+	       ((uint32_t)cv[3] << 0 );
 }
