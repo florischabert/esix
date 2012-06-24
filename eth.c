@@ -55,16 +55,30 @@ int esix_eth_addr_match(const esix_eth_addr addr1, const esix_eth_addr addr2)
 	return does_match;
 }
 
+static esix_eth_addr eth_addr_ntoh(const esix_eth_addr addr)
+{
+	esix_eth_addr haddr;
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		haddr.raw[0] = ntoh16(addr.raw[0]);
+	}
+	return haddr;
+}
+
 void esix_eth_process(const void *payload, int len)
 {
 	const esix_eth_hdr *hdr = payload;
+	esix_eth_addr dst_addr;
 
-	if (esix_eth_addr_match(hdr->dst_addr, esix_intf_lla) ||
-		addr_is_multicast(hdr->dst_addr)) {
+	dst_addr = eth_addr_ntoh(hdr->dst_addr);
+
+	if (esix_eth_addr_match(dst_addr, esix_intf_lla) ||
+		addr_is_multicast(dst_addr)) {
 		esix_eth_upper_handler *handler;
 
 		esix_foreach(handler, upper_handlers) {
-			if (hdr->type == handler->type) {
+			if (ntoh16(hdr->type) == handler->type) {
 				handler->process(hdr + 1, len - sizeof(esix_eth_hdr));
 				break;
 			}
@@ -84,10 +98,10 @@ void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const
 		return;
 	}
 
-	hdr->dst_addr = dst_addr;
-	hdr->src_addr = esix_intf_lla;
+	hdr->dst_addr = eth_addr_ntoh(dst_addr);
+	hdr->src_addr = eth_addr_ntoh(esix_intf_lla);
 	
-	hdr->type = type;
+	hdr->type = hton16(type);
 
 	memcpy(hdr + 1, payload, len);
 
