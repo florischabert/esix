@@ -57,8 +57,8 @@ struct esix_sock
 {
 	uint8_t proto;
 	volatile enum state state;
-	struct ip6_addr laddr;
-	struct ip6_addr raddr;
+	esix_ip6_addr laddr;
+	esix_ip6_addr raddr;
 	uint16_t lport;
 	uint16_t rport;
 	uint32_t seqn;
@@ -75,8 +75,8 @@ struct esix_sock esix_sockets[ESIX_MAX_SOCK];
 uint16_t esix_last_port;
 
 int esix_port_available(const uint16_t);
-int esix_socket_create_child(const struct ip6_addr *, const struct ip6_addr *, uint16_t, uint16_t, uint8_t);
-int esix_find_socket(const struct ip6_addr *, const struct ip6_addr *, uint16_t, uint16_t, uint8_t, uint8_t);
+int esix_socket_create_child(const esix_ip6_addr *, const esix_ip6_addr *, uint16_t, uint16_t, uint8_t);
+int esix_find_socket(const esix_ip6_addr *, const esix_ip6_addr *, uint16_t, uint16_t, uint8_t, uint8_t);
 int esix_queue_data(int, const void *, int, struct sockaddr_in6 *, enum direction);
 struct sock_queue * esix_socket_find_e(int , enum qe_type, enum action);
 void esix_socket_init();

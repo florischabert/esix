@@ -102,11 +102,11 @@ int sendto(int sock, const void *buf, int len, uint8_t flags, const struct socka
 			(i = esix_intf_get_type_address(LINK_LOCAL)) <0)
 			return -1;
 
-		esix_udp_send(&addrs[i]->addr, (struct ip6_addr*) &to->sin6_addr, 
+		esix_udp_send(&addrs[i]->addr, (esix_ip6_addr*) &to->sin6_addr, 
 			esix_sockets[sock].lport, to->sin6_port, buf, len);
 	}
 	else
-		esix_udp_send(&esix_sockets[sock].laddr, (struct ip6_addr*) &to->sin6_addr, 
+		esix_udp_send(&esix_sockets[sock].laddr, (esix_ip6_addr*) &to->sin6_addr, 
 			esix_sockets[sock].lport, to->sin6_port, buf, len);
 
 	return 0;
@@ -121,7 +121,7 @@ int connect(int sock, const struct sockaddr_in6 *daddr, int len)
 			esix_sockets[sock].state != CLOSED)
 			return -1;
 
-		if((i=esix_intf_pick_source_address((struct ip6_addr*) daddr)) < 0)
+		if((i=esix_intf_pick_source_address((esix_ip6_addr*) daddr)) < 0)
 			return -1;
 
 		//connect() launches the tcp establishment procedure
@@ -266,7 +266,7 @@ int accept(int sock, struct sockaddr_in6 *saddr, int *sockaddr_len)
 }
 
 //creates a session socket (actually only used by TCP when accept()'ing a client connection)
-int esix_socket_create_child(const struct ip6_addr *saddr, const struct ip6_addr *daddr, uint16_t sport, uint16_t dport, uint8_t proto)
+int esix_socket_create_child(const esix_ip6_addr *saddr, const esix_ip6_addr *daddr, uint16_t sport, uint16_t dport, uint8_t proto)
 {
 	struct sock_queue *sqe, *cur_sqe;
 	//check if we're actually listening, if we are, create a new socket entry,
@@ -313,7 +313,7 @@ int esix_socket_create_child(const struct ip6_addr *saddr, const struct ip6_addr
 	return session_sock;
 }
 
-int esix_find_socket(const struct ip6_addr *saddr, const struct ip6_addr *daddr, uint16_t sport, uint16_t dport, uint8_t proto, uint8_t mask)
+int esix_find_socket(const esix_ip6_addr *saddr, const esix_ip6_addr *daddr, uint16_t sport, uint16_t dport, uint8_t proto, uint8_t mask)
 {
 	int i=0;
 	while(i<ESIX_MAX_SOCK)

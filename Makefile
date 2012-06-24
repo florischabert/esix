@@ -23,6 +23,7 @@
 SRC=$(wildcard *.c)
 OBJ=$(SRC:.c=.o)
 LIB=libesix.a
+CFLAGS=-g
 
 $(LIB): $(OBJ)
 	$(AR) rcs $(LIB) $(OBJ)

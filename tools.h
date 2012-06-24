@@ -37,6 +37,9 @@
 #define NULL ((void *) 0)
 #endif
 
+#define esix_foreach(item, array) \
+        for(item = array; item < array + sizeof(array)/sizeof(*item); item++)
+
 void esix_memcpy(void *dst, const void *src, int len);
 int esix_memcmp(const void *p1, const void *p2, int len);
 int esix_strlen(const char *s);

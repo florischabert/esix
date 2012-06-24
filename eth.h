@@ -1,6 +1,6 @@
 /**
  * @file
- * esix stack, ethernet frames handling
+ * ethernet frame processing
  *
  * @section LICENSE
  * Copyright (c) 2012, Floris Chabert. All rights reserved.
@@ -36,7 +36,9 @@
 /**
  * Ethernet address
  */
-typedef uint8_t esix_eth_addr[6];
+typedef struct {
+	uint16_t raw[3];
+} __attribute__((__packed__)) esix_eth_addr;
 
 /**
  * Compare two ethernet addresses.
@@ -45,15 +47,7 @@ typedef uint8_t esix_eth_addr[6];
  * @param  addr2 Ethernet address to compare to.
  * @return Return 1 if the addresses match, or 0.
  */
-int esix_eth_addr_match(esix_eth_addr addr1, esix_eth_addr addr2);
-
-/**
- * Copy an ethernet address.
- *
- * @param dst Destination address.
- * @param src Ethernet address to copy.
- */
-void esix_eth_addr_cpy(esix_eth_addr dst, const esix_eth_addr src);
+int esix_eth_addr_match(const esix_eth_addr addr1, const esix_eth_addr addr2);
 
 /**
  * Ethernet header 
@@ -68,27 +62,35 @@ typedef struct {
  * Ethertype values
  */
 typedef enum {
-	esix_eth_type_ipv6 = 0x86dd,
+	esix_eth_type_ip6 = 0x86dd,
 } esix_eth_type;
 
 /**
- * Process an incoming ethernet frame.
- * Do sanity checks andtpass the payload to the corresponding upper layer.
- *
- * @param bytes The actual received frame.
- * @param len   Length in bytes of the frame (including header).
+ * Upper layer handler
  */
-void esix_eth_process(void *payload, int len);
+typedef struct {
+	esix_eth_type type;
+	void (*process)(const void *payload, int len);
+} esix_eth_upper_handler;
+
+/**
+ * Process an incoming ethernet frame.
+ * Do sanity checks and pass its payload to the corresponding upper layer.
+ *
+ * @param payload The received frame.
+ * @param len     Length in bytes of the frame (including header).
+ */
+void esix_eth_process(const void *payload, int len);
 
 /**
  * Send an ethernet frame.
  * Encapsule the payload in an ethernet frame and send it.
  *
- * @param dst_addr  Destination link-layer address.
- * @param ethertype Protocol type of the payload.
- * @param payload   Pointer to the payload (the upper-layer packet).
- * @param len       Length in bytes of the payload.
+ * @param dst_addr Destination link-layer address.
+ * @param type     Protocol type of the payload.
+ * @param payload  Pointer to the payload (the upper-layer packet).
+ * @param len      Length in bytes of the payload.
  */
-void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const void *payload, const uint16_t len);
+void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const void *payload, int len);
 
 #endif

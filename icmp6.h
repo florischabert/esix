@@ -101,7 +101,7 @@ struct icmp6_option_hdr
 struct icmp6_neighbor_sol
 {
 	uint32_t reserved;
-	struct ip6_addr target_addr;
+	esix_ip6_addr target_addr;
 } __attribute__((__packed__));
 
 /**
@@ -110,7 +110,7 @@ struct icmp6_neighbor_sol
 struct icmp6_neighbor_adv
 {
 	uint32_t r_s_o_reserved;
-	struct ip6_addr target_addr;
+	esix_ip6_addr target_addr;
 } __attribute__((__packed__));
 
 /**
@@ -119,7 +119,7 @@ struct icmp6_neighbor_adv
 struct icmp6_opt_lla {
 	uint8_t type;
 	uint8_t len8;
-	esix_ll_addr lla;
+	esix_eth_addr lla;
 } __attribute__((__packed__));
 
 /**
@@ -202,34 +202,34 @@ struct icmp6_mld2_hdr {
  * MLDv2 option, mcast address record header
  */
 struct icmp6_mld2_opt_mcast_addr_record {
-	uint8_t 	record_type;
-	uint8_t	aux_data_len;
-	uint16_t	num_sources;
-	struct 	ip6_addr addr;
+	uint8_t record_type;
+	uint8_t aux_data_len;
+	uint16_t num_sources;
+	esix_ip6_addr addr;
 } __attribute__((__packed__));
 
 /**
  * MLDv2 option, source address specifier (for SSM)
  */
 struct mld2_opt_source_addr {
-	struct ip6_addr addr;
+	esix_ip6_addr addr;
 } __attribute__((__packed__));
 
-void esix_icmp_process(struct icmp6_hdr *icmp_hdr, int length, struct ip6_hdr *ip_hdr );
-void esix_icmp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, uint8_t hlimit, uint8_t type, uint8_t code, void *data, uint16_t len);
+void esix_icmp6_process(const void *payload, int length, const esix_ip6_hdr *ip_hdr );
+void esix_icmp6_send(const esix_ip6_addr *saddr, const esix_ip6_addr *daddr, uint8_t hlimit, uint8_t type, uint8_t code, void *data, uint16_t len);
 
-void esix_icmp_send_ttl_expired(const struct ip6_hdr *hdr);
-void esix_icmp_send_router_sol(uint8_t intf_index);
-void esix_icmp_send_neighbor_adv(const struct ip6_addr *, const struct ip6_addr *, int);
-void esix_icmp_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, struct ip6_hdr *hdr);
-void esix_icmp_process_router_adv(struct icmp6_router_adv *rtr_adv, int length, struct ip6_hdr *ip_hdr);
-void esix_icmp_process_echo_req(struct icmp6_echo *echo_rq, int length, struct ip6_hdr *ip_hdr);
-void esix_icmp_process_neighbor_adv(struct icmp6_neighbor_adv *, int , struct ip6_hdr *);
-void esix_icmp_send_neighbor_sol(const struct ip6_addr*, const struct ip6_addr*);
-void esix_icmp_send_router_sol(uint8_t);
-void esix_icmp_send_unreachable(const struct ip6_hdr *ip_hdr, uint8_t type);
-void esix_icmp_process_mld_query(struct icmp6_mld1_hdr *, int, struct ip6_hdr *);
-void esix_icmp_send_mld(const struct ip6_addr *, int);
-void esix_icmp_send_mld2_report(void);
+void esix_icmp6_send_ttl_expired(const esix_ip6_hdr *hdr);
+void esix_icmp6_send_router_sol(uint8_t intf_index);
+void esix_icmp6_send_neighbor_adv(const esix_ip6_addr *, const esix_ip6_addr *, int);
+void esix_icmp6_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, const esix_ip6_hdr *hdr);
+void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length, const esix_ip6_hdr *ip_hdr);
+void esix_icmp6_process_echo_req(struct icmp6_echo *echo_rq, int length, const esix_ip6_hdr *ip_hdr);
+void esix_icmp6_process_neighbor_adv(struct icmp6_neighbor_adv *, int , const esix_ip6_hdr *);
+void esix_icmp6_send_neighbor_sol(const esix_ip6_addr*, const esix_ip6_addr*);
+void esix_icmp6_send_router_sol(uint8_t);
+void esix_icmp6_send_unreachable(const esix_ip6_hdr *ip_hdr, uint8_t type);
+void esix_icmp6_process_mld_query(struct icmp6_mld1_hdr *, int, const esix_ip6_hdr *);
+void esix_icmp6_send_mld(const esix_ip6_addr *, int);
+void esix_icmp6_send_mld2_report(void);
 
 #endif

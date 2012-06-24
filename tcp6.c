@@ -33,8 +33,9 @@
 #include "include/socket.h"
 #include "socket.h"
 
-void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct ip6_hdr *ip_hdr)
+void esix_tcp_process(const void *payload, int len, const esix_ip6_hdr *ip_hdr)
 {
+	const struct tcp_hdr *t_hdr = payload;
 	int session_sock;
 
 	//do we have enough bytes to proces the header?
@@ -44,34 +45,34 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 	}
 	
 	//check the checksum
-	if(esix_ip_upper_checksum(&ip_hdr->saddr, &ip_hdr->daddr, TCP, t_hdr, len) != 0)
+	if(esix_ip6_upper_checksum(ip_hdr->src_addr, ip_hdr->dst_addr, esix_ip6_next_tcp, t_hdr, len) != 0)
 		return;
 
 	switch (t_hdr->flags)
 	{
 		case SYN:
 			//try to create a child connection. if if fails, send a RST|ACK right away.
-			if((session_sock = esix_socket_create_child(&ip_hdr->saddr, &ip_hdr->daddr, 
+			if((session_sock = esix_socket_create_child(&ip_hdr->src_addr, &ip_hdr->dst_addr, 
 				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM)) < 0)
 			{
-				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+				esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 					ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST|ACK, NULL, 0);
 				return;
 			}
 
 			esix_sockets[session_sock].state = SYN_RECEIVED;
 			esix_sockets[session_sock].ackn = ntoh32(t_hdr->seqn)+1;
-			esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+			esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 				esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, SYN|ACK, NULL, 0);
 			esix_sockets[session_sock].seqn++;
 
 		break;
 
 		case SYN|ACK:
-			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
+			if((session_sock = esix_find_socket(&ip_hdr->src_addr, &ip_hdr->dst_addr, 
 				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)
 			{
-				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+				esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 					ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST|ACK, NULL, 0);
 				return;
 			}
@@ -83,7 +84,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 					esix_sockets[session_sock].state = ESTABLISHED;
 
 				esix_sockets[session_sock].ackn = ntoh32(t_hdr->ackn)+1;
-				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+				esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 					esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
 
 			}
@@ -93,10 +94,10 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 		case ACK:
 		case PSH|ACK:
 		case CWR|PSH|ACK:
-			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
+			if((session_sock = esix_find_socket(&ip_hdr->src_addr, &ip_hdr->dst_addr, 
 				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)  
 			{
-				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+				esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 					ntoh32(t_hdr->ackn), ntoh32(t_hdr->seqn), RST|ACK, NULL, 0);
 				return;
 			}
@@ -124,7 +125,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 									len-(t_hdr->data_offset>>4)*4, NULL, IN)) <0 )
 								return;
 							esix_sockets[session_sock].ackn += len-((t_hdr->data_offset>>4)*4);
-							esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+							esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 								esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
 						}
 					break;
@@ -136,7 +137,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 			else
 			{
 				//late, retransmitted packet
-				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+				esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 					esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
 			}
 
@@ -144,10 +145,10 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 
 		case FIN:
 		case FIN|ACK:
-			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
+			if((session_sock = esix_find_socket(&ip_hdr->src_addr, &ip_hdr->dst_addr, 
 				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)
 			{
-				esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+				esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 					ntoh32(t_hdr->ackn)+1, ntoh32(t_hdr->seqn)+1, RST|ACK, NULL, 0);
 				return;
 			}
@@ -164,7 +165,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 				{
 					case SYN_RECEIVED:
 					case ESTABLISHED:
-						esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+						esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 							esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, FIN|ACK, NULL, 0);
 							esix_sockets[session_sock].seqn += 1 ;
 
@@ -172,7 +173,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 					break;
 
 					case FIN_WAIT_1:
-						esix_tcp_send(&ip_hdr->daddr, &ip_hdr->saddr, t_hdr->d_port, t_hdr->s_port,
+						esix_tcp_send(&ip_hdr->dst_addr, &ip_hdr->src_addr, t_hdr->d_port, t_hdr->s_port,
 							esix_sockets[session_sock].seqn, esix_sockets[session_sock].ackn, ACK, NULL, 0);
 
 						esix_socket_free_queue(session_sock);
@@ -187,7 +188,7 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 
 		case RST:
 		case RST|ACK:
-			if((session_sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, 
+			if((session_sock = esix_find_socket(&ip_hdr->src_addr, &ip_hdr->dst_addr, 
 				t_hdr->s_port, t_hdr->d_port, SOCK_STREAM, FIND_CONNECTED)) < 0)
 				return;
 
@@ -203,14 +204,14 @@ void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct i
 	}
 }
 
-void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint16_t s_port, const uint16_t d_port, 
+void esix_tcp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, const uint16_t s_port, const uint16_t d_port, 
 	const uint32_t seqn, const uint32_t ackn, const uint8_t flags, const void *data, const uint16_t len)
 {
 	int laddr;
 	struct tcp_hdr *hdr;
 
 	//check source address
-	if((laddr = esix_intf_check_source_addr(saddr, daddr)) < 0)
+	if((laddr = esix_intf_check_source_addr(src_addr, dst_addr)) < 0)
 		return;	
 
 	if((hdr = malloc(sizeof(struct tcp_hdr) + len)) == NULL)
@@ -227,9 +228,9 @@ void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, c
 	hdr->chksum = 0;
 	esix_memcpy(hdr + 1, data, len);
 	
-	hdr->chksum = esix_ip_upper_checksum(saddr, daddr, TCP, hdr, len + sizeof(struct tcp_hdr));
+	hdr->chksum = esix_ip6_upper_checksum(*src_addr, *dst_addr, esix_ip6_next_tcp, hdr, len + sizeof(struct tcp_hdr));
 
-	esix_ip_send(saddr, daddr, DEFAULT_TTL, TCP, hdr, len + sizeof(struct tcp_hdr));
+	esix_ip6_send(*src_addr, *dst_addr, DEFAULT_TTL, esix_ip6_next_tcp, hdr, len + sizeof(struct tcp_hdr));
 
 	free(hdr);
 }

@@ -33,8 +33,9 @@
 #include "include/socket.h"
 #include "socket.h"
 
-void esix_udp_process(const struct udp_hdr *u_hdr, int len, const struct ip6_hdr *ip_hdr)
+void esix_udp_process(const void *payload, int len, const esix_ip6_hdr *ip_hdr)
 {
+	const struct udp_hdr *u_hdr = payload;
 	int sock;
 	struct sockaddr_in6 sockaddr;
 
@@ -45,26 +46,26 @@ void esix_udp_process(const struct udp_hdr *u_hdr, int len, const struct ip6_hdr
 	}
 	
 	// check the checksum
-	if(esix_ip_upper_checksum(&ip_hdr->saddr, &ip_hdr->daddr, UDP, u_hdr, len) != 0)
+	if(esix_ip6_upper_checksum(ip_hdr->src_addr, ip_hdr->dst_addr, esix_ip6_next_udp, u_hdr, len) != 0)
 		return;
 
-	if((sock = esix_find_socket(&ip_hdr->saddr, &ip_hdr->daddr, u_hdr->s_port, u_hdr->d_port, 
-		UDP, FIND_LISTEN)) < 0)
+	if((sock = esix_find_socket(&ip_hdr->src_addr, &ip_hdr->dst_addr, u_hdr->s_port, u_hdr->d_port, 
+		esix_ip6_next_udp, FIND_LISTEN)) < 0)
 	{
 		//don't send port unreach in response to multicasts
-		if( (ip_hdr->daddr.addr1 & hton32(0xff000000)) != hton32(0xff000000))
-			esix_icmp_send_unreachable(ip_hdr, PORT_UNREACHABLE); 	
+		if( (ip_hdr->dst_addr.raw[0] & hton32(0xff000000)) != hton32(0xff000000))
+			esix_icmp6_send_unreachable(ip_hdr, PORT_UNREACHABLE); 	
 		return;
 	}
 
-	esix_memcpy(&sockaddr.sin6_addr, &ip_hdr->saddr, 16);
+	esix_memcpy(&sockaddr.sin6_addr, &ip_hdr->src_addr, 16);
 	sockaddr.sin6_port = u_hdr->s_port;
 	esix_queue_data(sock, u_hdr+1, ntoh16(u_hdr->len)-sizeof(struct udp_hdr), &sockaddr, IN);
 
 	return;
 }
 
-void esix_udp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, uint16_t s_port, uint16_t d_port, const void *data, uint16_t len)
+void esix_udp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, uint16_t s_port, uint16_t d_port, const void *data, uint16_t len)
 {
 	struct udp_hdr *hdr = malloc(sizeof(struct udp_hdr) + len);
 	if(hdr == NULL)
@@ -76,9 +77,9 @@ void esix_udp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, u
 	hdr->chksum = 0;
 	esix_memcpy(hdr + 1, data, len);
 
-	hdr->chksum = esix_ip_upper_checksum(saddr, daddr, UDP, hdr, len + sizeof(struct udp_hdr));
+	hdr->chksum = esix_ip6_upper_checksum(*src_addr, *dst_addr, esix_ip6_next_udp, hdr, len + sizeof(struct udp_hdr));
 	
-	esix_ip_send(saddr, daddr, DEFAULT_TTL, UDP, hdr, len + sizeof(struct udp_hdr));
+	esix_ip6_send(*src_addr, *dst_addr, DEFAULT_TTL, esix_ip6_next_udp, hdr, len + sizeof(struct udp_hdr));
 
 	free(hdr);
 }

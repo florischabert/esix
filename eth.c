@@ -1,6 +1,6 @@
 /**
  * @file
- * esix ipv6 stack, ip packets processing functions.
+ * ethernet frame processing
  *
  * @section LICENSE
  * Copyright (c) 2012, Floris Chabert. All rights reserved.
@@ -30,19 +30,24 @@
 #include "intf.h"
 #include "tools.h"
 
+static esix_eth_upper_handler upper_handlers[] = {
+	{ esix_eth_type_ip6, esix_ip6_process }
+};
+
 extern esix_eth_addr esix_intf_lla;
 
-static int addr_is_multicast(esix_eth_addr addr)
+static int addr_is_multicast(const esix_eth_addr addr)
 {
-	return *(uint16_t *)addr == 0x3333;
+	return addr.raw[0] == 0x3333;
 }
 
-int esix_eth_addr_match(esix_eth_addr addr1, esix_eth_addr addr2)
+int esix_eth_addr_match(const esix_eth_addr addr1, const esix_eth_addr addr2)
 {
 	int i;
 	int does_match = 1;
+
 	for (i = 0; i < 3; i++) {
-		if (*(uint16_t *)addr1 != *(uint16_t *)addr2) {
+		if (addr1.raw[i] != addr2.raw[i]) {
 			does_match = 0;
 			break;
 		}
@@ -50,32 +55,26 @@ int esix_eth_addr_match(esix_eth_addr addr1, esix_eth_addr addr2)
 	return does_match;
 }
 
-void esix_eth_addr_cpy(esix_eth_addr dst, const esix_eth_addr src)
+void esix_eth_process(const void *payload, int len)
 {
-	int i;
-	for (i = 0; i < 3; i++) {
-		*(uint16_t *)dst = *(uint16_t *)src;
-	}
-}
-
-void esix_eth_process(void *bytes, int len)
-{
-	esix_eth_hdr *hdr = bytes;
-	int for_us = 1;
-	int i;
+	const esix_eth_hdr *hdr = payload;
 
 	if (esix_eth_addr_match(hdr->dst_addr, esix_intf_lla) ||
 		addr_is_multicast(hdr->dst_addr)) {
+		esix_eth_upper_handler *handler;
 
-		if (hdr->type == esix_eth_type_ipv6) {
-			esix_ip_process(hdr + 1, len - sizeof(esix_eth_hdr));
+		esix_foreach(handler, upper_handlers) {
+			if (hdr->type == handler->type) {
+				handler->process(hdr + 1, len - sizeof(esix_eth_hdr));
+				break;
+			}
 		}
 	}
 }
 
-void esix_send_callback(void *data, int len);
+extern void (*esix_send_callback)(void *data, int len);
 
-void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const void *payload, const uint16_t len)
+void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const void *payload, int len)
 {
 	int i;
 	esix_eth_hdr *hdr;
@@ -85,12 +84,14 @@ void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const
 		return;
 	}
 
-	esix_eth_addr_cpy(hdr->dst_addr, dst_addr);
-	esix_eth_addr_cpy(hdr->src_addr, esix_intf_lla);
+	hdr->dst_addr = dst_addr;
+	hdr->src_addr = esix_intf_lla;
 	
 	hdr->type = type;
 
 	memcpy(hdr + 1, payload, len);
 
-	esix_send_callback(hdr, len + sizeof(struct ip6_hdr));
+	if (esix_send_callback) {
+		esix_send_callback(hdr, len + sizeof(esix_eth_hdr));
+	}
 }

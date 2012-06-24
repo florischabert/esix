@@ -34,7 +34,7 @@
 #include "eth.h"
 
 static uint32_t	current_time;
-void (*esix_send_callback)(void *data, int len);
+void (*esix_send_callback)(void *data, int len) = NULL;
 
 static int eth_addr_from_str(esix_eth_addr addr, char *str)
 {
@@ -53,7 +53,7 @@ static int eth_addr_from_str(esix_eth_addr addr, char *str)
 			byte +=  val << (4*(1-j));
 		}
 
-		addr[i] = byte;
+		addr.raw[i] = byte;
 	}
 	return 0;
 }
@@ -91,7 +91,7 @@ void esix_init(char *lla, void (*send_callback)())
 	esix_intf_add_default_routes(INTERFACE, 1500);
 	esix_intf_init_interface(eth_addr, INTERFACE);
 
-	esix_icmp_send_router_sol(INTERFACE);
+	esix_icmp6_send_router_sol(INTERFACE);
 }
 
 uint32_t esix_get_time()
@@ -137,7 +137,7 @@ static void esix_ip_housekeep()
 			if((neighbors[i]->expiration_date - STALE_DURATION) < current_time)
 			{
 				if((j=esix_intf_get_type_address(LINK_LOCAL)) >= 0)	
-					esix_icmp_send_neighbor_sol(&addrs[j]->addr, &neighbors[i]->addr);
+					esix_icmp6_send_neighbor_sol(&addrs[j]->addr, &neighbors[i]->addr);
 			}
 	
 			//if it hasn't been refreshed after STALE_DURATION seconds,

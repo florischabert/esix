@@ -45,14 +45,14 @@
 	struct udp_packet
 	{
 		uint16_t s_port;
-		struct ip6_addr s_addr;
+		esix_ip6_addr s_addr;
 		uint16_t	len;
 		uint8_t *data;
 		struct udp_packet *next;
 	} __attribute__((__packed__));
 	
-	void esix_udp_process(const struct udp_hdr *u_hdr, int len, const struct ip6_hdr *ip_hdr);
-	void esix_udp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint16_t s_port, 
+	void esix_udp_process(const void *payload, int len, const esix_ip6_hdr *ip_hdr);
+	void esix_udp_send(const esix_ip6_addr *saddr, const esix_ip6_addr *daddr, const uint16_t s_port, 
 		const uint16_t d_port, const void *data, const uint16_t len);
 
 #endif

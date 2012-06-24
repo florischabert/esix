@@ -27,17 +27,36 @@
  */
 
 #include "ip6.h"
+#include "udp6.h"
+#include "tcp6.h"
 #include "intf.h"
 #include "tools.h"
 #include "icmp6.h"
 
-/**
- * esix_received_frame : processes incoming packets, does sanity checks,
- * then passes the payload to the corresponding upper layer.
- */
-void esix_ip_process(void *packet, int len)
+static esix_ip6_upper_handler upper_handlers[] = {
+	{ esix_ip6_next_icmp, esix_icmp6_process },
+	{ esix_ip6_next_udp, esix_udp_process },
+	{ esix_ip6_next_tcp, esix_tcp_process }
+};
+
+ int esix_ip6_addr_match(const esix_ip6_addr addr1, const esix_ip6_addr addr2)
 {
-	struct ip6_hdr *hdr = packet;
+	int i;
+	int does_match = 1;
+
+	for (i = 0; i < 4; i++) {
+		if (addr1.raw[i] != addr2.raw[i]) {
+			does_match = 0;
+			break;
+		}
+	}
+	return does_match;
+}
+
+void esix_ip6_process(const void *payload, int len)
+{
+	const esix_ip6_hdr *hdr = payload;
+	esix_ip6_upper_handler *handler;
 	int i, pkt_for_us;
 
 	//check if we have enough data to at least read the header
@@ -57,10 +76,10 @@ void esix_ip_process(void *packet, int len)
 	{
 		//go through every entry of our address table and check word by word
 		if( (addrs[i] != NULL) &&
-			( hdr->daddr.addr1 == addrs[i]->addr.addr1 ) &&
-			( hdr->daddr.addr2 == addrs[i]->addr.addr2 ) &&
-			( hdr->daddr.addr3 == addrs[i]->addr.addr3 ) &&
-			( hdr->daddr.addr4 == addrs[i]->addr.addr4 ))
+			( hdr->dst_addr.raw[0] == addrs[i]->addr.raw[0] ) &&
+			( hdr->dst_addr.raw[1] == addrs[i]->addr.raw[1] ) &&
+			( hdr->dst_addr.raw[2] == addrs[i]->addr.raw[2] ) &&
+			( hdr->dst_addr.raw[3] == addrs[i]->addr.raw[3] ))
 		{
 			pkt_for_us = 1;
 			break;
@@ -74,96 +93,47 @@ void esix_ip_process(void *packet, int len)
 	//check the hop limit value (should be > 0)
 	if(hdr->hlimit == 0)
 	{
-		esix_icmp_send_ttl_expired(hdr);
+		esix_icmp6_send_ttl_expired(hdr);
 		return;
 	}
 
-	//determine what to do next
-	switch(hdr->next_header)
-	{
-		case ICMP:		
-			esix_icmp_process((struct icmp6_hdr *) (hdr + 1), 
-				ntoh16(hdr->payload_len), hdr);
+	esix_foreach(handler, upper_handlers) {
+		if (hdr->next_header == handler->next) {
+			handler->process((void *) (hdr + 1), ntoh16(hdr->payload_len), hdr);
 			break;
-
-		case UDP:
-			esix_udp_process((struct udp_hdr *) (hdr + 1),
-				ntoh16(hdr->payload_len), hdr);	
-			break;
-		
-		case TCP:
-			esix_tcp_process((struct tcp_hdr *) (hdr + 1),
-				ntoh16(hdr->payload_len), hdr);
-			break;
-			
-		//unknown (unimplemented) IP type
-		default:
-			;
+		}
 	}
+
 }
 
-/*
- * Compute upper-level checksum
- */
-uint16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint8_t proto, const void *payload, uint16_t len)
+void esix_ip6_send(const esix_ip6_addr src_addr, const esix_ip6_addr dst_addr, uint8_t hlimit, esix_ip6_next next, const void *payload, int len)
 {
-	uint32_t sum = 0;
-	uint16_t const *data;
-	
-	// IPv6 pseudo-header sum : saddr, daddr, type and payload lenght
-	for(data = (uint16_t *) saddr; data < (uint16_t *) (saddr+1); data++)
-		sum += *data;
-	for(data = (uint16_t *) daddr; data < (uint16_t *) (daddr+1); data++)
-		sum += *data;
-	sum += hton16(len);
-	sum += hton16(proto);
-
-	// payload sum
-	for(data = payload; len > 1; len -= 2)
-		sum += *data++;
-	if(len)
-		sum += *((uint8_t *) data);
-
-	while(sum >> 16)
-		sum = (sum & 0xffff) + (sum >> 16);
-	
-	return (uint16_t) ~sum;
-}
-
-/*
- * Send an IPv6 packet.
- * Note that we're not freeing the buffer carrying the payload here, it's up to the upper layer to decide
- * when to do it. Non-retransmitting procotols like UDP or ICMP will typically do it ASAP, but TCP might
- * want to keep it while waiting for an ACK. 
- */
-void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint8_t hlimit, const uint8_t type, const void *data, const uint16_t len)
-{
-	struct ip6_hdr *hdr;
+	esix_ip6_hdr *hdr;
 	int i, route_index, dest_onlink;
-	esix_ll_addr lla;
+	esix_eth_addr lla;
 	
-	hdr = malloc(sizeof(struct ip6_hdr) + len);
+	hdr = malloc(sizeof(esix_ip6_hdr) + len);
 	//hmmm... I smell gas...
 	if(hdr == NULL)
 		return;
 	
 	hdr->ver_tc_flowlabel = hton32(6 << 28);
 	hdr->payload_len = hton16(len);
-	hdr->next_header = type;
+	hdr->next_header = next;
 	hdr->hlimit = hlimit;
-	hdr->saddr = *saddr;
-	hdr->daddr = *daddr;
-	esix_memcpy(hdr + 1, data, len);
+	hdr->src_addr = src_addr;
+	hdr->dst_addr = dst_addr;
+	esix_memcpy(hdr + 1, payload, len);
 
 	route_index = -1;
 	//routing
 	for(i=0; i < 4; i++)
 	{		
 		if(	(routes[i] != NULL ) &&
-			((daddr->addr1 & routes[i]->mask.addr1) == routes[i]->addr.addr1) &&
-			((daddr->addr2 & routes[i]->mask.addr2) == routes[i]->addr.addr2) &&
-			((daddr->addr3 & routes[i]->mask.addr3) == routes[i]->addr.addr3) &&
-			((daddr->addr4 & routes[i]->mask.addr4) == routes[i]->addr.addr4))
+			((dst_addr.raw[0] & routes[i]->mask.raw[0]) == routes[i]->addr.raw[0]) &&
+			((dst_addr.raw[1] & routes[i]->mask.raw[1]) == routes[i]->addr.raw[1]) &&
+			((dst_addr.raw[2] & routes[i]->mask.raw[2]) == routes[i]->addr.raw[2]) &&
+			((dst_addr.raw[3] & routes[i]->mask.raw[3]) == routes[i]->addr.raw[3]))
 		{
 			route_index = i;
 			break;
@@ -178,27 +148,27 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 	}
 
 	// try to find our next hop lla
-	if(routes[route_index]->next_hop.addr1 == 0 && routes[route_index]->next_hop.addr2 == 0 &&
-		routes[route_index]->next_hop.addr3 == 0 && routes[route_index]->next_hop.addr4 == 0)
+	if(routes[route_index]->next_hop.raw[0] == 0 && routes[route_index]->next_hop.raw[1] == 0 &&
+		routes[route_index]->next_hop.raw[2] == 0 && routes[route_index]->next_hop.raw[3] == 0)
 	{
 		//onlink route (next hop is destination addr)
 		dest_onlink	= 1;
 
 		//if we're sending to a multicast address, don't try to look up a lla,
 		//we can compute it
-		if(	(daddr->addr1 & hton32(0xff000000)) == hton32(0xff000000))
+		if(	(dst_addr.raw[0] & hton32(0xff000000)) == hton32(0xff000000))
 		{
-			lla[0]	=	0x3333;
-			lla[1]	=	(uint16_t) daddr->addr4;
-			lla[2]	= 	(uint16_t) (daddr->addr4 >> 16);
+			lla.raw[0]	=	0x3333;
+			lla.raw[1]	=	(uint16_t) dst_addr.raw[3];
+			lla.raw[2]	= 	(uint16_t) (dst_addr.raw[3] >> 16);
 
-			esix_eth_send((uint8_t *)lla, esix_eth_type_ipv6, hdr, len + sizeof(struct ip6_hdr));
+			esix_eth_send(lla, esix_eth_type_ip6, hdr, len + sizeof(esix_ip6_hdr));
 
 			return;
 		}
 		else
 			//it must be unicast, use the neighbor table.
-			i = esix_intf_get_neighbor_index(daddr, INTERFACE);
+			i = esix_intf_get_neighbor_index(&dst_addr, INTERFACE);
 	}
 	else
 	{
@@ -214,7 +184,7 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 			neighbors[i]->flags.status == ND_STALE)
 		{
 			//packet leaves here.
-			esix_eth_send((uint8_t *)neighbors[i]->lla, esix_eth_type_ipv6, hdr, len + sizeof(struct ip6_hdr));
+			esix_eth_send(neighbors[i]->lla, esix_eth_type_ip6, hdr, len + sizeof(esix_ip6_hdr));
 		}
 		else
 		{
@@ -228,11 +198,38 @@ void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, co
 		if((i=esix_intf_get_type_address(LINK_LOCAL)) >= 0)
 		{
 			if(dest_onlink)
-				esix_icmp_send_neighbor_sol(&addrs[i]->addr, daddr);
+				esix_icmp6_send_neighbor_sol(&addrs[i]->addr, &dst_addr);
 			else
-				esix_icmp_send_neighbor_sol(&addrs[i]->addr, &routes[route_index]->next_hop);
+				esix_icmp6_send_neighbor_sol(&addrs[i]->addr, &routes[route_index]->next_hop);
 		}
 		free(hdr);
 	}
 	return;
+}
+
+uint16_t esix_ip6_upper_checksum(const esix_ip6_addr src_addr, const esix_ip6_addr dst_addr, esix_ip6_next next, const void *payload, int len)
+{
+	uint32_t sum = 0;
+	uint16_t const *data;
+	uint16_t *src_addr16 = (uint16_t *)src_addr.raw;
+	uint16_t *dst_addr16 = (uint16_t *)dst_addr.raw;
+
+	// IPv6 pseudo-header sum : src_addr, dst_addr, type and payload lenght
+	for(data = src_addr16; data < src_addr16+1; data++)
+		sum += *data;
+	for(data = dst_addr16; data < dst_addr16+1; data++)
+		sum += *data;
+	sum += hton16(len);
+	sum += hton16(next);
+
+	// payload sum
+	for(data = payload; len > 1; len -= 2)
+		sum += *data++;
+	if(len)
+		sum += *((uint8_t *) data);
+
+	while(sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+	
+	return (uint16_t) ~sum;
 }

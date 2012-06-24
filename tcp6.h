@@ -60,8 +60,8 @@
 		struct udp_packet *next;
 	} __attribute__((__packed__));
 
-	void esix_tcp_process(const struct tcp_hdr *t_hdr, const int len, const struct ip6_hdr *ip_hdr);
-	void esix_tcp_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint16_t s_port, 
+	void esix_tcp_process(const void *payload, int len, const esix_ip6_hdr *ip_hdr);
+	void esix_tcp_send(const esix_ip6_addr *saddr, const esix_ip6_addr *daddr, const uint16_t s_port, 
 		const uint16_t d_port, const uint32_t	seqn, const uint32_t ackn, const uint8_t flags, const void *data, const uint16_t len);
 		
 #endif

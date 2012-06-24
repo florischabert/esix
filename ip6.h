@@ -33,15 +33,6 @@
 #include "config.h"
 #include "include/esix.h"
 
-//list of IP protocol numbers (some are IPv6-specific)
-#define HOPOPT   0x00
-#define ICMP     0x3A
-#define NONXT    0x3B
-#define TCP      0x06
-#define UDP      0x11
-#define FRAG     0x2C
-#define ANY_MASK 0xff
-
 //ip address type
 enum type
 {
@@ -55,28 +46,84 @@ enum type
 /**
  * IPv6 address
  */
-struct ip6_addr {
-	uint32_t	addr1;
-	uint32_t	addr2;
-	uint32_t	addr3;
-	uint32_t	addr4;
-} __attribute__((__packed__));
+ typedef struct {
+	uint32_t raw[4];
+} __attribute__((__packed__)) esix_ip6_addr;
+
+/**
+ * Compare two ipv6 addresses.
+ *
+ * @param  addr1 IPv6 address.
+ * @param  addr2 IPv6 address to compare to.
+ * @return Return 1 if the addresses match, or 0.
+ */
+int esix_ip6_addr_match(const esix_ip6_addr addr1, const esix_ip6_addr addr2);
 
 /**
  * IPv6 header 
  */
-struct ip6_hdr {
-	uint32_t 	ver_tc_flowlabel; //version (4bits), trafic class (8 bits), flow label (20 bytes)		
-	uint16_t 	payload_len;	//payload length (next headers + upper protocols)
-	uint8_t  	next_header;	//next header type
-	uint8_t  	hlimit; 	//hop limit
-	struct ip6_addr saddr;		//first word of source address
-	struct ip6_addr daddr;		//first word of destination address
-	// IPv6 data;
-} __attribute__((__packed__));
+typedef struct {
+	uint32_t ver_tc_flowlabel; //version (4bits), trafic class (8 bits), flow label (20 bytes)		
+	uint16_t payload_len;
+	uint8_t next_header;
+	uint8_t hlimit;
+	esix_ip6_addr src_addr;
+	esix_ip6_addr dst_addr;
+} __attribute__((__packed__)) esix_ip6_hdr;
 
-void esix_ip_process(void *, int);
-void esix_ip_send(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint8_t hlimit, const uint8_t type, const void *data, const uint16_t len);
-uint16_t esix_ip_upper_checksum(const struct ip6_addr *saddr, const struct ip6_addr *daddr, const uint8_t proto, const void *data, uint16_t len);
+/**
+ * Next header type
+ */
+typedef enum {
+	esix_ip6_next_tcp = 0x06,
+	esix_ip6_next_udp = 0x11,
+	esix_ip6_next_icmp = 0x3a,
+} esix_ip6_next;
+
+/**
+ * Upper layer handler
+ */
+typedef struct {
+	esix_ip6_next next;
+	void (*process)(const void *payload, int len, const esix_ip6_hdr *ip_hdr );
+} esix_ip6_upper_handler;
+
+/**
+ * Process an incoming ipv6 packet.
+ * Do sanity checks and pass its payload to the corresponding upper layer.
+ *
+ * @param payload The received packet.
+ * @param len     Length in bytes of the packet.
+ */
+void esix_ip6_process(const void *payload, int len);
+
+/**
+ * Send an ethernet frame.
+ * Encapsule the payload in an ethernet frame and send it.
+ *
+ * Note: we're not freeing the buffer carrying the payload here, it's up to the upper layer to decide
+ * when to do it. Non-retransmitting procotols like UDP or ICMP will typically do it ASAP, but TCP might
+ * want to keep it while waiting for an ACK.
+ *
+ * @param src_addr  Source ipv6 address.
+ * @param dst_addr  Destination lipv6 address.
+ * @param hlimit    Hop limit.
+ * @param next      Next header type.
+ * @param payload   Pointer to the payload (the upper-layer packet).
+ * @param len       Length in bytes of the payload.
+ */
+void esix_ip6_send(const esix_ip6_addr src_addr, const esix_ip6_addr dst_addr, uint8_t hlimit, esix_ip6_next next, const void *payload, int len);
+
+/**
+ * Compute the upper-level checksum
+ *
+ * @param src_addr  Source ipv6 address.
+ * @param dst_addr  Destination lipv6 address.
+ * @param next      Next header type.
+ * @param payload   Pointer to the payload (the upper-layer packet).
+ * @param len       Length in bytes of the payload.
+ * @return          16-bits checksum.
+ */
+uint16_t esix_ip6_upper_checksum(const esix_ip6_addr src_addr, const esix_ip6_addr dst_addr, esix_ip6_next next, const void *payload, int len);
 
 #endif

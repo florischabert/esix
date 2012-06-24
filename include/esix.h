@@ -44,7 +44,7 @@ void esix_init(char *lla, void (*send_callback)(void *data, int len));
  * @param packet is a pointer to the packet.
  * @param len is the packet size.
  */
-void esix_eth_process(void *packet, int len);
+void esix_eth_process(const void *payload, int len);
 
 /*
  * ipv6 stack clock signal.
