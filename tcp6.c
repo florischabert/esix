@@ -45,7 +45,7 @@ void esix_tcp_process(const void *payload, int len, const esix_ip6_hdr *ip_hdr)
 	}
 	
 	//check the checksum
-	if(esix_ip6_upper_checksum(ip_hdr->src_addr, ip_hdr->dst_addr, esix_ip6_next_tcp, t_hdr, len) != 0)
+	if(esix_ip6_upper_checksum(&ip_hdr->src_addr, &ip_hdr->dst_addr, esix_ip6_next_tcp, t_hdr, len) != 0)
 		return;
 
 	switch (t_hdr->flags)
@@ -207,11 +207,11 @@ void esix_tcp_process(const void *payload, int len, const esix_ip6_hdr *ip_hdr)
 void esix_tcp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, const uint16_t s_port, const uint16_t d_port, 
 	const uint32_t seqn, const uint32_t ackn, const uint8_t flags, const void *data, const uint16_t len)
 {
-	int laddr;
 	struct tcp_hdr *hdr;
+	esix_ip6_addr saddr = *src_addr;
 
 	//check source address
-	if((laddr = esix_intf_check_source_addr(src_addr, dst_addr)) < 0)
+	if(esix_intf_check_source_addr(&saddr, dst_addr) < 0)
 		return;	
 
 	if((hdr = malloc(sizeof(struct tcp_hdr) + len)) == NULL)
@@ -228,9 +228,9 @@ void esix_tcp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 	hdr->chksum = 0;
 	esix_memcpy(hdr + 1, data, len);
 	
-	hdr->chksum = esix_ip6_upper_checksum(*src_addr, *dst_addr, esix_ip6_next_tcp, hdr, len + sizeof(struct tcp_hdr));
+	hdr->chksum = esix_ip6_upper_checksum(&saddr, dst_addr, esix_ip6_next_tcp, hdr, len + sizeof(struct tcp_hdr));
 
-	esix_ip6_send(*src_addr, *dst_addr, DEFAULT_TTL, esix_ip6_next_tcp, hdr, len + sizeof(struct tcp_hdr));
+	esix_ip6_send(&saddr, dst_addr, DEFAULT_TTL, esix_ip6_next_tcp, hdr, len + sizeof(struct tcp_hdr));
 
 	free(hdr);
 }

@@ -30,7 +30,10 @@
 #define _ESIX_H
 
 #include "config.h"
+#include "tools.h"
 
 uint32_t esix_get_time();
+
+extern void (*esix_send_callback)(void *data, int len);
 
 #endif

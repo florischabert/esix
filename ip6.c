@@ -33,19 +33,38 @@
 #include "tools.h"
 #include "icmp6.h"
 
-static esix_ip6_upper_handler upper_handlers[] = {
+static esix_ip6_upper_handler ip6_upper_handlers[] = {
 	{ esix_ip6_next_icmp, esix_icmp6_process },
 	{ esix_ip6_next_udp, esix_udp_process },
 	{ esix_ip6_next_tcp, esix_tcp_process }
 };
 
- int esix_ip6_addr_match(const esix_ip6_addr addr1, const esix_ip6_addr addr2)
+static esix_ip6_addr ip6_addr_null = {{ 0, 0, 0, 0 }};
+static esix_ip6_addr ip6_addr_unmasked = {{ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff }};
+
+static int ip6_addr_is_multicast(const esix_ip6_addr *addr)
+{
+	return addr->raw[0] == 0xff000000;
+}
+
+static esix_ip6_addr ip6_addr_ntoh(const esix_ip6_addr *addr)
+{
+	esix_ip6_addr haddr;
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		haddr.raw[i] = ntoh16(addr->raw[i]);
+	}
+	return haddr;
+}
+
+int esix_ip6_addr_match_with_mask(const esix_ip6_addr *addr1, const esix_ip6_addr *mask, const esix_ip6_addr *addr2)
 {
 	int i;
 	int does_match = 1;
 
 	for (i = 0; i < 4; i++) {
-		if (addr1.raw[i] != addr2.raw[i]) {
+		if ((addr1->raw[i] & mask->raw[i]) != addr2->raw[i]) {
 			does_match = 0;
 			break;
 		}
@@ -53,183 +72,191 @@ static esix_ip6_upper_handler upper_handlers[] = {
 	return does_match;
 }
 
-void esix_ip6_process(const void *payload, int len)
+int esix_ip6_addr_match(const esix_ip6_addr *addr1, const esix_ip6_addr *addr2)
 {
-	const esix_ip6_hdr *hdr = payload;
+	return esix_ip6_addr_match_with_mask(addr1, &ip6_addr_unmasked, addr2);
+}
+
+static esix_eth_addr ip6_addr_to_eth_multicast(const esix_ip6_addr *addr)
+{
+	esix_eth_addr lla = {{
+		0x3333,
+		(uint16_t) addr->raw[3],
+		(uint16_t) (addr->raw[3] >> 16)
+	}};
+	return lla;
+}
+
+static int ip6_hdr_get_version(uint32_t ver_tc_flowlabel)
+{
+	return ver_tc_flowlabel >> 28;
+}
+
+static uint32_t ip6_hdr_set_version(int version)
+{
+	return version << 28;
+}
+
+static void ip6_forward_payload(const esix_ip6_next next, const void *payload, int len, const esix_ip6_hdr *hdr)
+{
 	esix_ip6_upper_handler *handler;
-	int i, pkt_for_us;
 
-	//check if we have enough data to at least read the header
-	//and if we actually have an IPv6 packet
-	if((len < 40)  || 
-		((hdr->ver_tc_flowlabel&hton32(0xf0000000)) !=  hton32(0x06 << 28)))
-		return; 
-
-	//now check if the ethernet frame is long enough to carry the entire ipv6 packet
-	if(len < (ntoh16(hdr->payload_len) + 40))
-		return;
-
-	//check if the packet belongs to us
-	pkt_for_us = 0;
-
-	for(i=0; i<ESIX_MAX_IPADDR;i++)
-	{
-		//go through every entry of our address table and check word by word
-		if( (addrs[i] != NULL) &&
-			( hdr->dst_addr.raw[0] == addrs[i]->addr.raw[0] ) &&
-			( hdr->dst_addr.raw[1] == addrs[i]->addr.raw[1] ) &&
-			( hdr->dst_addr.raw[2] == addrs[i]->addr.raw[2] ) &&
-			( hdr->dst_addr.raw[3] == addrs[i]->addr.raw[3] ))
-		{
-			pkt_for_us = 1;
+	esix_foreach(handler, ip6_upper_handlers) {
+		if (next == handler->next) {
+			handler->process(payload, len, hdr);
 			break;
 		}
 	}
+}
 
-	//drop the packet in case it doesn't belong to us
-	if(pkt_for_us==0)
+void esix_ip6_process(const void *payload, int len)
+{
+	const esix_ip6_hdr *hdr = payload;
+	struct esix_ipaddr_table_row **addr_row;
+
+	if (len < sizeof(esix_ip6_hdr)) {
 		return;
-	
-	//check the hop limit value (should be > 0)
-	if(hdr->hlimit == 0)
-	{
+	}
+
+	if (ip6_hdr_get_version(ntoh32(hdr->ver_tc_flowlabel)) != 6) {
+		return; 
+	}
+
+	if (hdr->hlimit == 0) {
 		esix_icmp6_send_ttl_expired(hdr);
 		return;
 	}
 
-	esix_foreach(handler, upper_handlers) {
-		if (hdr->next_header == handler->next) {
-			handler->process((void *) (hdr + 1), ntoh16(hdr->payload_len), hdr);
+	if (len != ntoh16(hdr->payload_len) + sizeof(esix_ip6_hdr)) {
+		return;
+	}
+
+	esix_foreach(addr_row, addrs) {
+		if (*addr_row && esix_ip6_addr_match(&hdr->dst_addr, &(*addr_row)->addr)) {
+			ip6_forward_payload(hdr->next_header, hdr + 1, ntoh16(hdr->payload_len), hdr);
 			break;
 		}
 	}
-
 }
 
-void esix_ip6_send(const esix_ip6_addr src_addr, const esix_ip6_addr dst_addr, uint8_t hlimit, esix_ip6_next next, const void *payload, int len)
+static int ip6_next_hop_is_destination(struct esix_route_table_row *route) {
+	return esix_ip6_addr_match(&route->next_hop, &ip6_addr_null);
+}
+
+static struct esix_route_table_row *ip6_get_route(const esix_ip6_addr *dst_addr)
+{
+	struct esix_route_table_row *matched_route = NULL;
+	struct esix_route_table_row **route;
+
+	esix_foreach(route, routes) {		
+		if (*route && esix_ip6_addr_match_with_mask(dst_addr, &(*route)->mask, &(*route)->addr)) {
+			matched_route = *route;
+			break;
+		}
+	}
+	return matched_route;
+} 
+
+void esix_ip6_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, const uint8_t hlimit, const esix_ip6_next next, const void *payload, int len)
 {
 	esix_ip6_hdr *hdr;
-	int i, route_index, dest_onlink;
-	esix_eth_addr lla;
+	int i = -1;
+	int dest_onlink;
+	struct esix_route_table_row *route = NULL;
 	
 	hdr = malloc(sizeof(esix_ip6_hdr) + len);
-	//hmmm... I smell gas...
-	if(hdr == NULL)
+	if (!hdr) {
 		return;
+	}
 	
-	hdr->ver_tc_flowlabel = hton32(6 << 28);
+	hdr->ver_tc_flowlabel = hton32(ip6_hdr_set_version(6));
 	hdr->payload_len = hton16(len);
 	hdr->next_header = next;
 	hdr->hlimit = hlimit;
-	hdr->src_addr = src_addr;
-	hdr->dst_addr = dst_addr;
+	hdr->src_addr = ip6_addr_ntoh(src_addr);
+	hdr->dst_addr = ip6_addr_ntoh(dst_addr);
 	esix_memcpy(hdr + 1, payload, len);
 
-	route_index = -1;
-	//routing
-	for(i=0; i < 4; i++)
-	{		
-		if(	(routes[i] != NULL ) &&
-			((dst_addr.raw[0] & routes[i]->mask.raw[0]) == routes[i]->addr.raw[0]) &&
-			((dst_addr.raw[1] & routes[i]->mask.raw[1]) == routes[i]->addr.raw[1]) &&
-			((dst_addr.raw[2] & routes[i]->mask.raw[2]) == routes[i]->addr.raw[2]) &&
-			((dst_addr.raw[3] & routes[i]->mask.raw[3]) == routes[i]->addr.raw[3]))
-		{
-			route_index = i;
-			break;
-		}
-	}
-
-	//sorry dude, we didn't find any matching route...
-	if(route_index < 0)
-	{
+	route = ip6_get_route(dst_addr);
+	if (!route) {
 		free(hdr);
 		return;
 	}
 
-	// try to find our next hop lla
-	if(routes[route_index]->next_hop.raw[0] == 0 && routes[route_index]->next_hop.raw[1] == 0 &&
-		routes[route_index]->next_hop.raw[2] == 0 && routes[route_index]->next_hop.raw[3] == 0)
-	{
-		//onlink route (next hop is destination addr)
+	if (ip6_next_hop_is_destination(route)) {
 		dest_onlink	= 1;
 
-		//if we're sending to a multicast address, don't try to look up a lla,
-		//we can compute it
-		if(	(dst_addr.raw[0] & hton32(0xff000000)) == hton32(0xff000000))
-		{
-			lla.raw[0]	=	0x3333;
-			lla.raw[1]	=	(uint16_t) dst_addr.raw[3];
-			lla.raw[2]	= 	(uint16_t) (dst_addr.raw[3] >> 16);
-
-			esix_eth_send(lla, esix_eth_type_ip6, hdr, len + sizeof(esix_ip6_hdr));
-
+		if (ip6_addr_is_multicast(dst_addr)) {
+			esix_eth_addr lla = ip6_addr_to_eth_multicast(dst_addr);
+			esix_eth_send(&lla, esix_eth_type_ip6, hdr, len + sizeof(esix_ip6_hdr));
 			return;
 		}
-		else
+		else {
 			//it must be unicast, use the neighbor table.
-			i = esix_intf_get_neighbor_index(&dst_addr, INTERFACE);
+			i = esix_intf_get_neighbor_index(dst_addr, INTERFACE);
+		}
 	}
-	else
-	{
+	else {
 		//use a router
 		dest_onlink	= 0;
-		i = esix_intf_get_neighbor_index(&routes[route_index]->next_hop, INTERFACE);
+		i = esix_intf_get_neighbor_index(&route->next_hop, INTERFACE);
 	}
 
-	if(i >= 0) 
-	{
+	if (i >= 0) {
 		//is it reachable?
-		if(neighbors[i]->flags.status == ND_REACHABLE ||
-			neighbors[i]->flags.status == ND_STALE)
-		{
+		if (neighbors[i]->flags.status == ND_REACHABLE ||
+			neighbors[i]->flags.status == ND_STALE) {
 			//packet leaves here.
-			esix_eth_send(neighbors[i]->lla, esix_eth_type_ip6, hdr, len + sizeof(esix_ip6_hdr));
+			esix_eth_send(&neighbors[i]->lla, esix_eth_type_ip6, hdr, len + sizeof(esix_ip6_hdr));
 		}
-		else
-		{
+		else {
 			free(hdr);
 			return;
 		}
 	}
-	else
-	{
+	else {
 		// we have to send a neighbor solicitation
-		if((i=esix_intf_get_type_address(LINK_LOCAL)) >= 0)
-		{
-			if(dest_onlink)
-				esix_icmp6_send_neighbor_sol(&addrs[i]->addr, &dst_addr);
-			else
-				esix_icmp6_send_neighbor_sol(&addrs[i]->addr, &routes[route_index]->next_hop);
+		if ((i=esix_intf_get_type_address(LINK_LOCAL)) >= 0) {
+			if (dest_onlink) {
+				esix_icmp6_send_neighbor_sol(&addrs[i]->addr, dst_addr);
+			}
+			else {
+				esix_icmp6_send_neighbor_sol(&addrs[i]->addr, &route->next_hop);
+			}
 		}
 		free(hdr);
 	}
 	return;
 }
 
-uint16_t esix_ip6_upper_checksum(const esix_ip6_addr src_addr, const esix_ip6_addr dst_addr, esix_ip6_next next, const void *payload, int len)
+uint16_t esix_ip6_upper_checksum(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, const esix_ip6_next next, const void *payload, int len)
 {
 	uint32_t sum = 0;
 	uint16_t const *data;
-	uint16_t *src_addr16 = (uint16_t *)src_addr.raw;
-	uint16_t *dst_addr16 = (uint16_t *)dst_addr.raw;
+	uint16_t *src_addr16 = (uint16_t *)src_addr->raw;
+	uint16_t *dst_addr16 = (uint16_t *)dst_addr->raw;
 
-	// IPv6 pseudo-header sum : src_addr, dst_addr, type and payload lenght
-	for(data = src_addr16; data < src_addr16+1; data++)
+	// IPv6 pseudo-header sum : src_addr, dst_addr, type and payload length
+	for (data = src_addr16; data < src_addr16+1; data++) {
 		sum += *data;
-	for(data = dst_addr16; data < dst_addr16+1; data++)
+	}
+	for (data = dst_addr16; data < dst_addr16+1; data++) {
 		sum += *data;
+	}
 	sum += hton16(len);
 	sum += hton16(next);
 
 	// payload sum
-	for(data = payload; len > 1; len -= 2)
+	for (data = payload; len > 1; len -= 2) {
 		sum += *data++;
-	if(len)
+	}
+	if (len) {
 		sum += *((uint8_t *) data);
+	}
 
-	while(sum >> 16)
+	while(sum >> 16) {
 		sum = (sum & 0xffff) + (sum >> 16);
+	}
 	
 	return (uint16_t) ~sum;
 }

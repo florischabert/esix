@@ -26,28 +26,27 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "esix.h"
 #include "eth.h"
 #include "intf.h"
 #include "tools.h"
 
-static esix_eth_upper_handler upper_handlers[] = {
+static esix_eth_upper_handler eth_upper_handlers[] = {
 	{ esix_eth_type_ip6, esix_ip6_process }
 };
 
-extern esix_eth_addr esix_intf_lla;
-
-static int addr_is_multicast(const esix_eth_addr addr)
+static int eth_addr_is_multicast(const esix_eth_addr *addr)
 {
-	return addr.raw[0] == 0x3333;
+	return addr->raw[0] == 0x3333;
 }
 
-int esix_eth_addr_match(const esix_eth_addr addr1, const esix_eth_addr addr2)
+int esix_eth_addr_match(const esix_eth_addr *addr1, const esix_eth_addr *addr2)
 {
 	int i;
 	int does_match = 1;
 
 	for (i = 0; i < 3; i++) {
-		if (addr1.raw[i] != addr2.raw[i]) {
+		if (addr1->raw[i] != addr2->raw[i]) {
 			does_match = 0;
 			break;
 		}
@@ -55,15 +54,27 @@ int esix_eth_addr_match(const esix_eth_addr addr1, const esix_eth_addr addr2)
 	return does_match;
 }
 
-static esix_eth_addr eth_addr_ntoh(const esix_eth_addr addr)
+static esix_eth_addr eth_addr_ntoh(const esix_eth_addr *addr)
 {
 	esix_eth_addr haddr;
 	int i;
 
 	for (i = 0; i < 3; i++) {
-		haddr.raw[0] = ntoh16(addr.raw[0]);
+		haddr.raw[i] = ntoh16(addr->raw[i]);
 	}
 	return haddr;
+}
+
+static void eth_forward_payload(const esix_eth_type type, const void *payload, int len)
+{
+	esix_eth_upper_handler *handler;
+
+	esix_foreach(handler, eth_upper_handlers) {
+		if (type == handler->type) {
+			handler->process(payload, len);
+			break;
+		}
+	}
 }
 
 void esix_eth_process(const void *payload, int len)
@@ -71,24 +82,16 @@ void esix_eth_process(const void *payload, int len)
 	const esix_eth_hdr *hdr = payload;
 	esix_eth_addr dst_addr;
 
-	dst_addr = eth_addr_ntoh(hdr->dst_addr);
+	dst_addr = eth_addr_ntoh(&hdr->dst_addr);
 
-	if (esix_eth_addr_match(dst_addr, esix_intf_lla) ||
-		addr_is_multicast(dst_addr)) {
-		esix_eth_upper_handler *handler;
+	if (esix_eth_addr_match(&dst_addr, esix_intf_lla()) ||
+		eth_addr_is_multicast(&dst_addr)) {
 
-		esix_foreach(handler, upper_handlers) {
-			if (ntoh16(hdr->type) == handler->type) {
-				handler->process(hdr + 1, len - sizeof(esix_eth_hdr));
-				break;
-			}
-		}
+		eth_forward_payload(ntoh16(hdr->type), hdr + 1, len - sizeof(esix_eth_hdr));
 	}
 }
 
-extern void (*esix_send_callback)(void *data, int len);
-
-void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const void *payload, int len)
+void esix_eth_send(const esix_eth_addr *dst_addr, const esix_eth_type type, const void *payload, int len)
 {
 	int i;
 	esix_eth_hdr *hdr;
@@ -99,7 +102,7 @@ void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const
 	}
 
 	hdr->dst_addr = eth_addr_ntoh(dst_addr);
-	hdr->src_addr = eth_addr_ntoh(esix_intf_lla);
+	hdr->src_addr = eth_addr_ntoh(esix_intf_lla());
 	
 	hdr->type = hton16(type);
 

@@ -42,9 +42,9 @@ void esix_icmp6_process(const void *payload, int length, const esix_ip6_hdr *ip_
 		return;
 
 	// check the checksum
-	if(esix_ip6_upper_checksum(ip_hdr->src_addr, ip_hdr->dst_addr, esix_ip6_next_icmp, icmp_hdr, length) != 0)
+	if(esix_ip6_upper_checksum(&ip_hdr->src_addr, &ip_hdr->dst_addr, esix_ip6_next_icmp, icmp_hdr, length) != 0)
 		return;
-		
+
 	//determine what to do next
 	switch(icmp_hdr->type)
 	{
@@ -108,9 +108,9 @@ void esix_icmp6_send(const esix_ip6_addr *_src_addr, const esix_ip6_addr *dst_ad
 		return;
 	}
 	
-	hdr->chksum = esix_ip6_upper_checksum(src_addr, *dst_addr, esix_ip6_next_icmp, hdr, len + sizeof(struct icmp6_hdr));
+	hdr->chksum = esix_ip6_upper_checksum(&src_addr, dst_addr, esix_ip6_next_icmp, hdr, len + sizeof(struct icmp6_hdr));
 	
-	esix_ip6_send(src_addr, *dst_addr, hlimit, esix_ip6_next_icmp, hdr, len + sizeof(struct icmp6_hdr));
+	esix_ip6_send(&src_addr, dst_addr, hlimit, esix_ip6_next_icmp, hdr, len + sizeof(struct icmp6_hdr));
 
 	free(hdr);
 	
@@ -171,11 +171,12 @@ void esix_icmp6_send_unreachable(const esix_ip6_hdr *ip_hdr, uint8_t type)
 void esix_icmp6_send_router_sol(uint8_t intf_index)
 {
 	int i;
-	esix_ip6_addr dest;
-	dest.raw[0] = hton32(0xff020000);
-	dest.raw[1] = hton32(0x00000000);
-	dest.raw[2] = hton32(0x00000000);
-	dest.raw[3] = hton32(0x00000002);
+	esix_ip6_addr dest = {{
+		0xff020000,
+		0x00000000,
+		0x00000000,
+		0x00000002
+	}};
 	
 	uint16_t len = sizeof(struct icmp6_router_sol) + sizeof(struct icmp6_opt_lla);
 	struct icmp6_router_sol *ra_sol = malloc(len);
@@ -332,25 +333,22 @@ void esix_icmp6_send_neighbor_sol(const esix_ip6_addr *src_addr, const esix_ip6_
 	if(nb_sol == NULL)
 		return;
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_sol + 1);
-	esix_ip6_addr	mcast_dst;
+	esix_ip6_addr mcast_dst = {{
+		0xff020000,
+		0x00000000,
+		0x00000001, 
+		0xff << 24 | (dst_addr->raw[3] & 0xffffff00)
+	}};
 	int i=0;
 	
 	nb_sol->target_addr = *dst_addr;
 	nb_sol->reserved = 0;
 
-	//build the ipv6 multicast dest address
-	mcast_dst.raw[0]	= hton32(0xff020000);
-	mcast_dst.raw[1]	= hton32(0x00000000);
-	mcast_dst.raw[2]	= hton32(0x00000001);
-	mcast_dst.raw[3]	= hton32(0xff << 24 | (ntoh32(dst_addr->raw[3]) & 0x00ffffff));
-	
 	if(neighbors[0] != NULL)
 	{
 		opt->type = 1; // Source Link-Layer Address
 		opt->len8 = 1; // length: 1x8 bytes
-		opt->lla.raw[0] = neighbors[0]->lla.raw[0];
-		opt->lla.raw[1] = neighbors[0]->lla.raw[1];
-		opt->lla.raw[2] = neighbors[0]->lla.raw[2];
+		opt->lla = neighbors[0]->lla;
 	}
 
 	//do we know it already? then send an unicast sollicitation
@@ -445,26 +443,27 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	if (got_prefix_info)
 	{
 	
+		// TODO check htons here
 		//builds a new global scope address
 		//not endian-safe for now, words in the prefix field
 		//are not aligned when received
-		addr.raw[0] = 	hton32(	pfx_info->p[0] << 24
+		addr.raw[0] = pfx_info->p[0] << 24
 					| pfx_info->p[1] << 16
 					| pfx_info->p[2] << 8
-					| pfx_info->p[3]);
+					| pfx_info->p[3];
 
-		addr.raw[1] = 	hton32(	pfx_info->p[4] << 24
+		addr.raw[1] = pfx_info->p[4] << 24
 					| pfx_info->p[5] << 16
 					| pfx_info->p[6] << 8
-					| pfx_info->p[7]);
+					| pfx_info->p[7];
 
-		addr.raw[2] = 	hton32(	(ntoh16(neighbors[0]->lla.raw[0]) << 16 & 0xff0000)
+		addr.raw[2] = (ntoh16(neighbors[0]->lla.raw[0]) << 16 & 0xff0000)
 					| (ntoh16(neighbors[0]->lla.raw[1]) & 0xff00)
-					| (0x020000ff) ); //stateless autoconf, 0x02 : universal bit
+					| (0x020000ff); //stateless autoconf, 0x02 : universal bit
 
-		addr.raw[3] = 	hton32(	(0xfe000000) //0xfe here is OK
+		addr.raw[3] = (0xfe000000) //0xfe here is OK
 			 		| (ntoh16(neighbors[0]->lla.raw[1]) << 16 & 0xff0000) 
-			 		| (ntoh16(neighbors[0]->lla.raw[2])) );
+			 		| (ntoh16(neighbors[0]->lla.raw[2]));
 
 		raw[1].raw[0] = 0;
 		raw[1].raw[1] = 0;
@@ -538,16 +537,16 @@ void esix_icmp6_send_mld2_report(void)
 	int index_list[ESIX_MAX_IPADDR];
 
 	esix_ip6_addr all_mld2_queriers;
-	all_mld2_queriers.raw[0]	= hton32(0xff020000);
-	all_mld2_queriers.raw[1]	= hton32(0x00000000);
-	all_mld2_queriers.raw[2]	= hton32(0x00000000);
-	all_mld2_queriers.raw[3]	= hton32(0x00000016);
+	all_mld2_queriers.raw[0]	= 0xff020000;
+	all_mld2_queriers.raw[1]	= 0x00000000;
+	all_mld2_queriers.raw[2]	= 0x00000000;
+	all_mld2_queriers.raw[3]	= 0x00000016;
 
 	while(i < ESIX_MAX_IPADDR)
 	{	
 		index_list[i] = 0;
 		if(addrs[i] != NULL && 
-			(addrs[i]->addr.raw[0] & hton32(0xff000000)) == hton32(0xff000000))
+			(addrs[i]->addr.raw[0] & 0xff000000) == 0xff000000)
 		{
 			index_list[i] = 1;
 			count++;
@@ -622,10 +621,10 @@ void esix_icmp6_process_mld_query(struct icmp6_mld1_hdr *mld, int len, const esi
 void esix_icmp6_send_mld(const esix_ip6_addr *mcast_addr, int mld_type)
 {
         //don't send any report for the all-nodes address
-        if( (mcast_addr->raw[0] == hton32(0xff020000)) &&
-                (mcast_addr->raw[1] == hton32(0x00000000)) &&
-                (mcast_addr->raw[2] == hton32(0x00000000)) &&
-                (mcast_addr->raw[3] == hton32(0x00000001)) )
+        if( (mcast_addr->raw[0] == 0xff020000) &&
+                (mcast_addr->raw[1] == 0x00000000) &&
+                (mcast_addr->raw[2] == 0x00000000) &&
+                (mcast_addr->raw[3] == 0x00000001) )
                 return;
 
         //TODO: implement timers
@@ -651,10 +650,10 @@ void esix_icmp6_send_mld(const esix_ip6_addr *mcast_addr, int mld_type)
         else //must be a 'done'
         {
                 esix_ip6_addr all_nodes;
-                all_nodes.raw[0] = hton32(0xff020000);
-                all_nodes.raw[1] = hton32(0x00000000);
-                all_nodes.raw[2] = hton32(0x00000000);
-                all_nodes.raw[3] = hton32(0x00000001);
+                all_nodes.raw[0] = 0xff020000;
+                all_nodes.raw[1] = 0x00000000;
+                all_nodes.raw[2] = 0x00000000;
+                all_nodes.raw[3] = 0x00000001;
 
                 esix_icmp6_send(&addrs[i]->addr, &all_nodes, 1, MLD_DNE, 0, hdr,
                         sizeof(struct icmp6_mld1_hdr) + sizeof(esix_ip6_addr));

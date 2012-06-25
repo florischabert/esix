@@ -43,11 +43,11 @@ typedef struct {
 /**
  * Compare two ethernet addresses.
  *
- * @param  addr1 Ethernet address.
- * @param  addr2 Ethernet address to compare to.
+ * @param  addr1 An ethernet address.
+ * @param  addr2 The ethernet address to compare to.
  * @return Return 1 if the addresses match, or 0.
  */
-int esix_eth_addr_match(const esix_eth_addr addr1, const esix_eth_addr addr2);
+int esix_eth_addr_match(const esix_eth_addr *addr1, const esix_eth_addr *addr2);
 
 /**
  * Ethernet header 
@@ -91,6 +91,6 @@ void esix_eth_process(const void *payload, int len);
  * @param payload  Pointer to the payload (the upper-layer packet).
  * @param len      Length in bytes of the payload.
  */
-void esix_eth_send(const esix_eth_addr dst_addr, const esix_eth_type type, const void *payload, int len);
+void esix_eth_send(const esix_eth_addr *dst_addr, const esix_eth_type type, const void *payload, int len);
 
 #endif

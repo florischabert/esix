@@ -37,8 +37,8 @@
 #define NULL ((void *) 0)
 #endif
 
-#define esix_foreach(item, array) \
-        for(item = array; item < array + sizeof(array)/sizeof(*item); item++)
+#define esix_foreach(item_ptr, array) \
+        for(item_ptr = &array[0]; item_ptr < &array[0] + sizeof(array)/sizeof(array[0]); item_ptr++)
 
 void esix_memcpy(void *dst, const void *src, int len);
 int esix_memcmp(const void *p1, const void *p2, int len);
@@ -48,7 +48,6 @@ uint32_t esix_get_time();
 
 uint16_t hton16(uint16_t v);
 uint32_t hton32(uint32_t v);
-
 #define ntoh16 hton16
 #define ntoh32 hton32
 

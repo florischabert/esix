@@ -46,7 +46,7 @@ void esix_udp_process(const void *payload, int len, const esix_ip6_hdr *ip_hdr)
 	}
 	
 	// check the checksum
-	if(esix_ip6_upper_checksum(ip_hdr->src_addr, ip_hdr->dst_addr, esix_ip6_next_udp, u_hdr, len) != 0)
+	if(esix_ip6_upper_checksum(&ip_hdr->src_addr, &ip_hdr->dst_addr, esix_ip6_next_udp, u_hdr, len) != 0)
 		return;
 
 	if((sock = esix_find_socket(&ip_hdr->src_addr, &ip_hdr->dst_addr, u_hdr->s_port, u_hdr->d_port, 
@@ -77,9 +77,9 @@ void esix_udp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 	hdr->chksum = 0;
 	esix_memcpy(hdr + 1, data, len);
 
-	hdr->chksum = esix_ip6_upper_checksum(*src_addr, *dst_addr, esix_ip6_next_udp, hdr, len + sizeof(struct udp_hdr));
+	hdr->chksum = esix_ip6_upper_checksum(src_addr, dst_addr, esix_ip6_next_udp, hdr, len + sizeof(struct udp_hdr));
 	
-	esix_ip6_send(*src_addr, *dst_addr, DEFAULT_TTL, esix_ip6_next_udp, hdr, len + sizeof(struct udp_hdr));
+	esix_ip6_send(src_addr, dst_addr, DEFAULT_TTL, esix_ip6_next_udp, hdr, len + sizeof(struct udp_hdr));
 
 	free(hdr);
 }

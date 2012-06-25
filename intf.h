@@ -53,7 +53,7 @@ struct esix_ipaddr_table_row {
 	uint32_t	expiration_date;//date at which this entry expires.
 				//0 : never expires (for now)
 	//uint32_t	preferred_exp_date;//date at which this address shouldn't be used if possible
-	enum	type type;		//address type : multicast, global unicast, etc...
+	esix_ip6_addr_type type;		//address type : multicast, global unicast, etc...
 
 };
 
@@ -94,7 +94,7 @@ struct esix_route_table_row *routes[ESIX_MAX_RT];
 //table of the neighbors
 struct esix_neighbor_table_row *neighbors[ESIX_MAX_NB];
 
-esix_eth_addr *esix_intf_get_lla(void);
+esix_eth_addr *esix_intf_lla(void);
 void esix_intf_init_interface(esix_eth_addr, uint8_t);
 void esix_intf_add_default_neighbors(esix_eth_addr);
 int esix_intf_add_neighbor_row(struct esix_neighbor_table_row *row);
@@ -104,10 +104,10 @@ int esix_intf_pick_source_address(const esix_ip6_addr *);
 
 void esix_intf_add_default_addresses(void);
 int esix_intf_add_address_row(struct esix_ipaddr_table_row *row);
-int esix_intf_add_address(esix_ip6_addr *, uint8_t, uint32_t, enum type);
-int esix_intf_remove_address(const esix_ip6_addr *, enum type, uint8_t);
-int esix_intf_get_address_index(const esix_ip6_addr *, enum type, uint8_t);
-int esix_intf_get_type_address(enum type);
+int esix_intf_add_address(esix_ip6_addr *, uint8_t, uint32_t, esix_ip6_addr_type);
+int esix_intf_remove_address(const esix_ip6_addr *, esix_ip6_addr_type, uint8_t);
+int esix_intf_get_address_index(const esix_ip6_addr *, esix_ip6_addr_type, uint8_t);
+int esix_intf_get_type_address(esix_ip6_addr_type);
 
 void esix_intf_add_default_routes(uint8_t intf_index, int intf_mtu);	
 int esix_intf_add_route_row(struct esix_route_table_row *row);

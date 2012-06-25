@@ -34,14 +34,14 @@
 #include "include/esix.h"
 
 //ip address type
-enum type
+typedef enum
 {
-	LINK_LOCAL,//link local unicast
-	GLOBAL,	   //global unicast
-	ANYCAST,   //global anycast
-	MULTICAST, //multicast (no support for scoped multicast yet)
-	ANY	   //any type, just for look up purposes
-};
+	LINK_LOCAL, //link local unicast
+	GLOBAL,	    //global unicast
+	ANYCAST,    //global anycast
+	MULTICAST,  //multicast (no support for scoped multicast yet)
+	ANY	        //any type, just for look up purposes
+} esix_ip6_addr_type;
 
 /**
  * IPv6 address
@@ -53,11 +53,22 @@ enum type
 /**
  * Compare two ipv6 addresses.
  *
- * @param  addr1 IPv6 address.
- * @param  addr2 IPv6 address to compare to.
+ * @param  addr1 An IPv6 address.
+ * @param  addr2 The IPv6 address to compare to.
  * @return Return 1 if the addresses match, or 0.
  */
-int esix_ip6_addr_match(const esix_ip6_addr addr1, const esix_ip6_addr addr2);
+int esix_ip6_addr_match(const esix_ip6_addr *addr1, const esix_ip6_addr *addr2);
+
+/**
+ * Compare a masked IPv6 address with another address.
+ * Check whether addr1 & mask == addr2.
+ *
+ * @param  addr1 The IPv6 address to be masked.
+ * @param  mask  The IPv6 address mask.
+ * @param  addr2 The IPv6 address to compare to.
+ * @return Return 1 if the addresses match, or 0.
+ */
+int esix_ip6_addr_match_with_mask(const esix_ip6_addr *addr1, const esix_ip6_addr *mask, const esix_ip6_addr *addr2);
 
 /**
  * IPv6 header 
@@ -112,7 +123,7 @@ void esix_ip6_process(const void *payload, int len);
  * @param payload   Pointer to the payload (the upper-layer packet).
  * @param len       Length in bytes of the payload.
  */
-void esix_ip6_send(const esix_ip6_addr src_addr, const esix_ip6_addr dst_addr, uint8_t hlimit, esix_ip6_next next, const void *payload, int len);
+void esix_ip6_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, const uint8_t hlimit, const esix_ip6_next next, const void *payload, int len);
 
 /**
  * Compute the upper-level checksum
@@ -124,6 +135,6 @@ void esix_ip6_send(const esix_ip6_addr src_addr, const esix_ip6_addr dst_addr, u
  * @param len       Length in bytes of the payload.
  * @return          16-bits checksum.
  */
-uint16_t esix_ip6_upper_checksum(const esix_ip6_addr src_addr, const esix_ip6_addr dst_addr, esix_ip6_next next, const void *payload, int len);
+uint16_t esix_ip6_upper_checksum(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, const esix_ip6_next next, const void *payload, int len);
 
 #endif

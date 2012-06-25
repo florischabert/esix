@@ -33,7 +33,12 @@
 #include "include/esix.h"
 #include "eth.h"
 
-esix_eth_addr esix_intf_lla;
+static esix_eth_addr intf_lla;
+
+esix_eth_addr *esix_intf_lla(void)
+{
+	return &intf_lla;
+}
 
 /**
  * Adds a link local address/route based on the MAC address
@@ -43,7 +48,7 @@ void esix_intf_init_interface(esix_eth_addr lla, uint8_t  interface)
 {
 	esix_ip6_addr addr;
 
-	esix_intf_lla = lla;
+	intf_lla = lla;
 
 	//builds our link local and associated multicast addresses
 	//from the MAC address given by the L2 layer.
@@ -339,7 +344,7 @@ int esix_intf_remove_neighbor(const esix_ip6_addr *addr, uint8_t interface)
 /*
  * Returns any address of specified type.
  */
-int esix_intf_get_type_address(enum type type)
+int esix_intf_get_type_address(esix_ip6_addr_type type)
 {
 	int i;
 	for(i=0; i<ESIX_MAX_IPADDR;i++)
@@ -371,7 +376,7 @@ int esix_intf_pick_source_address(const esix_ip6_addr *dst_addr)
 /*
  * Return the address row index of the given address.
  */
-int esix_intf_get_address_index(const esix_ip6_addr *addr, enum type type, uint8_t masklen)
+int esix_intf_get_address_index(const esix_ip6_addr *addr, esix_ip6_addr_type type, uint8_t masklen)
 {
 	int j;
 	for(j = 0; j<ESIX_MAX_IPADDR; j++)
@@ -423,7 +428,7 @@ int esix_intf_get_route_index(const esix_ip6_addr *dst_addr, const esix_ip6_addr
  * esix_new_addr : creates an addres with the passed arguments
  * and adds or updates it.
  */
-int esix_intf_add_address(esix_ip6_addr *addr, uint8_t masklen, uint32_t expiration_date, enum type type)
+int esix_intf_add_address(esix_ip6_addr *addr, uint8_t masklen, uint32_t expiration_date, esix_ip6_addr_type type)
 {
 	struct esix_ipaddr_table_row *row;
 	esix_ip6_addr	mcast_sollicited, zero;
@@ -520,7 +525,7 @@ int esix_intf_add_address(esix_ip6_addr *addr, uint8_t masklen, uint32_t expirat
 	return 0;
 }
 
-int esix_intf_remove_address(const esix_ip6_addr *addr, enum type type, uint8_t masklen)
+int esix_intf_remove_address(const esix_ip6_addr *addr, esix_ip6_addr_type type, uint8_t masklen)
 {
 	int i;
 	struct esix_ipaddr_table_row *row;

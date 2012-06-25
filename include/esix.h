@@ -29,12 +29,16 @@
 #ifndef _ESIX_API_H
 #define _ESIX_API_H
 
-// Lib services
-
 /**
  * Sets up the esix stack.
  *
- * @param lla is the 6 bytes link-layer address of the interface.
+ * @param lla           MAC address of the node, string with each byte in hex separated by ':'.
+ * @param send_callback A callback sending data of len bytes to the ethernet controller
+ *
+ * Usage:
+ * @code
+ * 	esix_init("XX:XX:XX:XX:XX:XX", my_send_callback);
+ * @endcode
  */
 void esix_init(char *lla, void (*send_callback)(void *data, int len));
 
