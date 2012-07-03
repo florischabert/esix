@@ -36,11 +36,11 @@
 //ip address type
 typedef enum
 {
-	LINK_LOCAL, //link local unicast
-	GLOBAL,	    //global unicast
-	ANYCAST,    //global anycast
-	MULTICAST,  //multicast (no support for scoped multicast yet)
-	ANY	        //any type, just for look up purposes
+	esix_ip6_addr_type_link_local,
+	esix_ip6_addr_type_global,
+	esix_ip6_addr_type_anycast,
+	esix_ip6_addr_type_multicast,
+	esix_ip6_addr_type_any
 } esix_ip6_addr_type;
 
 /**
@@ -49,6 +49,8 @@ typedef enum
  typedef struct {
 	uint32_t raw[4];
 } __attribute__((__packed__)) esix_ip6_addr;
+
+esix_ip6_addr esix_ip6_addr_create(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3);
 
 /**
  * Compare two ipv6 addresses.

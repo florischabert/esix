@@ -5,6 +5,8 @@
 #include "include/socket.h"
 #include "socket.h"
 
+#define FIRST_PORT 1024
+#define LAST_PORT  65535
 
 const struct in6_addr in6addr_any = {{{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}};
 const struct in6_addr in6addr_loopback = {{{0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0}}};
@@ -90,39 +92,43 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 
 int sendto(int sock, const void *buf, int len, uint8_t flags, const struct sockaddr_in6 *to, int to_len)
 {
-	int i;
+	esix_intf_addr *addr;
 	//only to be used with UDP
 	if(esix_sockets[sock].proto != SOCK_DGRAM)
 		return -1;
 
 	// check the source address
-	if(esix_memcmp(&esix_sockets[sock].laddr, &in6addr_any, 16) == 0)
-	{
-		if(((i = esix_intf_get_type_address(GLOBAL)) <0) && 
-			(i = esix_intf_get_type_address(LINK_LOCAL)) <0)
+	if (esix_memcmp(&esix_sockets[sock].laddr, &in6addr_any, 16) == 0) {
+		addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_global);
+		if (!addr) {
+			addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_link_local);
+		}
+		if (!addr) {
 			return -1;
+		}
 
-		esix_udp_send(&addrs[i]->addr, (esix_ip6_addr*) &to->sin6_addr, 
+		esix_udp_send(&addr->addr, (esix_ip6_addr*) &to->sin6_addr, 
 			esix_sockets[sock].lport, to->sin6_port, buf, len);
 	}
-	else
+	else {
 		esix_udp_send(&esix_sockets[sock].laddr, (esix_ip6_addr*) &to->sin6_addr, 
 			esix_sockets[sock].lport, to->sin6_port, buf, len);
+	}
 
 	return 0;
 }
 
 int connect(int sock, const struct sockaddr_in6 *daddr, int len)
 {
-	int i;
-	if(esix_sockets[sock].proto == SOCK_STREAM)
-	{
-		if(esix_sockets[sock].state != RESERVED && 
-			esix_sockets[sock].state != CLOSED)
+	if (esix_sockets[sock].proto == SOCK_STREAM) {
+		if (esix_sockets[sock].state != RESERVED && 
+			esix_sockets[sock].state != CLOSED) {
 			return -1;
+		}
 
-		if((i=esix_intf_pick_source_address((esix_ip6_addr*) daddr)) < 0)
+ 		if (!esix_intf_pick_src_addr((esix_ip6_addr*) daddr)) {
 			return -1;
+		}
 
 		//connect() launches the tcp establishment procedure
 		esix_sockets[sock].ackn = 0;
@@ -415,7 +421,7 @@ int bind(const int socknum, const struct sockaddr_in6 *sockaddr, const int len)
 	}
 
 
-	//now check that we actually own the requested adress
+	//now check that we actually own the requested address
 	//if it's all zeroes, OK
 	if(esix_memcmp(&in6addr_any, &sockaddr->sin6_addr, 16) == 0)
 	{
@@ -425,17 +431,10 @@ int bind(const int socknum, const struct sockaddr_in6 *sockaddr, const int len)
 	}
 	else //check that we own the address
 	{
-		i=0;
-		while(i<ESIX_MAX_IPADDR)
-		{
-			if(addrs[i] != NULL &&
-				esix_memcmp(&addrs[i]->addr, &sockaddr->sin6_addr, 16) == 0)
-			{
-				esix_sockets[socknum].lport = sockaddr->sin6_port;
-				esix_memcpy(&addrs[i]->addr, &sockaddr->sin6_addr, 16);
-				return 0;
-			} 
-		}
+		if (esix_intf_get_addr((esix_ip6_addr *)&sockaddr->sin6_addr, esix_ip6_addr_type_any, 0xff)) {
+			esix_sockets[socknum].lport = sockaddr->sin6_port;
+			return 0;
+		} 
 	}
 	return -1;
 

@@ -76,20 +76,11 @@ void esix_init(char *lla, void (*send_callback)())
 	}
 
 	current_time = 1;	// 0 means "infinite lifetime" in our caches
-	
-	for(i=0; i<ESIX_MAX_IPADDR; i++)
-		addrs[i] = NULL;
 
-	for(i=0; i<ESIX_MAX_RT; i++)
-		routes[i] = NULL;
-
-	for(i=0; i<ESIX_MAX_NB; i++)
-		neighbors[i] = NULL;
-
+	esix_intf_init();
 	esix_socket_init();
-	
-	esix_intf_add_default_routes(INTERFACE, 1500);
-	esix_intf_init_interface(eth_addr, INTERFACE);
+
+	esix_intf_autoconfigure(eth_addr);
 
 	esix_icmp6_send_router_sol(INTERFACE);
 }
@@ -102,9 +93,9 @@ uint32_t esix_get_time()
 /*
  * esix_ip_housekeep : takes care of cache entries expiration at the ip level
  */
-static void esix_ip_housekeep()
+#if 0
+static void esix_intf_housekeep()
 {
-	int i,j;
 	//loop through the routing table
 	for(i=0; i<ESIX_MAX_RT; i++)
 	{
@@ -150,7 +141,6 @@ static void esix_ip_housekeep()
 	return;
 }
 
-
 /*
  * esix_periodic_callback : must be called every second by the OS.
  */
@@ -165,3 +155,4 @@ void esix_periodic_callback()
 	//call socket_housekeep every tick
 	esix_socket_housekeep();
 }
+#endif

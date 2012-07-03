@@ -4,6 +4,8 @@
 #include "include/socket.h"
 #include "ip6.h"
 
+#define ESIX_MAX_SOCK 65536
+
 enum state
 {
 	CLOSED,

@@ -30,6 +30,7 @@
 #define _TOOLS_H
 
 #include "config.h"
+#include "include/esix.h"
 
 #include <stdint.h>
 
@@ -38,7 +39,40 @@
 #endif
 
 #define esix_foreach(item_ptr, array) \
-        for(item_ptr = &array[0]; item_ptr < &array[0] + sizeof(array)/sizeof(array[0]); item_ptr++)
+	for (item_ptr = &array[0]; item_ptr < array + sizeof(array)/sizeof(array[0]); item_ptr++)
+
+typedef struct esix_list {
+	struct esix_list *prev;
+	struct esix_list *next;
+} esix_list;
+
+#define esix_list_entry(ptr, type, member) \
+	((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
+
+#define esix_list_init(head) \
+	do { \
+		(head)->prev = (head); \
+		(head)->next = (head); \
+	} while (0)
+
+#define esix_list_add(new, head) \
+	do { \
+		(head)->next->prev = (new); \
+		(new)->next = (head)->next; \
+		(new)->prev = (head); \
+		(head)->next = (new); \
+	} while (0)
+
+#define esix_list_del(list) \
+	do { \
+		(list)->prev->next = (list)->next; \
+		(list)->next->prev = (list)->prev; \
+		(list)->next = (list); \
+		(list)->prev = (list); \
+	} while (0)
+
+#define esix_list_foreach(item, head, link) \
+	for (item = esix_list_entry((head)->next, typeof(*item), link); item->link.next != (head)->next; item = esix_list_entry(item->link.next, typeof(*item), link))
 
 void esix_memcpy(void *dst, const void *src, int len);
 int esix_memcmp(const void *p1, const void *p2, int len);

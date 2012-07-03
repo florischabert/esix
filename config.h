@@ -33,13 +33,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-
-#define ESIX_MAX_IPADDR	8 	//max number of IP addresses the node can have
-#define ESIX_MAX_RT	8 	//max number of routes the node can have
-#define ESIX_MAX_NB 16 //max number of neighbors in the table
-#define ESIX_MAX_SOCK 32 //max number of sockets
-#define FIRST_PORT 32000 //make sure that ESIX_MAX_SOCK < LAST_PORT - FIRST_PORT
-#define LAST_PORT  65535 //or mayhem will happen
 #define ESIX_QUEUE_DEPHT 5 //per-socket packet queue depht (received + send (for tcp))
 
 #define INTERFACE	0 //default interface # until we have a proper intf

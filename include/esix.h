@@ -30,6 +30,16 @@
 #define _ESIX_API_H
 
 /**
+ * Error type
+ */
+typedef enum {
+	esix_err_none = 0, // went okay
+	esix_err_failed,   // function failed
+	esix_err_badparam, // bad parameter
+	esix_err_oom       // out of memory
+} esix_err;
+
+/**
  * Sets up the esix stack.
  *
  * @param lla           MAC address of the node, string with each byte in hex separated by ':'.
