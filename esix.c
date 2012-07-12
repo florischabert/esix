@@ -32,9 +32,100 @@
 #include "include/esix.h"
 #include "intf.h"
 #include "eth.h"
+#include "tools.h"
+
+#define ESIX_BUF_SIZE 1500
+
+typedef struct {
+	esix_list list;
+	void *buffer;
+} esix_buffer_link;
+
+typedef struct {
+	esix_list list;
+	int lock;
+} esix_buffer_queue;
+
+static esix_buffer_queue esix_inqueue;
+static esix_buffer_queue esix_outqueue;
 
 static uint32_t	current_time;
+
 void (*esix_send_callback)(void *data, int len) = NULL;
+
+void *esix_buffer_alloc(void)
+{
+	return malloc(ESIX_BUF_SIZE);
+}
+
+void esix_buffer_free(void *buffer)
+{
+	free(buffer);
+}
+
+static esix_err esix_queue_push(void *buffer, esix_buffer_queue *queue)
+{
+	esix_err err = esix_err_none;
+	esix_buffer_link *link;
+
+	link = malloc(sizeof *link);
+	if (!link) {
+		err = esix_err_oom;
+		goto out;
+	}
+	
+	link->buffer = buffer;
+
+	esix_lock(&queue->lock);
+	esix_list_add(&link->list, &queue->queue);
+	esix_unlock(&queue->lock);
+
+out:
+	return err;
+}
+
+static void *esix_queue_pop(esix_buffer_queue *queue)
+{
+	esix_buffer_link *link;
+	void *buffer = NULL;
+
+	if (esix_list_is_empty(&queue->list)) {
+		goto out;
+	}
+
+	esix_list_tail(link, &queue->list);
+
+	buffer = link->buffer;
+
+	esix_lock(&queue->lock);
+	esix_list_del(&link->list);
+	esix_unlock(&queue->lock);
+
+	free(link);
+
+out:
+	return buffer;
+}
+
+esix_err esix_inqueue_push(void *buffer)
+{
+	return esix_queue_push(buffer, &esix_inqueue);
+}
+
+void *esix_inqueue_pop(void)
+{
+	return esix_queue_pop(&esix_inqueue);
+}
+
+esix_err esix_outqueue_push(void *buffer)
+{
+	return esix_queue_push(buffer, &esix_inqueue);
+}
+
+void *esix_outqueue_pop(void)
+{
+	return esix_queue_pop(&esix_inqueue);
+}
 
 static int eth_addr_from_str(esix_eth_addr addr, char *str)
 {
@@ -49,7 +140,19 @@ static int eth_addr_from_str(esix_eth_addr addr, char *str)
 		uint8_t byte = 0;
 
 		for (j = 0; j < 2; j++) {
-			uint8_t val = (str[j] > '9')? str[j]-'a'+10 : str[j]-'0';
+			uint8_t val;
+			if (str[j] >= '0' && str[j] <= '9') {
+				val = str[j] - '0';
+			}
+			else if (str[j] >= 'A' && str[j] <= 'F') {
+				val = str[j] - 'A' + 10;
+			}
+			else if (str[j] >= 'a' && str[j] <= 'f') {
+				val = str[j] - 'a' + 10;
+			}
+			else {
+				return -1;
+			}
 			byte +=  val << (4*(1-j));
 		}
 
@@ -61,15 +164,13 @@ static int eth_addr_from_str(esix_eth_addr addr, char *str)
 /**
  * Sets up the esix stack.
  */
-void esix_init(char *lla, void (*send_callback)())
+esix_err esix_init(char *lla)
 {
 	int i;
 	esix_eth_addr eth_addr;
 
-	if (!send_callback) {
-		return;
-	}
-	esix_send_callback = send_callback;
+	esix_list_init(&esix_inqueue);
+	esix_list_init(&esix_outqueue);
 
 	if (eth_addr_from_str(eth_addr, lla) == -1) {
 		return;
@@ -83,6 +184,14 @@ void esix_init(char *lla, void (*send_callback)())
 	esix_intf_autoconfigure(eth_addr);
 
 	esix_icmp6_send_router_sol(INTERFACE);
+}
+
+esix_err esix_worker(void (*send_callback)())
+{
+	if (!send_callback) {
+		return;
+	}
+	esix_send_callback = send_callback;
 }
 
 uint32_t esix_get_time()

@@ -38,6 +38,19 @@
 #define NULL ((void *) 0)
 #endif
 
+inline void esix_lock(volatile int *lock)
+{
+	while (__sync_lock_test_and_set(lock, 1)) {
+		while (*lock)
+			;
+	}
+}
+
+inline void esix_unlock(volatile int *lock)
+{
+	__sync_lock_release(lock);
+}
+
 #define esix_foreach(item_ptr, array) \
 	for (item_ptr = &array[0]; item_ptr < array + sizeof(array)/sizeof(array[0]); item_ptr++)
 
@@ -70,6 +83,12 @@ typedef struct esix_list {
 		(list)->next = (list); \
 		(list)->prev = (list); \
 	} while (0)
+
+#define esix_list_is_empty(head) \
+	((head)->next == (head))
+
+#define esix_list_tail(tail, head) \
+ 	for (tail = (head); tail->next != (head); tail = tail->next)
 
 #define esix_list_foreach(item, head, link) \
 	for (item = esix_list_entry((head)->next, typeof(*item), link); item->link.next != (head)->next; item = esix_list_entry(item->link.next, typeof(*item), link))

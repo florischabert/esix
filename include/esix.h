@@ -50,22 +50,17 @@ typedef enum {
  * 	esix_init("XX:XX:XX:XX:XX:XX", my_send_callback);
  * @endcode
  */
-void esix_init(char *lla, void (*send_callback)(void *data, int len));
+esix_err esix_init(char *lla);
+
+esix_err esix_worker(void (*send_callback)(void *data, int len));
 
 /*
- * Process a received IPv6 packet.
+ * Process a received Ethernet packet.
  * 
  * @param packet is a pointer to the packet.
  * @param len is the packet size.
  */
 void esix_eth_process(const void *payload, int len);
 
-/*
- * ipv6 stack clock signal.
- *
- * Needs to be called every second by the user.
- *
- */
-void esix_periodic_callback();
 
 #endif
