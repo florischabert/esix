@@ -9,7 +9,7 @@ typedef struct {
 	test_ret (*func)(void);
 } test_t;
 
-test_t tests[] = {
+static test_t tests[] = {
 	{ "tools", test_tools },
 	{ "ethernet", test_eth },
 	{ "icmpv6", test_icmp6 },
