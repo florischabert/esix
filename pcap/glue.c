@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 
 	printf("Hooked %s on %s\n", MAC_ADDR, dev);
 
-	esix_init(MAC_ADDR, send_packet);
+	esix_init(MAC_ADDR);
 
 	err = pcap_loop(pcap_handle, -1, process_packet, NULL);
 	if (err == -1) {
@@ -105,6 +105,8 @@ int main(int argc, char *argv[])
 		goto close;
 	}
 
+	esix_worker(send_packet);
+	
 	ret = EXIT_SUCCESS;
 
 close:

@@ -20,14 +20,24 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS  SOFTWARE, 
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-SRC=$(wildcard *.c)
-OBJ=$(SRC:.c=.o)
 LIB=libesix.a
+SRC=$(wildcard src/*.c)
+TESTS=$(wildcard tests/*.c)
+PCAP=$(wildcard pcap/*.c)
+CFLAGS += -Wall -I. -Iinclude -MD -MP
 
-$(LIB): $(OBJ)
-	$(AR) rcs $(LIB) $(OBJ)
+$(LIB): $(SRC:.c=.o)
+	$(AR) rcs $@ $^
+
+test: $(TESTS:.c=.o) $(LIB)
+	$(CC) $(CFLAGS) -o $@ $^
+
+esixd: $(PCAP:.c=.o) $(LIB)
+	$(CC) $(CFLAGS) -o $@ $^ -lpcap
+
+-include $(SRC:%.c=%.d) $(TEST:%.c=%.d) $(PCAP:%.c=%.d)
 
 clean:
-	@rm -f $(OBJ) $(LIB)
+	@$(RM) $(LIB) $(SRC:.c=.o) $(SRC:.c=.d) test $(TESTS:.c=.o) $(TESTS:.c=.d) esixd $(PCAP:.c=.o) $(PCAP:.c=.d)
 
 .PHONY: clean

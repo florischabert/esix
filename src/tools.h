@@ -35,10 +35,10 @@
 #include <stdint.h>
 
 #ifndef NULL
-#define NULL ((void *) 0)
+#define NULL ((void *)0)
 #endif
 
-inline void esix_lock(volatile int *lock)
+static inline void esix_lock(volatile int *lock)
 {
 	while (__sync_lock_test_and_set(lock, 1)) {
 		while (*lock)
@@ -46,7 +46,7 @@ inline void esix_lock(volatile int *lock)
 	}
 }
 
-inline void esix_unlock(volatile int *lock)
+static inline void esix_unlock(volatile int *lock)
 {
 	__sync_lock_release(lock);
 }
@@ -62,33 +62,37 @@ typedef struct esix_list {
 #define esix_list_entry(ptr, type, member) \
 	((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
 
-#define esix_list_init(head) \
+static inline void esix_list_init(esix_list *head)
+{
+	head->prev = head;
+	head->next = head;
+}
+
+static inline void esix_list_add(esix_list *new, esix_list *head)
+{
+	head->next->prev = new;
+	new->next = head->next;
+	new->prev = head;
+	head->next = new;
+}
+
+static inline void esix_list_del(esix_list *list)
+{
+	list->prev->next = list->next;
+	list->next->prev = list->prev;
+	list->next = list;
+	list->prev = list;
+}
+
+static inline int esix_list_empty(esix_list *head)
+{
+	return head->next == head;
+}
+
+#define esix_list_tail(tail, head, link) \
 	do { \
-		(head)->prev = (head); \
-		(head)->next = (head); \
+		tail = esix_list_entry((head)->prev, typeof(*tail), link); \
 	} while (0)
-
-#define esix_list_add(new, head) \
-	do { \
-		(head)->next->prev = (new); \
-		(new)->next = (head)->next; \
-		(new)->prev = (head); \
-		(head)->next = (new); \
-	} while (0)
-
-#define esix_list_del(list) \
-	do { \
-		(list)->prev->next = (list)->next; \
-		(list)->next->prev = (list)->prev; \
-		(list)->next = (list); \
-		(list)->prev = (list); \
-	} while (0)
-
-#define esix_list_is_empty(head) \
-	((head)->next == (head))
-
-#define esix_list_tail(tail, head) \
- 	for (tail = (head); tail->next != (head); tail = tail->next)
 
 #define esix_list_foreach(item, head, link) \
 	for (item = esix_list_entry((head)->next, typeof(*item), link); item->link.next != (head)->next; item = esix_list_entry(item->link.next, typeof(*item), link))

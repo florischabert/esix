@@ -93,7 +93,6 @@ void esix_eth_process(const void *payload, int len)
 
 void esix_eth_send(const esix_eth_addr *dst_addr, const esix_eth_type type, const void *payload, int len)
 {
-	int i;
 	esix_eth_hdr *hdr;
 
 	hdr = malloc(sizeof(esix_eth_hdr) + len);

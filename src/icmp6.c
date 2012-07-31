@@ -204,7 +204,6 @@ void esix_icmp6_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len,
 {
 	esix_intf_addr *intf_addr;
 	esix_intf_neighbor *neighbor;
-	int i;
 
 	//sanity checks
 	//- ICMP length (derived from the IP length) is 24 or more octets (24 = 8 ICMP bytes + 16 NS bytes)
@@ -300,18 +299,17 @@ void esix_icmp6_process_echo_req(struct icmp6_echo *echo_req, int len, const esi
  */
 void esix_icmp6_send_neighbor_adv(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, int is_solicited)
 {
-	esix_intf_neighbor *neighbor;
 	uint16_t len = sizeof(struct icmp6_neighbor_adv) + sizeof(struct icmp6_opt_lla);
 
 	struct icmp6_neighbor_adv *nb_adv = malloc(len);
 	if(nb_adv == NULL)
 		return;
-
-	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_adv + 1);
 	
+	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_adv + 1);
+
 	nb_adv->r_s_o_reserved = hton32(is_solicited << 30);
 	nb_adv->target_addr = *src_addr;
-	
+
 	opt->type = 2; // Target Link-Layer Address
 	opt->len8 = 1; // length: 1x8 bytes
 	opt->lla = *esix_intf_lla();
@@ -336,14 +334,12 @@ void esix_icmp6_send_neighbor_sol(const esix_ip6_addr *src_addr, const esix_ip6_
 	struct icmp6_neighbor_sol *nb_sol = malloc(len);
 	if(nb_sol == NULL)
 		return;
-	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (nb_sol + 1);
 	esix_ip6_addr mcast_dst = {{
 		0xff020000,
 		0x00000000,
 		0x00000001, 
 		0xff << 24 | (dst_addr->raw[3] & 0xffffff00)
 	}};
-	int i=0;
 	
 	nb_sol->target_addr = *dst_addr;
 	nb_sol->reserved = 0;
@@ -634,7 +630,7 @@ void esix_icmp6_send_mld(const esix_ip6_addr *mcast_addr, int mld_type)
                 return;
 
         //TODO: implement timers
-        struct icmp6_mld1_hdr *hdr;
+        struct icmp6_mld1_hdr *hdr = NULL;
         esix_ip6_addr *target = (esix_ip6_addr*) (hdr+1);
 	esix_intf_addr *intf_addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_link_local); 
 

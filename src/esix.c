@@ -77,7 +77,7 @@ static esix_err esix_queue_push(void *buffer, esix_buffer_queue *queue)
 	link->buffer = buffer;
 
 	esix_lock(&queue->lock);
-	esix_list_add(&link->list, &queue->queue);
+	esix_list_add(&link->list, &queue->list);
 	esix_unlock(&queue->lock);
 
 out:
@@ -89,11 +89,11 @@ static void *esix_queue_pop(esix_buffer_queue *queue)
 	esix_buffer_link *link;
 	void *buffer = NULL;
 
-	if (esix_list_is_empty(&queue->list)) {
+	if (esix_list_empty(&queue->list)) {
 		goto out;
 	}
 
-	esix_list_tail(link, &queue->list);
+	esix_list_tail(link, &queue->list, list);
 
 	buffer = link->buffer;
 
@@ -166,14 +166,13 @@ static int eth_addr_from_str(esix_eth_addr addr, char *str)
  */
 esix_err esix_init(char *lla)
 {
-	int i;
 	esix_eth_addr eth_addr;
 
-	esix_list_init(&esix_inqueue);
-	esix_list_init(&esix_outqueue);
+	esix_list_init(&esix_inqueue.list);
+	esix_list_init(&esix_outqueue.list);
 
 	if (eth_addr_from_str(eth_addr, lla) == -1) {
-		return;
+		return esix_err_badparam;
 	}
 
 	current_time = 1;	// 0 means "infinite lifetime" in our caches
@@ -184,14 +183,18 @@ esix_err esix_init(char *lla)
 	esix_intf_autoconfigure(eth_addr);
 
 	esix_icmp6_send_router_sol(INTERFACE);
+
+	return esix_err_none;
 }
 
 esix_err esix_worker(void (*send_callback)())
 {
 	if (!send_callback) {
-		return;
+		return esix_err_badparam;
 	}
 	esix_send_callback = send_callback;
+
+	return esix_err_none;
 }
 
 uint32_t esix_get_time()
