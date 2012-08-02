@@ -1,9 +1,14 @@
 #include "test.h"
 
 extern test_ret test_tools();
+extern test_ret test_intf();
 extern test_ret test_eth();
 extern test_ret test_ip6();
 extern test_ret test_icmp6();
+extern test_ret test_udp6();
+extern test_ret test_tcp6();
+extern test_ret test_socket();
+extern test_ret test_misc();
 
 typedef struct {
 	char *name;
@@ -12,9 +17,14 @@ typedef struct {
 
 static test_t tests[] = {
 	{ "tools", test_tools },
+	{ "interface", test_intf },
 	{ "ethernet", test_eth },
 	{ "ipv6", test_ip6 },
 	{ "icmpv6", test_icmp6 },
+	{ "udpv6", test_udp6 },
+	{ "tcpv6", test_tcp6 },
+	{ "socket", test_socket },
+	{ "misc", test_misc },
 };
 
 test_ret run_tests(test_f tests[])

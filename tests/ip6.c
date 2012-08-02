@@ -26,7 +26,7 @@ static esix_ip6_addr src_addr = {{ 1, 2, 3, 4 }};
 static esix_ip6_addr dst_addr = {{ 5, 6, 7, 8 }};
 static char payload[] = "payload";
 
-static test_ret validate_frame(void *data, int len)
+static test_ret validate_packet(void *data, int len)
 {
 	esix_ip6_hdr *hdr = (void *)((uintptr_t)data + sizeof(esix_eth_hdr));
 	esix_ip6_addr src_addr_n;
@@ -51,7 +51,7 @@ static void send_callback(void *data, int len)
 {
 	int ret;
 
-	ret = validate_frame(data, len);
+	ret = validate_packet(data, len);
 	sent_ok = (ret == test_passed);
 }
 
