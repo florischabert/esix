@@ -29,11 +29,11 @@ CFLAGS += -Iinclude -MD -MP -Wall
 $(LIB): $(SRC:.c=.o)
 	$(AR) rcs $@ $^
 
-test: $(TESTS:.c=.o) $(LIB)
-	$(CC) -o $@ $^
-
 esixd: $(PCAP:.c=.o) $(LIB)
 	$(CC) -o $@ $^ -lpcap
+
+test: $(TESTS:.c=.o) $(LIB)
+	$(CC) -o $@ $^
 
 -include $(SRC:%.c=%.d) $(TESTS:%.c=%.d) $(PCAP:%.c=%.d)
 

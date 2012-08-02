@@ -1,5 +1,22 @@
 #include "test.h"
 
+extern test_ret test_tools();
+extern test_ret test_eth();
+extern test_ret test_ip6();
+extern test_ret test_icmp6();
+
+typedef struct {
+	char *name;
+	test_ret (*func)(void);
+} test_t;
+
+static test_t tests[] = {
+	{ "tools", test_tools },
+	{ "ethernet", test_eth },
+	{ "ipv6", test_ip6 },
+	{ "icmpv6", test_icmp6 },
+};
+
 test_ret run_tests(test_f tests[])
 {
 	test_ret ret = test_passed;
@@ -13,19 +30,6 @@ test_ret run_tests(test_f tests[])
 
 	return ret;
 }
-
-typedef struct {
-	char *name;
-	test_ret (*func)(void);
-} test_t;
-
-extern test_ret test_tools();
-extern test_ret test_eth();
-
-static test_t tests[] = {
-	{ "tools", test_tools },
-	{ "ethernet", test_eth },
-};
 
 int main(int argc, char const *argv[])
 {

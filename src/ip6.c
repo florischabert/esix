@@ -53,7 +53,7 @@ static esix_ip6_addr ip6_addr_ntoh(const esix_ip6_addr *addr)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		haddr.raw[i] = ntoh16(addr->raw[i]);
+		haddr.raw[i] = ntoh32(addr->raw[i]);
 	}
 	return haddr;
 }

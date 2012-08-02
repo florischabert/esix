@@ -37,7 +37,7 @@ static esix_list intf_addrs;
 static esix_list intf_routes;
 static esix_list intf_neighbors;
 
-static esix_eth_addr intf_lla;
+static esix_eth_addr intf_lla = {{ 0, 0, 0 }};
 
 esix_eth_addr *esix_intf_lla(void)
 {
