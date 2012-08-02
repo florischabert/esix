@@ -29,10 +29,10 @@
 #include "config.h"
 #include "icmp6.h"
 #include "socket.h"
-#include "include/esix.h"
 #include "intf.h"
 #include "eth.h"
 #include "tools.h"
+#include <esix.h>
 
 #define ESIX_BUF_SIZE 1500
 

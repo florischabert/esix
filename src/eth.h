@@ -31,7 +31,7 @@
 
 #include "config.h"
 #include "tools.h"
-#include "include/esix.h"
+#include <esix.h>
 
 /**
  * Ethernet address

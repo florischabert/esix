@@ -30,8 +30,8 @@
 #include "tools.h"
 #include "icmp6.h"
 #include "intf.h"
-#include "include/socket.h"
 #include "socket.h"
+#include <socket.h>
 
 void esix_tcp_process(const void *payload, int len, const esix_ip6_hdr *ip_hdr)
 {

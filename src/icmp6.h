@@ -31,11 +31,11 @@
  
 #include "tools.h"
 #include "config.h"
-#include "include/esix.h"
 #include "ip6.h"
 #include "intf.h"
 #include "tcp6.h"
 #include "udp6.h"
+#include <esix.h>
 
 //neighbor discovery settings
 #define NEW_NEIGHBOR_TIMEOUT 	5

@@ -24,18 +24,18 @@ LIB=libesix.a
 SRC=$(wildcard src/*.c)
 TESTS=$(wildcard tests/*.c)
 PCAP=$(wildcard pcap/*.c)
-CFLAGS += -Wall -I. -Iinclude -MD -MP
+CFLAGS += -Iinclude -MD -MP -Wall
 
 $(LIB): $(SRC:.c=.o)
 	$(AR) rcs $@ $^
 
 test: $(TESTS:.c=.o) $(LIB)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) -o $@ $^
 
 esixd: $(PCAP:.c=.o) $(LIB)
-	$(CC) $(CFLAGS) -o $@ $^ -lpcap
+	$(CC) -o $@ $^ -lpcap
 
--include $(SRC:%.c=%.d) $(TEST:%.c=%.d) $(PCAP:%.c=%.d)
+-include $(SRC:%.c=%.d) $(TESTS:%.c=%.d) $(PCAP:%.c=%.d)
 
 clean:
 	@$(RM) $(LIB) $(SRC:.c=.o) $(SRC:.c=.d) test $(TESTS:.c=.o) $(TESTS:.c=.d) esixd $(PCAP:.c=.o) $(PCAP:.c=.d)

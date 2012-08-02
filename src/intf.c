@@ -30,8 +30,8 @@
 #include "tools.h"
 #include "ip6.h"
 #include "icmp6.h"
-#include "include/esix.h"
 #include "eth.h"
+#include <esix.h>
 
 static esix_list intf_addrs;
 static esix_list intf_routes;

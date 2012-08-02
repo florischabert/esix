@@ -2,8 +2,9 @@
 #include "tools.h"
 #include "icmp6.h"
 #include "intf.h"
-#include "include/socket.h"
 #include "socket.h"
+#include <socket.h>
+#include <esix.h>
 
 #define FIRST_PORT 1024
 #define LAST_PORT  65535

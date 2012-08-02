@@ -1,8 +1,8 @@
 #ifndef _SOCKET_H
 #define _SOCKET_H
 
-#include "include/socket.h"
 #include "ip6.h"
+#include <esix.h>
 
 #define ESIX_MAX_SOCK 65536
 

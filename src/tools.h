@@ -30,7 +30,7 @@
 #define _TOOLS_H
 
 #include "config.h"
-#include "include/esix.h"
+#include <esix.h>
 
 #include <stdint.h>
 

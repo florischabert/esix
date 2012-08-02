@@ -34,7 +34,7 @@
 #include "eth.h"
 #include "config.h"
 #include "esix.h"
-#include "include/esix.h"
+#include <esix.h>
 	
 /**
  *  Interface address entry.
