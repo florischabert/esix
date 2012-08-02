@@ -37,13 +37,11 @@ LDFLAGS = -mcpu=cortex-m3 --gc-sections -mthumb -nostartfiles -L../src \
 
 all: $(PROGRAM)
 
-libesix:
-	@echo "### -> Compiling libesix ..."
-	make -C ../esix CC=$(CC) AR=$(AR) CFLAGS="-mcpu=cortex-m3 -mthumb -Os -Wall"
-	@echo ""
+FreeRTOS:
+	@echo Getting FreeRTOS...
+	@svn co https://freertos.svn.sourceforge.net/svnroot/freertos/trunk/Source/ FreeRTOS
 
-$(PROGRAM):  libesix $(OBJ)
-	@echo "\n### -> Linking ..."
+$(PROGRAM): FreeRTOS ../libesix.a $(OBJ)
 	$(CC) -o $(PROGRAM) $(LDFLAGS) $(OBJ) -L../esix/lib -lesix
 
 bin: $(PROGRAM)
@@ -52,6 +50,5 @@ bin: $(PROGRAM)
 .PHONY: clean
 
 clean:
-	rm -f $(PROGRAM) $(PROGRAM).bin $(OBJ)
-	@echo "### -> Clearing libesix..."
-	make -C ../esix clean
+	@$(RM) $(PROGRAM) $(PROGRAM).bin $(OBJ)
+	@$(RM) -r FreeRTOS

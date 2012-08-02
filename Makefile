@@ -35,9 +35,12 @@ esixd: $(PCAP:.c=.o) $(LIB)
 test: $(TESTS:.c=.o) $(LIB)
 	$(CC) -o $@ $^
 
+freertos: $(LIB)
+	@$(MAKE) -C freertos
+
 -include $(SRC:%.c=%.d) $(TESTS:%.c=%.d) $(PCAP:%.c=%.d)
 
 clean:
 	@$(RM) $(LIB) $(SRC:.c=.o) $(SRC:.c=.d) test $(TESTS:.c=.o) $(TESTS:.c=.d) esixd $(PCAP:.c=.o) $(PCAP:.c=.d)
 
-.PHONY: clean
+.PHONY: clean freertos
