@@ -94,6 +94,7 @@ void esix_eth_process(const void *payload, int len)
 
 void esix_eth_send(const esix_eth_addr *dst_addr, const esix_eth_type type, const void *payload, int len)
 {
+	esix_buffer *buffer;
 	esix_eth_hdr *hdr;
 	esix_eth_addr lla = esix_intf_lla();
 
@@ -107,8 +108,15 @@ void esix_eth_send(const esix_eth_addr *dst_addr, const esix_eth_type type, cons
 	
 	hdr->type = hton16(type);
 
+	buffer = malloc(sizeof(*buffer));
+	if (!buffer) {
+		return;
+	}
+
 	memcpy(hdr + 1, payload, len);
 
-	//len + sizeof(esix_eth_hdr);
-	esix_send_enqueue((esix_buffer *)hdr);
+	buffer->data = hdr;
+	buffer->len = len + sizeof(esix_eth_hdr);
+
+	esix_outqueue_push(buffer);
 }

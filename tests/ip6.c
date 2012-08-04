@@ -21,56 +21,46 @@ static test_ret test_addr(void)
 	return test_passed;
 }
 
-static int sent_ok = 0;
-static esix_ip6_addr src_addr = {{ 1, 2, 3, 4 }};
-static esix_ip6_addr dst_addr = {{ 5, 6, 7, 8 }};
-static char payload[] = "payload";
-
-static test_ret validate_packet(void *data, int len)
+static test_ret test_send(void)
 {
-	esix_ip6_hdr *hdr = (void *)((uintptr_t)data + sizeof(esix_eth_hdr));
+	esix_buffer *buffer;
+	esix_ip6_hdr *hdr;
+	esix_ip6_addr src_addr = {{ 1, 2, 3, 4 }};
+	esix_ip6_addr dst_addr = {{ 5, 6, 7, 8 }};
 	esix_ip6_addr src_addr_n;
 	esix_ip6_addr dst_addr_n;	
+	char payload[] = "payload";
+	esix_lla lla = { 0, 0, 0, 0, 0, 0 };
+	esix_eth_addr eth_addr;
+	esix_ip6_addr mask = {{ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff }};
 	int i;
+	
+	esix_internal_init();
+	esix_intf_init(lla);
+	eth_addr = esix_intf_lla();
+
+	esix_intf_add_neighbor(&dst_addr, &eth_addr, 0);
+	esix_intf_add_route(&dst_addr, &mask, &dst_addr, 0, 0, 0);
+
+	esix_ip6_send(&src_addr, &dst_addr, 0, esix_ip6_next_icmp, payload, sizeof(payload));
+
+	buffer = esix_outqueue_pop();
+	require(buffer);
+	require(buffer->data);
+
+	hdr = (void *)((uintptr_t)buffer->data + sizeof(esix_eth_hdr));
+	require(buffer->len == sizeof(payload) + sizeof(esix_ip6_hdr) + sizeof(esix_eth_hdr));
 
 	for (i = 0; i < 4; i++) {
 		src_addr_n.raw[i] = hton32(src_addr.raw[i]);
 		dst_addr_n.raw[i] = hton32(dst_addr.raw[i]);
 	}
-
-	require(len == sizeof(payload) + sizeof(esix_ip6_hdr) + sizeof(esix_eth_hdr));
 	require(esix_ip6_addr_match(&hdr->dst_addr, &dst_addr_n));
 	require(esix_ip6_addr_match(&hdr->src_addr, &src_addr_n));
 	require(hdr->next_header == esix_ip6_next_icmp);
 	require(memcmp(hdr+1, payload, sizeof(payload)) == 0);
 
 	return test_passed;
-}
-
-static void send_callback(void *data, int len)
-{
-	int ret;
-
-	ret = validate_packet(data, len);
-	sent_ok = (ret == test_passed);
-}
-
-static test_ret test_send(void)
-{
-	esix_err err;
-	esix_eth_addr eth_addr = {{ 0, 0, 0 }};
-	esix_ip6_addr mask = {{ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff }};
-
-	err = esix_worker(send_callback);
-	require(!err);
-
-	esix_intf_init();
-	esix_intf_add_neighbor(&dst_addr, &eth_addr, 0);
-	esix_intf_add_route(&dst_addr, &mask, &dst_addr, 0, 0, 0);
-
-	esix_ip6_send(&src_addr, &dst_addr, 0, esix_ip6_next_icmp, payload, sizeof(payload));
-	
-	return sent_ok ? test_passed : test_failed;
 }
 
 static test_ret test_checksum(void)

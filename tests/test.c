@@ -16,6 +16,7 @@ typedef struct {
 } test_t;
 
 static test_t tests[] = {
+	{ "misc", test_misc },
 	{ "tools", test_tools },
 	{ "interface", test_intf },
 	{ "ethernet", test_eth },
@@ -24,7 +25,6 @@ static test_t tests[] = {
 	{ "udpv6", test_udp6 },
 	{ "tcpv6", test_tcp6 },
 	{ "socket", test_socket },
-	{ "misc", test_misc },
 };
 
 test_ret run_tests(test_f tests[])

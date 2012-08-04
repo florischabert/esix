@@ -39,6 +39,12 @@ static esix_callbacks callbacks;
 static esix_queue inqueue;
 static esix_queue outqueue;
 
+void esix_internal_init(void)
+{
+	esix_queue_init(&inqueue);
+	esix_queue_init(&outqueue);
+}
+
 /**
  * Sets up the esix stack.
  */
@@ -46,18 +52,46 @@ esix_err esix_init(esix_lla lla, esix_callbacks _callbacks)
 {
 	esix_err err = esix_err_none;
 
+	esix_internal_init();
+
+	if (!_callbacks.send ||
+	    !_callbacks.gettimeofday ||
+	    !_callbacks.cond_timedwait ||
+	    !_callbacks.cond_signal) {
+
+		err = esix_err_badparam;
+		goto out;
+	}
 	callbacks = _callbacks;
 
 	esix_intf_init(lla);
-
-	esix_queue_init(&inqueue);
-	esix_queue_init(&outqueue);
 
 	esix_socket_init();
 
 	esix_icmp6_send_router_sol(INTERFACE);
 
+out:
 	return err;
+}
+
+esix_err esix_inqueue_push(esix_buffer *buffer)
+{
+	return esix_queue_push(buffer, &inqueue);
+}
+
+esix_buffer *esix_inqueue_pop(void)
+{
+	return esix_queue_pop(&inqueue);
+}
+
+esix_err esix_outqueue_push(esix_buffer *buffer)
+{
+	return esix_queue_push(buffer, &outqueue);
+}
+
+esix_buffer *esix_outqueue_pop(void)
+{
+	return esix_queue_pop(&outqueue);
 }
 
 esix_err esix_workloop(void)
@@ -69,7 +103,7 @@ esix_err esix_workloop(void)
 		uint64_t wait_time = 0;
 
 		// process input frames
-		buffer = esix_queue_pop(&inqueue);
+		buffer = esix_inqueue_pop();
 		if (buffer) {
 			esix_eth_process(buffer->data, buffer->len);
 		}
@@ -81,7 +115,7 @@ esix_err esix_workloop(void)
 		}
 
 		// send output frames
-		buffer = esix_queue_pop(&outqueue);
+		buffer = esix_outqueue_pop();
 		if (buffer) {
 			callbacks.send(buffer->data, buffer->len);
 		}
@@ -111,17 +145,12 @@ esix_err esix_enqueue(void *payload, int len)
 
 	memcpy(buffer->data, payload, len);
 
-	esix_queue_push(payload, &inqueue);
+	esix_inqueue_push(payload);
 
 	callbacks.cond_signal();
 
 out:
 	return err;
-}
-
-void esix_send_enqueue(esix_buffer *buffer)
-{
-	esix_queue_push(buffer, &inqueue);
 }
 
 uint64_t esix_time()

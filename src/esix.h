@@ -32,8 +32,13 @@
 #include "config.h"
 #include "tools.h"
 
+void esix_internal_init(void);
+
 uint64_t esix_time();
 
-void esix_send_enqueue(esix_buffer *buffer);
+esix_err esix_inqueue_push(esix_buffer *buffer);
+esix_buffer *esix_inqueue_pop(void);
+esix_err esix_outqueue_push(esix_buffer *buffer);
+esix_buffer *esix_outqueue_pop(void);
 
 #endif
