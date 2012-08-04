@@ -156,7 +156,7 @@ void esix_ip6_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 	
 	hdr = malloc(sizeof(esix_ip6_hdr) + len);
 	if (!hdr) {
-		goto out;;
+		goto out;
 	}
 	
 	hdr->ver_tc_flowlabel = hton32(ip6_hdr_set_version(6));
@@ -207,6 +207,11 @@ void esix_ip6_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 	}
 out:
 	return;
+}
+
+esix_err esix_ip6_work(void)
+{
+	return esix_err_none;
 }
 
 uint16_t esix_ip6_upper_checksum(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, const esix_ip6_next next, const void *payload, int len)

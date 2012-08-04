@@ -100,3 +100,85 @@ uint32_t hton32(uint32_t v)
 	       ((uint32_t)cv[2] << 8 ) |
 	       ((uint32_t)cv[3] << 0 );
 }
+
+esix_buffer *esix_buffer_alloc(int len)
+{
+	esix_buffer *buffer;
+
+	buffer = malloc(sizeof(*buffer));
+	if (!buffer) {
+		goto out;
+	}
+
+	buffer->data = malloc(len);
+	if (!buffer->data) {
+		goto out;
+	}
+
+	buffer->len = len;
+	buffer->app_data = NULL;
+
+out:
+	return buffer;
+}
+
+void esix_buffer_free(esix_buffer *buffer)
+{
+	free(buffer->data);
+	free(buffer);
+}
+
+typedef struct {
+	esix_list list;
+	void *buffer;
+} esix_buffer_link;
+
+void esix_queue_init(esix_queue *queue)
+{
+	esix_list_init(&queue->list);
+	esix_unlock(&queue->lock);
+}
+
+esix_err esix_queue_push(void *buffer, esix_queue *queue)
+{
+	esix_err err = esix_err_none;
+	esix_buffer_link *link;
+
+	link = malloc(sizeof *link);
+	if (!link) {
+		err = esix_err_oom;
+		goto out;
+	}
+	
+	link->buffer = buffer;
+
+	esix_lock(&queue->lock);
+	esix_list_add(&link->list, &queue->list);
+	esix_unlock(&queue->lock);
+
+out:
+	return err;
+}
+
+void *esix_queue_pop(esix_queue *queue)
+{
+	esix_buffer_link *link;
+	esix_buffer *buffer = NULL;
+
+	if (esix_list_empty(&queue->list)) {
+		goto out;
+	}
+
+	esix_list_tail(link, &queue->list, list);
+
+	buffer = link->buffer;
+
+	esix_lock(&queue->lock);
+	esix_list_del(&link->list);
+	esix_unlock(&queue->lock);
+
+	free(link);
+
+out:
+	return buffer;
+}

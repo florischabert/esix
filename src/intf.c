@@ -39,9 +39,9 @@ static esix_list intf_neighbors;
 
 static esix_eth_addr intf_lla = {{ 0, 0, 0 }};
 
-esix_eth_addr *esix_intf_lla(void)
+esix_eth_addr esix_intf_lla(void)
 {
-	return &intf_lla;
+	return intf_lla;
 }
 
 static esix_ip6_addr intf_create_link_local_addr(esix_eth_addr eth_addr)
@@ -67,11 +67,21 @@ static esix_ip6_addr intf_create_multicast_all_nodes_addr(void)
 	return ip_addr;
 }
 
-void esix_intf_init(void)
+esix_err esix_intf_init(esix_lla lla)
 {
+	esix_err err = esix_err_none;
+
 	esix_list_init(&intf_addrs);
 	esix_list_init(&intf_routes);
 	esix_list_init(&intf_neighbors);
+
+	intf_lla.raw[0] = (lla[0] << 8) | lla[1];
+	intf_lla.raw[1] = (lla[2] << 8) | lla[3];
+	intf_lla.raw[2] = (lla[4] << 8) | lla[5];
+
+	esix_intf_autoconfigure(intf_lla);
+
+	return err;
 }
 
 esix_err esix_intf_add_default_routes(int intf_mtu)
@@ -123,11 +133,11 @@ esix_err esix_intf_autoconfigure(esix_eth_addr eth_addr)
 	ip_addr = intf_create_link_local_addr(eth_addr);
 	err = esix_intf_add_addr(&ip_addr, 128, 0, esix_ip6_addr_type_link_local);
 	if (err) {
-		return err;
+		goto out;
 	}
 	err = esix_intf_add_neighbor(&ip_addr, &eth_addr, 0);
 	if (err) {
-		return err;
+		goto out;
 	}
 
 	ip_addr = intf_create_multicast_all_nodes_addr();
@@ -135,6 +145,7 @@ esix_err esix_intf_autoconfigure(esix_eth_addr eth_addr)
 
 	esix_intf_add_default_routes(1500);
 
+out:
 	return err;
 }
 

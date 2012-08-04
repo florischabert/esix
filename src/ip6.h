@@ -139,4 +139,7 @@ void esix_ip6_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
  */
 uint16_t esix_ip6_upper_checksum(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, const esix_ip6_next next, const void *payload, int len);
 
+
+esix_err esix_ip6_work(void);
+
 #endif

@@ -33,6 +33,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define ESIX_MTU 1500
+
 #define ESIX_QUEUE_DEPHT 5 //per-socket packet queue depht (received + send (for tcp))
 
 #define INTERFACE	0 //default interface # until we have a proper intf

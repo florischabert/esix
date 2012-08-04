@@ -189,7 +189,7 @@ void esix_icmp6_send_router_sol(uint8_t intf_index)
 
 	opt->type = S_LLA;
 	opt->len8 = 1; //1 * 8 bytes
-	opt->lla = *esix_intf_lla();
+	opt->lla = esix_intf_lla();
 
 	intf_addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_link_local);
 	if (intf_addr) {
@@ -225,7 +225,7 @@ void esix_icmp6_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len,
 	if (!neighbor) {
 		// the neighbor isn't in the cache, add it
 		esix_intf_add_neighbor(&hdr->src_addr, &((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 
-			esix_get_time() + NEW_NEIGHBOR_TIMEOUT);
+			esix_time() + NEW_NEIGHBOR_TIMEOUT);
 		//try again, to set some flags.
 		//note that even if it wasn't added (e.g. due to a full table),
 		//we still need to send an advertisement.
@@ -261,7 +261,7 @@ void esix_icmp6_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len,
 	if (neighbor) {
 		esix_intf_add_neighbor(&nb_adv->target_addr, 
 			&((struct icmp6_opt_lla *) (nb_adv + 1))->lla, 
-			esix_get_time() + NEIGHBOR_TIMEOUT);
+			esix_time() + NEIGHBOR_TIMEOUT);
 		//now find it again to set some flags
 		neighbor = esix_intf_get_neighbor(&nb_adv->target_addr);
 		if (!neighbor)
@@ -277,7 +277,7 @@ void esix_icmp6_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len,
 
 	neighbor->is_sollicited = 0;
 	neighbor->status = esix_intf_nd_status_reachable;
-	neighbor->expiration_date = esix_get_time() + NEIGHBOR_TIMEOUT;
+	neighbor->expiration_date = esix_time() + NEIGHBOR_TIMEOUT;
 }
 
 /*
@@ -312,7 +312,7 @@ void esix_icmp6_send_neighbor_adv(const esix_ip6_addr *src_addr, const esix_ip6_
 
 	opt->type = 2; // Target Link-Layer Address
 	opt->len8 = 1; // length: 1x8 bytes
-	opt->lla = *esix_intf_lla();
+	opt->lla = esix_intf_lla();
 
 	esix_icmp6_send(src_addr, dst_addr, 255, NBR_ADV, 0, nb_adv, len);
 }
@@ -442,6 +442,7 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	//global address && onlink route
 	if (got_prefix_info)
 	{
+		esix_eth_addr lla = esix_intf_lla();
 	
 		// TODO check htons here
 		//builds a new global scope address
@@ -457,13 +458,13 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 					| pfx_info->p[6] << 8
 					| pfx_info->p[7];
 
-		addr.raw[2] = (ntoh16((*esix_intf_lla()).raw[0]) << 16 & 0xff0000)
-					| (ntoh16((*esix_intf_lla()).raw[1]) & 0xff00)
+		addr.raw[2] = (ntoh16(lla.raw[0]) << 16 & 0xff0000)
+					| (ntoh16(lla.raw[1]) & 0xff00)
 					| (0x020000ff); //stateless autoconf, 0x02 : universal bit
 
 		addr.raw[3] = (0xfe000000) //0xfe here is OK
-			 		| (ntoh16((*esix_intf_lla()).raw[1]) << 16 & 0xff0000) 
-			 		| (ntoh16((*esix_intf_lla()).raw[2]));
+			 		| (ntoh16(lla.raw[1]) << 16 & 0xff0000) 
+			 		| (ntoh16(lla.raw[2]));
 
 		raw[1].raw[0] = 0;
 		raw[1].raw[1] = 0;
@@ -488,14 +489,14 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		{
 			esix_intf_add_addr(&addr,
 					0x40,				// /64
-					esix_get_time() + ntoh32(pfx_info->valid_lifetime), //expiration date
+					esix_time() + ntoh32(pfx_info->valid_lifetime), //expiration date
 					esix_ip6_addr_type_global);
 			addr.raw[2] = 0;
 			addr.raw[3] = 0;
 
 			//onlink route (local route for our own subnet)
 			esix_intf_add_route(&addr, &mask, &raw[1],
-					esix_get_time() + ntoh32(pfx_info->valid_lifetime), //exp. date
+					esix_time() + ntoh32(pfx_info->valid_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu);
 		}
@@ -520,7 +521,7 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		esix_intf_add_route(&addr, 	//default dest
 					&mask,			//default mask
 					&ip_hdr->src_addr,		//next hop
-					esix_get_time() + ntoh16(rtr_adv->rtr_lifetime), //exp. date
+					esix_time() + ntoh16(rtr_adv->rtr_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu);
 

@@ -32,17 +32,8 @@
 #include "config.h"
 #include "tools.h"
 
-void *esix_buffer_alloc(void);
-void esix_buffer_free(void *buffer);
+uint64_t esix_time();
 
-esix_err esix_inqueue_push(void *buffer);
-void *esix_inqueue_pop(void);
-
-esix_err esix_outqueue_push(void *buffer);
-void *esix_outqueue_pop(void);
-
-uint32_t esix_get_time();
-
-extern void (*esix_send_callback)(void *data, int len);
+void esix_send_enqueue(esix_buffer *buffer);
 
 #endif

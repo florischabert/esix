@@ -51,4 +51,3 @@ bin: $(PROGRAM)
 
 clean:
 	@$(RM) $(PROGRAM) $(PROGRAM).bin $(OBJ)
-	@$(RM) -r FreeRTOS

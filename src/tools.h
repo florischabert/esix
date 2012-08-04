@@ -101,11 +101,28 @@ void esix_memcpy(void *dst, const void *src, int len);
 int esix_memcmp(const void *p1, const void *p2, int len);
 int esix_strlen(const char *s);
 
-uint32_t esix_get_time();
-
 uint16_t hton16(uint16_t v);
 uint32_t hton32(uint32_t v);
 #define ntoh16 hton16
 #define ntoh32 hton32
+
+
+typedef struct {
+	void *data;
+	void *app_data;
+	int len;
+} esix_buffer;
+
+esix_buffer *esix_buffer_alloc(int len);
+void esix_buffer_free(esix_buffer *buffer);
+
+typedef struct {
+	esix_list list;
+	int lock;
+} esix_queue;
+
+void esix_queue_init(esix_queue *queue);
+esix_err esix_queue_push(void *buffer, esix_queue *queue);
+void *esix_queue_pop(esix_queue *queue);
 
 #endif

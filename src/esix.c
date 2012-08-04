@@ -34,172 +34,99 @@
 #include "tools.h"
 #include <esix.h>
 
-#define ESIX_BUF_SIZE 1500
+static esix_callbacks callbacks;
 
-typedef struct {
-	esix_list list;
-	void *buffer;
-} esix_buffer_link;
+static esix_queue inqueue;
+static esix_queue outqueue;
 
-typedef struct {
-	esix_list list;
-	int lock;
-} esix_buffer_queue;
-
-static esix_buffer_queue esix_inqueue;
-static esix_buffer_queue esix_outqueue;
-
-static uint32_t	current_time;
-
-void (*esix_send_callback)(void *data, int len) = NULL;
-
-void *esix_buffer_alloc(void)
-{
-	return malloc(ESIX_BUF_SIZE);
-}
-
-void esix_buffer_free(void *buffer)
-{
-	free(buffer);
-}
-
-static esix_err esix_queue_push(void *buffer, esix_buffer_queue *queue)
+/**
+ * Sets up the esix stack.
+ */
+esix_err esix_init(esix_lla lla, esix_callbacks _callbacks)
 {
 	esix_err err = esix_err_none;
-	esix_buffer_link *link;
 
-	link = malloc(sizeof *link);
-	if (!link) {
-		err = esix_err_oom;
-		goto out;
+	callbacks = _callbacks;
+
+	esix_intf_init(lla);
+
+	esix_queue_init(&inqueue);
+	esix_queue_init(&outqueue);
+
+	esix_socket_init();
+
+	esix_icmp6_send_router_sol(INTERFACE);
+
+	return err;
+}
+
+esix_err esix_workloop(void)
+{
+	esix_err err = esix_err_none;
+	esix_buffer *buffer;
+
+	while (1) {
+		uint64_t wait_time = 0;
+
+		// process input frames
+		buffer = esix_queue_pop(&inqueue);
+		if (buffer) {
+			esix_eth_process(buffer->data, buffer->len);
+		}
+
+		// housekeeping please
+		err = esix_ip6_work();
+		if (err) {
+			goto out;
+		}
+
+		// send output frames
+		buffer = esix_queue_pop(&outqueue);
+		if (buffer) {
+			callbacks.send(buffer->data, buffer->len);
+		}
+		
+		callbacks.cond_timedwait(wait_time);
 	}
-	
-	link->buffer = buffer;
-
-	esix_lock(&queue->lock);
-	esix_list_add(&link->list, &queue->list);
-	esix_unlock(&queue->lock);
 
 out:
 	return err;
 }
 
-static void *esix_queue_pop(esix_buffer_queue *queue)
+esix_err esix_enqueue(void *payload, int len)
 {
-	esix_buffer_link *link;
-	void *buffer = NULL;
+	esix_err err = esix_err_none;
+	esix_buffer *buffer;
 
-	if (esix_list_empty(&queue->list)) {
+	if (!payload || len < 0 || len > ESIX_MTU) {
+		err = esix_err_badparam;
+		goto out;
+	}
+	
+	buffer = esix_buffer_alloc(len);
+	if (!buffer) {
+		err = esix_err_oom;
 		goto out;
 	}
 
-	esix_list_tail(link, &queue->list, list);
+	memcpy(buffer->data, payload, len);
 
-	buffer = link->buffer;
+	esix_queue_push(payload, &inqueue);
 
-	esix_lock(&queue->lock);
-	esix_list_del(&link->list);
-	esix_unlock(&queue->lock);
-
-	free(link);
+	callbacks.cond_signal();
 
 out:
-	return buffer;
+	return err;
 }
 
-esix_err esix_inqueue_push(void *buffer)
+void esix_send_enqueue(esix_buffer *buffer)
 {
-	return esix_queue_push(buffer, &esix_inqueue);
+	esix_queue_push(buffer, &inqueue);
 }
 
-void *esix_inqueue_pop(void)
+uint64_t esix_time()
 {
-	return esix_queue_pop(&esix_inqueue);
-}
-
-esix_err esix_outqueue_push(void *buffer)
-{
-	return esix_queue_push(buffer, &esix_inqueue);
-}
-
-void *esix_outqueue_pop(void)
-{
-	return esix_queue_pop(&esix_inqueue);
-}
-
-static int eth_addr_from_str(esix_eth_addr addr, char *str)
-{
-	int i;
-
-	if (esix_strlen(str) != esix_strlen("xx:xx:xx:xx:xx:xx")) {
-		return -1;
-	}
-
-	for (i = 0; i < 6; i++, str += 3) {
-		int j;
-		uint8_t byte = 0;
-
-		for (j = 0; j < 2; j++) {
-			uint8_t val;
-			if (str[j] >= '0' && str[j] <= '9') {
-				val = str[j] - '0';
-			}
-			else if (str[j] >= 'A' && str[j] <= 'F') {
-				val = str[j] - 'A' + 10;
-			}
-			else if (str[j] >= 'a' && str[j] <= 'f') {
-				val = str[j] - 'a' + 10;
-			}
-			else {
-				return -1;
-			}
-			byte +=  val << (4*(1-j));
-		}
-
-		addr.raw[i] = byte;
-	}
-	return 0;
-}
-
-/**
- * Sets up the esix stack.
- */
-esix_err esix_init(char *lla)
-{
-	esix_eth_addr eth_addr;
-
-	esix_list_init(&esix_inqueue.list);
-	esix_list_init(&esix_outqueue.list);
-
-	if (eth_addr_from_str(eth_addr, lla) == -1) {
-		return esix_err_badparam;
-	}
-
-	current_time = 1;	// 0 means "infinite lifetime" in our caches
-
-	esix_intf_init();
-	esix_socket_init();
-
-	esix_intf_autoconfigure(eth_addr);
-
-	esix_icmp6_send_router_sol(INTERFACE);
-
-	return esix_err_none;
-}
-
-esix_err esix_worker(void (*send_callback)())
-{
-	if (!send_callback) {
-		return esix_err_badparam;
-	}
-	esix_send_callback = send_callback;
-
-	return esix_err_none;
-}
-
-uint32_t esix_get_time()
-{
-	return current_time;
+	return callbacks.gettimeofday();
 }
 
 /*

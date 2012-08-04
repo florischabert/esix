@@ -29,38 +29,38 @@
 #ifndef _ESIX_API_H
 #define _ESIX_API_H
 
+#include <stdint.h>
+
 /**
  * Error type
  */
 typedef enum {
 	esix_err_none = 0, // went okay
-	esix_err_failed,   // function failed
 	esix_err_badparam, // bad parameter
-	esix_err_oom       // out of memory
+	esix_err_oom,      // out of memory
+	esix_err_failed,   // function failed
 } esix_err;
+
+typedef uint8_t esix_lla[6];
+
+typedef struct {
+	void     (*send)          (void *data, int len);
+	uint64_t (*gettimeofday)  (void);
+	void     (*cond_timedwait)(uint64_t abstime);
+	void     (*cond_signal)   (void);
+
+} esix_callbacks;
 
 /**
  * Sets up the esix stack.
  *
  * @param lla           MAC address of the node, string with each byte in hex separated by ':'.
  * @param send_callback A callback sending data of len bytes to the ethernet controller
- *
- * Usage:
- * @code
- * 	esix_init("XX:XX:XX:XX:XX:XX", my_send_callback);
- * @endcode
  */
-esix_err esix_init(char *lla);
+esix_err esix_init(esix_lla lla, esix_callbacks callbacks);
 
-esix_err esix_worker(void (*send_callback)(void *data, int len));
+esix_err esix_workloop(void);
 
-/*
- * Process a received Ethernet packet.
- * 
- * @param packet is a pointer to the packet.
- * @param len is the packet size.
- */
-void esix_eth_process(const void *payload, int len);
-
+esix_err esix_enqueue(void *payload, int len);
 
 #endif

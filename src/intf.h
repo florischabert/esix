@@ -88,12 +88,12 @@ typedef struct {
  *
  * @return Interface's ethernet address.
  */
-esix_eth_addr *esix_intf_lla(void);
+esix_eth_addr esix_intf_lla(void);
 
 /**
  * Initialize the interface.
  */
-void esix_intf_init(void);
+esix_err esix_intf_init(esix_lla lla);
 
 /**
  * Autoconfigure the interface.
