@@ -34,8 +34,6 @@
 
 void esix_internal_init(void);
 
-uint64_t esix_time();
-
 esix_err esix_inqueue_push(esix_buffer *buffer);
 esix_buffer *esix_inqueue_pop(void);
 esix_err esix_outqueue_push(esix_buffer *buffer);

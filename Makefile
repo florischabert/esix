@@ -24,7 +24,7 @@ LIB=libesix.a
 SRC=$(wildcard src/*.c)
 TESTS=$(wildcard tests/*.c)
 PCAP=$(wildcard pcap/*.c)
-CFLAGS += -Iinclude -MD -MP -Wall
+CFLAGS += -Iinclude -MD -MP -Wall -g
 
 $(LIB): $(SRC:.c=.o)
 	$(AR) rcs $@ $^

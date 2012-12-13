@@ -72,7 +72,7 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 	{
 		sqe->qe_type	= SENT_PKT;
 		sqe->seqn 	= esix_sockets[sock].seqn;
-		sqe->t_sent 	= esix_time();
+		sqe->t_sent 	= esix_gettime();
 	}
 
 	//there's no element in the list.
@@ -529,7 +529,7 @@ int send(const int socknum, const void *buf, const int len, const uint8_t flags)
 					PSH|ACK, buf, len);
 
 		esix_sockets[socknum].seqn+= len;
-		esix_sockets[socknum].rexmit_date = esix_time() + 2;
+		esix_sockets[socknum].rexmit_date = esix_gettime() + 2;
 
 		return len;
 	}
@@ -615,13 +615,13 @@ void esix_socket_housekeep()
 		//either retransmission is disabled or scheduled for
 		//a later time on this socket
 		if(esix_sockets[s].rexmit_date == 0 ||
-			esix_sockets[s].rexmit_date > esix_time())
+			esix_sockets[s].rexmit_date > esix_gettime())
 			continue;
 
 		//show time. find the first available packet and resend it.
 		if((sqe = esix_socket_find_e(s, SENT_PKT, KEEP)) != NULL) 
 		{
-			if(esix_time() - sqe->t_sent > MAX_RETX_TIME)
+			if(esix_gettime() - sqe->t_sent > MAX_RETX_TIME)
 			{
 				//we've been trying far too long
 				esix_tcp_send(&esix_sockets[s].laddr, 
@@ -636,8 +636,8 @@ void esix_socket_housekeep()
 
 			//first update the retransmission date
 			//exp backoff fashion
-			esix_sockets[s].rexmit_date = esix_time() + 
-				((esix_time() - sqe->t_sent)^2);
+			esix_sockets[s].rexmit_date = esix_gettime() + 
+				((esix_gettime() - sqe->t_sent)^2);
 
 			esix_tcp_send(&esix_sockets[s].laddr, 
 				&esix_sockets[s].raddr, esix_sockets[s].lport,

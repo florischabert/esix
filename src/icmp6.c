@@ -225,7 +225,7 @@ void esix_icmp6_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len,
 	if (!neighbor) {
 		// the neighbor isn't in the cache, add it
 		esix_intf_add_neighbor(&hdr->src_addr, &((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 
-			esix_time() + NEW_NEIGHBOR_TIMEOUT);
+			esix_gettime() + NEW_NEIGHBOR_TIMEOUT);
 		//try again, to set some flags.
 		//note that even if it wasn't added (e.g. due to a full table),
 		//we still need to send an advertisement.
@@ -261,7 +261,7 @@ void esix_icmp6_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len,
 	if (neighbor) {
 		esix_intf_add_neighbor(&nb_adv->target_addr, 
 			&((struct icmp6_opt_lla *) (nb_adv + 1))->lla, 
-			esix_time() + NEIGHBOR_TIMEOUT);
+			esix_gettime() + NEIGHBOR_TIMEOUT);
 		//now find it again to set some flags
 		neighbor = esix_intf_get_neighbor(&nb_adv->target_addr);
 		if (!neighbor)
@@ -277,7 +277,7 @@ void esix_icmp6_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len,
 
 	neighbor->is_sollicited = 0;
 	neighbor->status = esix_intf_nd_status_reachable;
-	neighbor->expiration_date = esix_time() + NEIGHBOR_TIMEOUT;
+	neighbor->expiration_date = esix_gettime() + NEIGHBOR_TIMEOUT;
 }
 
 /*
@@ -489,14 +489,14 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		{
 			esix_intf_add_addr(&addr,
 					0x40,				// /64
-					esix_time() + ntoh32(pfx_info->valid_lifetime), //expiration date
+					esix_gettime() + ntoh32(pfx_info->valid_lifetime), //expiration date
 					esix_ip6_addr_type_global);
 			addr.raw[2] = 0;
 			addr.raw[3] = 0;
 
 			//onlink route (local route for our own subnet)
 			esix_intf_add_route(&addr, &mask, &raw[1],
-					esix_time() + ntoh32(pfx_info->valid_lifetime), //exp. date
+					esix_gettime() + ntoh32(pfx_info->valid_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu);
 		}
@@ -521,7 +521,7 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		esix_intf_add_route(&addr, 	//default dest
 					&mask,			//default mask
 					&ip_hdr->src_addr,		//next hop
-					esix_time() + ntoh16(rtr_adv->rtr_lifetime), //exp. date
+					esix_gettime() + ntoh16(rtr_adv->rtr_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu);
 

@@ -80,7 +80,16 @@ esix_ip6_addr esix_ip6_addr_create(uint32_t w0, uint32_t w1, uint32_t w2, uint32
 
 int esix_ip6_addr_match(const esix_ip6_addr *addr1, const esix_ip6_addr *addr2)
 {
-	return esix_ip6_addr_match_with_mask(addr1, &ip6_addr_unmasked, addr2);
+	int i;
+	int does_match = 1;
+
+	for (i = 0; i < 4; i++) {
+		if (addr1->raw[i] != addr2->raw[i]) {
+			does_match = 0;
+			break;
+		}
+	}
+	return does_match;
 }
 
 static esix_eth_addr ip6_addr_to_eth_multicast(const esix_ip6_addr *addr)

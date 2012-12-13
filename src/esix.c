@@ -34,10 +34,10 @@
 #include "tools.h"
 #include <esix.h>
 
-static esix_callbacks callbacks;
-
 static esix_queue inqueue;
 static esix_queue outqueue;
+
+static esix_sem_t *sem;
 
 void esix_internal_init(void)
 {
@@ -48,21 +48,13 @@ void esix_internal_init(void)
 /**
  * Sets up the esix stack.
  */
-esix_err esix_init(esix_lla lla, esix_callbacks _callbacks)
+esix_err esix_init(esix_lla lla)
 {
 	esix_err err = esix_err_none;
 
 	esix_internal_init();
 
-	if (!_callbacks.send ||
-	    !_callbacks.gettimeofday ||
-	    !_callbacks.cond_timedwait ||
-	    !_callbacks.cond_signal) {
-
-		err = esix_err_badparam;
-		goto out;
-	}
-	callbacks = _callbacks;
+	esix_sem_init(sem);
 
 	esix_intf_init(lla);
 
@@ -70,7 +62,6 @@ esix_err esix_init(esix_lla lla, esix_callbacks _callbacks)
 
 	esix_icmp6_send_router_sol(INTERFACE);
 
-out:
 	return err;
 }
 
@@ -117,10 +108,11 @@ esix_err esix_workloop(void)
 		// send output frames
 		buffer = esix_outqueue_pop();
 		if (buffer) {
-			callbacks.send(buffer->data, buffer->len);
+			esix_send(buffer->data, buffer->len);
+			esix_buffer_free(buffer);
 		}
 		
-		callbacks.cond_timedwait(wait_time);
+		esix_sem_wait(sem, wait_time);
 	}
 
 out:
@@ -147,15 +139,15 @@ esix_err esix_enqueue(void *payload, int len)
 
 	esix_inqueue_push(payload);
 
-	callbacks.cond_signal();
+	esix_sem_signal(sem);
 
 out:
 	return err;
 }
 
-uint64_t esix_time()
+void esix_destroy(void)
 {
-	return callbacks.gettimeofday();
+	esix_sem_destroy(sem);
 }
 
 /*

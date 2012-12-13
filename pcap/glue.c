@@ -33,12 +33,14 @@
 #include <signal.h>
 #include <pcap.h>
 #include <esix.h>
+#include <sys/time.h>
+#include <pthread.h>
 
-#define MAC_ADDR "00:80:c5:80:c5:3a"
+#define MAC_ADDR { 0x00, 0x80, 0xc5, 0x80, 0xc5, 0x3a }
 
 static pcap_t *pcap_handle;
 
-static void send_packet(void *packet, int len)
+void esix_send(void *packet, int len)
 {
 	int sent;
 
@@ -56,7 +58,7 @@ static void send_packet(void *packet, int len)
 
 static void process_packet(u_char *user, const struct pcap_pkthdr *header, const u_char *bytes)
 {
-	esix_eth_process((void *)bytes, header->len);
+	esix_enqueue((void *)bytes, header->len);
 }
 
 static void handle_signal(int sig)
@@ -69,12 +71,71 @@ static void handle_signal(int sig)
 	}
 }
 
+uint64_t esix_gettime(void)
+{
+	struct timeval tp;
+
+	gettimeofday(&tp, NULL);
+
+	return tp.tv_sec * 1000000000 + tp.tv_usec * 1000;
+}
+
+struct esix_sem_t {
+	pthread_cond_t cond;
+	pthread_mutex_t mutex;
+	int should_run;
+};
+
+int esix_sem_init(esix_sem_t *sem)
+{
+	sem = malloc(sizeof *sem);
+
+	pthread_cond_init(&sem->cond, NULL);
+	pthread_mutex_init(&sem->mutex, NULL);
+	sem->should_run = 0;
+
+	return 0;
+}
+
+void esix_sem_wait(esix_sem_t *sem, uint64_t abstime)
+{
+	struct timespec ts;
+	ts.tv_sec = abstime / 1000000000;
+	ts.tv_nsec = abstime % 1000000000;
+
+	pthread_mutex_lock(&sem->mutex);
+	if (!sem->should_run) {
+		pthread_cond_timedwait(&sem->cond, &sem->mutex, &ts);
+	}
+	sem->should_run = 0;
+	pthread_mutex_unlock(&sem->mutex);
+}
+
+void esix_sem_signal(esix_sem_t *sem)
+{
+	pthread_mutex_lock(&sem->mutex);
+	sem->should_run = 1;
+	pthread_mutex_unlock(&sem->mutex);
+
+	pthread_cond_signal(&sem->cond);
+}
+
+void esix_sem_destroy(esix_sem_t *sem)
+{
+	pthread_cond_broadcast(&sem->cond);
+	pthread_cond_destroy(&sem->cond);
+	pthread_mutex_destroy(&sem->mutex);
+
+	free(sem);
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_FAILURE;
 	char *dev;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	int err;
+	esix_lla lla = MAC_ADDR;
 
 	if (geteuid() != 0) {
 		fprintf(stderr, "You need to be root to open the default device.\n");
@@ -95,21 +156,27 @@ int main(int argc, char *argv[])
 
 	signal(SIGINT, handle_signal);
 
-	printf("Hooked %s on %s\n", MAC_ADDR, dev);
+	printf("Hooked on %s\n", dev);
 
-	esix_init(MAC_ADDR);
+	err = esix_init(lla);
+	if (err) {
+		fprintf(stderr, "Error: Couldn't initialize esix\n");
+		goto pcap_close;
+	}
 
 	err = pcap_loop(pcap_handle, -1, process_packet, NULL);
 	if (err == -1) {
 		pcap_perror(pcap_handle, "Error: ");
-		goto close;
+		goto esix_destroy;
 	}
 
-	esix_worker(send_packet);
+	esix_workloop();
 	
 	ret = EXIT_SUCCESS;
 
-close:
+esix_destroy:
+	esix_destroy();
+pcap_close:
 	pcap_close(pcap_handle);
 out:
 	return ret;

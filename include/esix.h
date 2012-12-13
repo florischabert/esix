@@ -43,13 +43,14 @@ typedef enum {
 
 typedef uint8_t esix_lla[6];
 
-typedef struct {
-	void     (*send)          (void *data, int len);
-	uint64_t (*gettimeofday)  (void);
-	void     (*cond_timedwait)(uint64_t abstime);
-	void     (*cond_signal)   (void);
+typedef struct esix_sem_t esix_sem_t;
 
-} esix_callbacks;
+void esix_send(void *data, int len);
+uint64_t esix_gettime(void);
+int esix_sem_init(esix_sem_t *sem);
+void esix_sem_destroy(esix_sem_t *sem);
+void esix_sem_wait(esix_sem_t *sem, uint64_t abstime);
+void esix_sem_signal(esix_sem_t *sem);
 
 /**
  * Sets up the esix stack.
@@ -57,10 +58,12 @@ typedef struct {
  * @param lla           MAC address of the node, string with each byte in hex separated by ':'.
  * @param send_callback A callback sending data of len bytes to the ethernet controller
  */
-esix_err esix_init(esix_lla lla, esix_callbacks callbacks);
+esix_err esix_init(esix_lla lla);
 
 esix_err esix_workloop(void);
 
 esix_err esix_enqueue(void *payload, int len);
+
+void esix_destroy(void);
 
 #endif
