@@ -29,7 +29,7 @@
 #include "config.h"
 #include "icmp6.h"
 #include "socket.h"
-#include "intf.h"
+#include "nd6.h"
 #include "eth.h"
 #include "tools.h"
 #include <esix.h>
@@ -38,6 +38,7 @@ static esix_queue inqueue;
 static esix_queue outqueue;
 
 static esix_sem_t *sem;
+static int workloop_active;
 
 void esix_internal_init(void)
 {
@@ -54,9 +55,9 @@ esix_err esix_init(esix_lla lla)
 
 	esix_internal_init();
 
-	esix_sem_init(sem);
+	sem = esix_sem_create();
 
-	esix_intf_init(lla);
+	esix_nd6_init(lla);
 
 	esix_socket_init();
 
@@ -90,8 +91,10 @@ esix_err esix_workloop(void)
 	esix_err err = esix_err_none;
 	esix_buffer *buffer;
 
-	while (1) {
-		uint64_t wait_time = 0;
+	workloop_active = 1;
+
+	while (workloop_active) {
+		uint64_t wait_time = 100000000;
 
 		// process input frames
 		buffer = esix_inqueue_pop();
@@ -147,6 +150,9 @@ out:
 
 void esix_destroy(void)
 {
+	workloop_active = 0;
+	// fingers crossed..
+	esix_sem_signal(sem);
 	esix_sem_destroy(sem);
 }
 
@@ -154,7 +160,7 @@ void esix_destroy(void)
  * esix_ip_housekeep : takes care of cache entries expiration at the ip level
  */
 #if 0
-static void esix_intf_housekeep()
+static void esix_nd6_housekeep()
 {
 	//loop through the routing table
 	for(i=0; i<ESIX_MAX_RT; i++)
@@ -163,7 +169,7 @@ static void esix_intf_housekeep()
 		{
 			if(routes[i]->expiration_date != 0 && 
 			   routes[i]->expiration_date < current_time)
-				esix_intf_remove_route(&routes[i]->addr, &routes[i]->mask,
+				esix_nd6_remove_route(&routes[i]->addr, &routes[i]->mask,
 				&routes[i]->next_hop, INTERFACE);
 		}
 	}
@@ -174,7 +180,7 @@ static void esix_intf_housekeep()
 		if(addrs[i] != NULL)
 			if(addrs[i]->expiration_date != 0 && 
 			   addrs[i]->expiration_date < current_time)
-				esix_intf_remove_address(&addrs[i]->addr, addrs[i]->type, addrs[i]->mask);
+				esix_nd6_remove_address(&addrs[i]->addr, addrs[i]->type, addrs[i]->mask);
 	}
 
 	//loop through the neighbor table
@@ -187,14 +193,14 @@ static void esix_intf_housekeep()
 			//send an unicast neighbor advertisement to refresh it.
 			if((neighbors[i]->expiration_date - STALE_DURATION) < current_time)
 			{
-				if((j=esix_intf_get_type_address(LINK_LOCAL)) >= 0)	
+				if((j=esix_nd6_get_type_address(LINK_LOCAL)) >= 0)	
 					esix_icmp6_send_neighbor_sol(&addrs[j]->addr, &neighbors[i]->addr);
 			}
 	
 			//if it hasn't been refreshed after STALE_DURATION seconds,
 			//the neighbor might be gone. Remove the entry.
 			if(neighbors[i]->expiration_date < current_time)
-				esix_intf_remove_neighbor(&neighbors[i]->addr, INTERFACE);
+				esix_nd6_remove_neighbor(&neighbors[i]->addr, INTERFACE);
 			
 		}
 	}

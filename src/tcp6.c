@@ -29,7 +29,7 @@
 #include "tcp6.h"
 #include "tools.h"
 #include "icmp6.h"
-#include "intf.h"
+#include "nd6.h"
 #include "socket.h"
 #include <socket.h>
 
@@ -211,7 +211,7 @@ void esix_tcp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 	esix_ip6_addr saddr = *src_addr;
 
 	//check source address
-	if(esix_intf_check_source_addr(&saddr, dst_addr) < 0)
+	if(esix_nd6_check_source_addr(&saddr, dst_addr) < 0)
 		return;	
 
 	if((hdr = malloc(sizeof(struct tcp_hdr) + len)) == NULL)

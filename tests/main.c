@@ -1,4 +1,5 @@
 #include "test.h"
+#include <esix.h>
 
 extern test_ret test_tools();
 extern test_ret test_intf();
@@ -41,6 +42,13 @@ test_ret run_tests(test_f tests[])
 	return ret;
 }
 
+void esix_send(void *data, int len) {}
+uint64_t esix_gettime(void) { return 0; }
+esix_sem_t *esix_sem_create(void) { return NULL; }
+void esix_sem_destroy(esix_sem_t *sem) {}
+void esix_sem_wait(esix_sem_t *sem, uint64_t delay_ns) {}
+void esix_sem_signal(esix_sem_t *sem) {}
+
 int main(int argc, char const *argv[])
 {
 	const int num_tests = sizeof(tests)/sizeof(tests[0]);
@@ -56,11 +64,12 @@ int main(int argc, char const *argv[])
 		}
 	}
 
-	printf("-- %d/%d passed", num_tests - failures, num_tests);
 	if (failures) {
-		printf(" (%d failed)", failures);
+		printf("%d test%s failed.\n", failures, failures > 1 ? "s" : "");
 	}
-	printf("\n");
+	else {
+		printf("All test passed.\n");
+	}
 
 	return 0;
 }

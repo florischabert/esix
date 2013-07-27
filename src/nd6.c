@@ -26,25 +26,25 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "intf.h"
+#include "nd6.h"
 #include "tools.h"
 #include "ip6.h"
 #include "icmp6.h"
 #include "eth.h"
 #include <esix.h>
 
-static esix_list intf_addrs;
-static esix_list intf_routes;
-static esix_list intf_neighbors;
+static esix_list nd6_addrs;
+static esix_list nd6_routes;
+static esix_list nd6_neighbors;
 
-static esix_eth_addr intf_lla = {{ 0, 0, 0 }};
+static esix_eth_addr nd6_lla = {{ 0, 0, 0 }};
 
-esix_eth_addr esix_intf_lla(void)
+esix_eth_addr esix_nd6_lla(void)
 {
-	return intf_lla;
+	return nd6_lla;
 }
 
-static esix_ip6_addr intf_create_link_local_addr(esix_eth_addr eth_addr)
+static esix_ip6_addr nd6_create_link_local_addr(esix_eth_addr eth_addr)
 {
 	esix_ip6_addr ip_addr = {{
 		0xfe800000,
@@ -59,7 +59,7 @@ static esix_ip6_addr intf_create_link_local_addr(esix_eth_addr eth_addr)
 	return ip_addr;
 }
 
-static esix_ip6_addr intf_create_multicast_all_nodes_addr(void)
+static esix_ip6_addr nd6_create_multicast_all_nodes_addr(void)
 {
 	esix_ip6_addr ip_addr = {{
 		0xff020000, 0, 0, 1
@@ -67,27 +67,27 @@ static esix_ip6_addr intf_create_multicast_all_nodes_addr(void)
 	return ip_addr;
 }
 
-esix_err esix_intf_init(esix_lla lla)
+esix_err esix_nd6_init(esix_lla lla)
 {
 	esix_err err = esix_err_none;
 
-	esix_list_init(&intf_addrs);
-	esix_list_init(&intf_routes);
-	esix_list_init(&intf_neighbors);
+	esix_list_init(&nd6_addrs);
+	esix_list_init(&nd6_routes);
+	esix_list_init(&nd6_neighbors);
 
-	intf_lla.raw[0] = (lla[0] << 8) | lla[1];
-	intf_lla.raw[1] = (lla[2] << 8) | lla[3];
-	intf_lla.raw[2] = (lla[4] << 8) | lla[5];
+	nd6_lla.raw[0] = (lla[0] << 8) | lla[1];
+	nd6_lla.raw[1] = (lla[2] << 8) | lla[3];
+	nd6_lla.raw[2] = (lla[4] << 8) | lla[5];
 
-	esix_intf_autoconfigure(intf_lla);
+	esix_nd6_autoconfigure(nd6_lla);
 
 	return err;
 }
 
-esix_err esix_intf_add_default_routes(int intf_mtu)
+esix_err esix_nd6_add_default_routes(int nd6_mtu)
 {
 	esix_err err = esix_err_none;
-	esix_intf_route *route;
+	esix_nd6_route *route;
 
 	// link local route (fe80::/64)
 	route = malloc(sizeof(*route));
@@ -100,10 +100,10 @@ esix_err esix_intf_add_default_routes(int intf_mtu)
 	route->mask = esix_ip6_addr_create(0xffffffff, 0xffffffff, 0x0, 0x0);
 	route->next_hop = esix_ip6_addr_create(0x0, 0x0, 0x0, 0x0); //TODO change next_hop == 0 destination
 	route->ttl = DEFAULT_TTL; 
-	route->mtu = intf_mtu;
+	route->mtu = nd6_mtu;
 	route->expiration_date = 0x0; //this never expires
 
-	esix_list_add(&route->link, &intf_routes);
+	esix_list_add(&route->link, &nd6_routes);
 
 	// multicast route (ff00:: /8)
 	route = malloc(sizeof(*route));
@@ -116,45 +116,45 @@ esix_err esix_intf_add_default_routes(int intf_mtu)
 	route->mask = esix_ip6_addr_create(0xff000000, 0x0, 0x0, 0x0);
 	route->next_hop = esix_ip6_addr_create(0x0, 0x0, 0x0, 0x0);
 	route->ttl = DEFAULT_TTL;  // 1 should be ok, linux uses 255...
-	route->mtu = intf_mtu;
+	route->mtu = nd6_mtu;
 
-	esix_list_add(&route->link, &intf_routes);
+	esix_list_add(&route->link, &nd6_routes);
 out:
 	return err;
 }
 
-esix_err esix_intf_autoconfigure(esix_eth_addr eth_addr)
+esix_err esix_nd6_autoconfigure(esix_eth_addr eth_addr)
 {
 	esix_ip6_addr ip_addr;
 	esix_err err = esix_err_none;
 
-	intf_lla = eth_addr;
+	nd6_lla = eth_addr;
 
-	ip_addr = intf_create_link_local_addr(eth_addr);
-	err = esix_intf_add_addr(&ip_addr, 128, 0, esix_ip6_addr_type_link_local);
+	ip_addr = nd6_create_link_local_addr(eth_addr);
+	err = esix_nd6_add_addr(&ip_addr, 128, 0, esix_ip6_addr_type_link_local);
 	if (err) {
 		goto out;
 	}
-	err = esix_intf_add_neighbor(&ip_addr, &eth_addr, 0);
+	err = esix_nd6_add_neighbor(&ip_addr, &eth_addr, 0);
 	if (err) {
 		goto out;
 	}
 
-	ip_addr = intf_create_multicast_all_nodes_addr();
-	err = esix_intf_add_addr(&ip_addr, 128, 0, esix_ip6_addr_type_multicast);
+	ip_addr = nd6_create_multicast_all_nodes_addr();
+	err = esix_nd6_add_addr(&ip_addr, 128, 0, esix_ip6_addr_type_multicast);
 
-	esix_intf_add_default_routes(1500);
+	esix_nd6_add_default_routes(1500);
 
 out:
 	return err;
 }
 
-esix_err esix_intf_add_neighbor(const esix_ip6_addr *ip_addr, const esix_eth_addr *eth_addr, uint32_t expiration_date)
+esix_err esix_nd6_add_neighbor(const esix_ip6_addr *ip_addr, const esix_eth_addr *eth_addr, uint32_t expiration_date)
 {
 	esix_err err = esix_err_none;
-	esix_intf_neighbor *neighbor;
+	esix_nd6_neighbor *neighbor;
 
-	neighbor = esix_intf_get_neighbor(ip_addr);
+	neighbor = esix_nd6_get_neighbor(ip_addr);
 	if (!neighbor) {
 		neighbor = malloc(sizeof(*neighbor));
 		if (!neighbor) {
@@ -162,7 +162,7 @@ esix_err esix_intf_add_neighbor(const esix_ip6_addr *ip_addr, const esix_eth_add
 			goto out;
 		}
 		neighbor->addr = *ip_addr;
-		esix_list_add(&neighbor->link, &intf_neighbors);
+		esix_list_add(&neighbor->link, &nd6_neighbors);
 	}
 
 	neighbor->expiration_date = expiration_date;
@@ -171,11 +171,11 @@ out:
 	return err;
 }
 
-esix_intf_neighbor *esix_intf_get_neighbor(const esix_ip6_addr *addr)
+esix_nd6_neighbor *esix_nd6_get_neighbor(const esix_ip6_addr *addr)
 {
-	esix_intf_neighbor *neighbor;
+	esix_nd6_neighbor *neighbor;
 
-	esix_list_foreach(neighbor, &intf_neighbors, link) {
+	esix_list_foreach(neighbor, &nd6_neighbors, link) {
 		if (esix_ip6_addr_match(&neighbor->addr, addr)) {
 			goto out;
 		}
@@ -185,22 +185,22 @@ out:
 	return neighbor;
 }
 
-void esix_intf_remove_neighbor(const esix_ip6_addr *addr)
+void esix_nd6_remove_neighbor(const esix_ip6_addr *addr)
 {
-	esix_intf_neighbor *neighbor;
+	esix_nd6_neighbor *neighbor;
 	
-	neighbor = esix_intf_get_neighbor(addr);
+	neighbor = esix_nd6_get_neighbor(addr);
 	if (neighbor) {
 		esix_list_del(&neighbor->link);
 		free(neighbor);
 	}
 }
 
-esix_intf_addr *esix_intf_get_addr_for_type(esix_ip6_addr_type type)
+esix_nd6_addr *esix_nd6_get_addr_for_type(esix_ip6_addr_type type)
 {
-	esix_intf_addr *addr;
+	esix_nd6_addr *addr;
 
-	esix_list_foreach(addr, &intf_addrs, link) {
+	esix_list_foreach(addr, &nd6_addrs, link) {
 		if (addr->type == type) {
 			goto out;
 		}
@@ -210,43 +210,43 @@ out:
 	return addr;
 }
 
-static int intf_addr_is_link_local(const esix_ip6_addr *addr)
+static int nd6_addr_is_link_local(const esix_ip6_addr *addr)
 {
 	return (addr->raw[0] & 0xffff0000) == 0xfe800000;
 }
 
-esix_intf_addr *esix_intf_pick_src_addr(const esix_ip6_addr *dst_addr)
+esix_nd6_addr *esix_nd6_pick_src_addr(const esix_ip6_addr *dst_addr)
 {
 	esix_ip6_addr_type type = esix_ip6_addr_type_global;
 
-	if (intf_addr_is_link_local(dst_addr)) {
+	if (nd6_addr_is_link_local(dst_addr)) {
 		type = esix_ip6_addr_type_link_local;
 	}
 
-	return esix_intf_get_addr_for_type(type);
+	return esix_nd6_get_addr_for_type(type);
 }
 
-esix_intf_addr *esix_intf_get_addr(const esix_ip6_addr *dst_addr, esix_ip6_addr_type type, uint8_t masklen)
+esix_nd6_addr *esix_nd6_get_addr(const esix_ip6_addr *dst_addr, esix_ip6_addr_type type, uint8_t masklen)
 {
-	esix_intf_addr *intf_addr;
+	esix_nd6_addr *nd6_addr;
 
-	esix_list_foreach(intf_addr, &intf_addrs, link) {
-		if (esix_ip6_addr_match(&intf_addr->addr, dst_addr) &&
-			(intf_addr->type == type || type == esix_ip6_addr_type_any) &&
-			(intf_addr->masklen == masklen || masklen == 0xff)) {
+	esix_list_foreach(nd6_addr, &nd6_addrs, link) {
+		if (esix_ip6_addr_match(&nd6_addr->addr, dst_addr) &&
+			(nd6_addr->type == type || type == esix_ip6_addr_type_any) &&
+			(nd6_addr->masklen == masklen || masklen == 0xff)) {
 			goto out;
 		}
 	}
-	intf_addr = NULL;
+	nd6_addr = NULL;
 out:
-	return intf_addr;
+	return nd6_addr;
 }
 
-esix_intf_route *esix_intf_get_route(const esix_ip6_addr *dst_addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop)
+esix_nd6_route *esix_nd6_get_route(const esix_ip6_addr *dst_addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop)
 {
-	esix_intf_route *route;
+	esix_nd6_route *route;
 
-	esix_list_foreach(route, &intf_routes, link) {
+	esix_list_foreach(route, &nd6_routes, link) {
 		if (esix_ip6_addr_match(&route->addr, dst_addr) &&
 			esix_ip6_addr_match(&route->mask, mask) &&
 			esix_ip6_addr_match(&route->next_hop, next_hop)) {
@@ -258,30 +258,30 @@ out:
 	return route;
 }
 
-esix_err esix_intf_add_addr(const esix_ip6_addr *addr, uint8_t masklen, uint32_t expiration_date, esix_ip6_addr_type type)
+esix_err esix_nd6_add_addr(const esix_ip6_addr *addr, uint8_t masklen, uint32_t expiration_date, esix_ip6_addr_type type)
 {
 	esix_err err = esix_err_none;
-	esix_intf_addr *intf_addr;
+	esix_nd6_addr *nd6_addr;
 	int i, j;
 
-	intf_addr = esix_intf_get_addr(addr, type, masklen);
-	if (intf_addr) {
-		if (intf_addr->expiration_date == 0) {
-			intf_addr->expiration_date = expiration_date;
+	nd6_addr = esix_nd6_get_addr(addr, type, masklen);
+	if (nd6_addr) {
+		if (nd6_addr->expiration_date == 0) {
+			nd6_addr->expiration_date = expiration_date;
 		}
 		goto out;
 	}
 
-	intf_addr = malloc(sizeof(*intf_addr));
-	if (!intf_addr) {
+	nd6_addr = malloc(sizeof(*nd6_addr));
+	if (!nd6_addr) {
 		err = esix_err_oom;
 		goto out;
 	}
 	
-	intf_addr->addr = *addr;
-	intf_addr->type = type;
-	intf_addr->masklen = masklen;
-	intf_addr->expiration_date = expiration_date;
+	nd6_addr->addr = *addr;
+	nd6_addr->type = type;
+	nd6_addr->masklen = masklen;
+	nd6_addr->expiration_date = expiration_date;
 	
 	//it's new. if it's unicast, perform DAD.
 	//if it's anycast, don't perform DAD as duplicates are expected.
@@ -300,8 +300,8 @@ esix_err esix_intf_add_addr(const esix_ip6_addr *addr, uint8_t masklen, uint32_t
 		}
 
 		//if we received an answer, bail out.
-		if (esix_intf_get_neighbor(addr)){
-			free (intf_addr);
+		if (esix_nd6_get_neighbor(addr)){
+			free (nd6_addr);
 			err = esix_err_failed;
 			goto out;
 		}
@@ -310,7 +310,7 @@ esix_err esix_intf_add_addr(const esix_ip6_addr *addr, uint8_t masklen, uint32_t
 
 	//try to add it to the table of addresses and
 	//free it so we don't leak memory in case it fails
-	esix_list_add(&intf_addr->link, &intf_addrs);
+	esix_list_add(&nd6_addr->link, &nd6_addrs);
 
 	if (type != esix_ip6_addr_type_multicast) {
 		esix_ip6_addr mcast_sollicited;
@@ -320,12 +320,12 @@ esix_err esix_intf_add_addr(const esix_ip6_addr *addr, uint8_t masklen, uint32_t
 			0xff020000,
 			0,
 			1,
-			0xff000000 | (intf_addr->addr.raw[3]  & 0xffffff00)
+			0xff000000 | (nd6_addr->addr.raw[3]  & 0xffffff00)
 		);
 		
 		//not having this address breaks the ND protocol, so don't add the 
 		//unicast/anycast address if this fails
-		esix_intf_add_addr(&mcast_sollicited, 128, expiration_date, esix_ip6_addr_type_multicast);
+		esix_nd6_add_addr(&mcast_sollicited, 128, expiration_date, esix_ip6_addr_type_multicast);
 
 	}
 	//else
@@ -334,28 +334,28 @@ out:
 	return err;
 }
 
-void esix_intf_remove_addr(const esix_ip6_addr *addr, esix_ip6_addr_type type, uint8_t masklen)
+void esix_nd6_remove_addr(const esix_ip6_addr *addr, esix_ip6_addr_type type, uint8_t masklen)
 {
-	esix_intf_addr *intf_addr;
+	esix_nd6_addr *nd6_addr;
 	//TODO : remove multicast sollicited-node address
 	//only if no other unicast address uses it
 
-	intf_addr = esix_intf_get_addr(addr, type, masklen);
-	if (intf_addr) {
+	nd6_addr = esix_nd6_get_addr(addr, type, masklen);
+	if (nd6_addr) {
 		//send a MLD done report if this is a mcast address
 		//if(type == MULTICAST)
 		//	esix_icmp_send_mld(&row->addr, MLD_DNE);
-		esix_list_del(&intf_addr->link);
-		free(intf_addr);
+		esix_list_del(&nd6_addr->link);
+		free(nd6_addr);
 	}
 }
 
-esix_err esix_intf_add_route(const esix_ip6_addr *dst_addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_addr, uint32_t expiration_date, uint8_t ttl, uint32_t mtu)
+esix_err esix_nd6_add_route(const esix_ip6_addr *dst_addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_addr, uint32_t expiration_date, uint8_t ttl, uint32_t mtu)
 {		
 	esix_err err = esix_err_none;
-	esix_intf_route *route;
+	esix_nd6_route *route;
 
-	route = esix_intf_get_route(dst_addr, mask, next_addr);
+	route = esix_nd6_get_route(dst_addr, mask, next_addr);
 	if (!route) {
 		route = malloc(sizeof(*route));
 		if (!route) {
@@ -371,51 +371,51 @@ esix_err esix_intf_add_route(const esix_ip6_addr *dst_addr, const esix_ip6_addr 
 	route->ttl = ttl;
 	route->mtu = mtu;
 
-	esix_list_add(&route->link, &intf_routes);	
+	esix_list_add(&route->link, &nd6_routes);	
 out:
 	return err;
 } 
 
-void esix_intf_remove_route(const esix_ip6_addr *dst_addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop)
+void esix_nd6_remove_route(const esix_ip6_addr *dst_addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop)
 {
-	esix_intf_route *route;
+	esix_nd6_route *route;
 
-	route = esix_intf_get_route(dst_addr, mask, next_hop);
+	route = esix_nd6_get_route(dst_addr, mask, next_hop);
 	if (route) {
 		esix_list_del(&route->link);
 		free(route);
 	}
 }
 
-int esix_intf_check_source_addr(esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr)
+int esix_nd6_check_source_addr(esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr)
 {
-	esix_intf_addr *intf_addr;
+	esix_nd6_addr *nd6_addr = NULL;
 
 	if ((src_addr->raw[0] & 0xff000000) == 0xff000000) {
 		//try to chose an address of the correct scope to replace it.
 		if ((dst_addr->raw[0] & 0xffff0000) == 0xfe800000) {
-			intf_addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_link_local);
+			nd6_addr = esix_nd6_get_addr_for_type(esix_ip6_addr_type_link_local);
 		}
 
-		if (!intf_addr) {
-			intf_addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_global);
+		if (!nd6_addr) {
+			nd6_addr = esix_nd6_get_addr_for_type(esix_ip6_addr_type_global);
 		}
 		
-		if (!intf_addr) {
+		if (!nd6_addr) {
 			return -1;
 		}
 
-		*src_addr = intf_addr->addr;
+		*src_addr = nd6_addr->addr;
 	}
 	return 1;
 }
 
-esix_intf_route *esix_intf_get_route_for_addr(const esix_ip6_addr *addr)
+esix_nd6_route *esix_nd6_get_route_for_addr(const esix_ip6_addr *addr)
 {
-	esix_intf_route *matched_route = NULL;
-	esix_intf_route *route;
+	esix_nd6_route *matched_route = NULL;
+	esix_nd6_route *route;
 
-	esix_list_foreach(route, &intf_routes, link) {		
+	esix_list_foreach(route, &nd6_routes, link) {		
 		if (esix_ip6_addr_match_with_mask(addr, &route->mask, &route->addr)) {
 			matched_route = route;
 			break;

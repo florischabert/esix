@@ -26,8 +26,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _INTF_H
-#define _INTF_H
+#ifndef _nd6_H
+#define _nd6_H
 
 #include "tools.h"
 #include "ip6.h"
@@ -46,7 +46,7 @@ typedef struct {
 	uint32_t preferred_exp_date;
 	esix_ip6_addr_type type;
 	esix_list link;
-} esix_intf_addr;
+} esix_nd6_addr;
 
 /**
  * Route entry.
@@ -59,17 +59,17 @@ typedef struct {
 	uint8_t ttl;
 	uint32_t mtu;
 	esix_list link;
-} esix_intf_route;
+} esix_nd6_route;
 
 /**
  * Neighbor status.
  */
 typedef enum {
-	esix_intf_nd_status_reachable,
-	esix_intf_nd_status_stale,
-	esix_intf_nd_status_delay,
-	esix_intf_nd_status_unreachable
-} esix_intf_nd_status;
+	esix_nd6_nd_status_reachable,
+	esix_nd6_nd_status_stale,
+	esix_nd6_nd_status_delay,
+	esix_nd6_nd_status_unreachable
+} esix_nd6_nd_status;
 
 /**
  * Neighbor entry.
@@ -79,21 +79,21 @@ typedef struct {
 	esix_eth_addr lla;
 	uint32_t expiration_date;
 	uint8_t is_sollicited;
-	esix_intf_nd_status status;
+	esix_nd6_nd_status status;
 	esix_list link;
-} esix_intf_neighbor;
+} esix_nd6_neighbor;
 
 /**
  * Get the interface ethernet address.
  *
  * @return Interface's ethernet address.
  */
-esix_eth_addr esix_intf_lla(void);
+esix_eth_addr esix_nd6_lla(void);
 
 /**
  * Initialize the interface.
  */
-esix_err esix_intf_init(esix_lla lla);
+esix_err esix_nd6_init(esix_lla lla);
 
 /**
  * Autoconfigure the interface.
@@ -101,7 +101,7 @@ esix_err esix_intf_init(esix_lla lla);
  *
  * @param addr The ethernet address of the interface.
  */
-esix_err esix_intf_autoconfigure(esix_eth_addr addr);
+esix_err esix_nd6_autoconfigure(esix_eth_addr addr);
 
 /**
  * Bind an IP address to the interface.
@@ -112,10 +112,10 @@ esix_err esix_intf_autoconfigure(esix_eth_addr addr);
  * @param expiration_date Expiration date.
  * @param type            Address type.
  */
-esix_err esix_intf_add_addr(const esix_ip6_addr *addr, uint8_t masklen, uint32_t expiration_date, esix_ip6_addr_type type);
-void esix_intf_remove_addr(const esix_ip6_addr *addr, esix_ip6_addr_type type, uint8_t masklen);
-esix_intf_addr *esix_intf_get_addr(const esix_ip6_addr *addr, esix_ip6_addr_type type, uint8_t masklen);
-esix_intf_addr *esix_intf_get_addr_for_type(esix_ip6_addr_type type);
+esix_err esix_nd6_add_addr(const esix_ip6_addr *addr, uint8_t masklen, uint32_t expiration_date, esix_ip6_addr_type type);
+void esix_nd6_remove_addr(const esix_ip6_addr *addr, esix_ip6_addr_type type, uint8_t masklen);
+esix_nd6_addr *esix_nd6_get_addr(const esix_ip6_addr *addr, esix_ip6_addr_type type, uint8_t masklen);
+esix_nd6_addr *esix_nd6_get_addr_for_type(esix_ip6_addr_type type);
 
 /**
  * Add IP address to the list of neighbors.
@@ -124,26 +124,26 @@ esix_intf_addr *esix_intf_get_addr_for_type(esix_ip6_addr_type type);
  * @param eth_addr        The corresponding ethernet address.
  * @param expiration_date Expiration date.
  */
-esix_err esix_intf_add_neighbor(const esix_ip6_addr *ip_addr, const esix_eth_addr *eth_addr, uint32_t expiration_date);
+esix_err esix_nd6_add_neighbor(const esix_ip6_addr *ip_addr, const esix_eth_addr *eth_addr, uint32_t expiration_date);
 
 /**
  * Remove a neighbor from the cache.
  */
-void esix_intf_remove_neighbor(const esix_ip6_addr *addr);
+void esix_nd6_remove_neighbor(const esix_ip6_addr *addr);
 /*
  * Get the neighbor entry for a given address.
  */
-esix_intf_neighbor *esix_intf_get_neighbor(const esix_ip6_addr *addr);
-esix_intf_addr *esix_intf_pick_src_addr(const esix_ip6_addr *dst_addr);
+esix_nd6_neighbor *esix_nd6_get_neighbor(const esix_ip6_addr *addr);
+esix_nd6_addr *esix_nd6_pick_src_addr(const esix_ip6_addr *dst_addr);
 /*
- * esix_intf_check_source_addr : make sure that the source address isn't multicast
+ * esix_nd6_check_source_addr : make sure that the source address isn't multicast
  * if it is, choose an address from the corresponding scope
  */
-int esix_intf_check_source_addr(esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr);
+int esix_nd6_check_source_addr(esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr);
 
-esix_err esix_intf_add_route(const esix_ip6_addr *addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop, uint32_t expiration_date, uint8_t ttl, uint32_t mtu);
-void esix_intf_remove_route(const esix_ip6_addr *addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop);
-esix_intf_route *esix_intf_get_route(const esix_ip6_addr *addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop);
-esix_intf_route *esix_intf_get_route_for_addr(const esix_ip6_addr *addr);
+esix_err esix_nd6_add_route(const esix_ip6_addr *addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop, uint32_t expiration_date, uint8_t ttl, uint32_t mtu);
+void esix_nd6_remove_route(const esix_ip6_addr *addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop);
+esix_nd6_route *esix_nd6_get_route(const esix_ip6_addr *addr, const esix_ip6_addr *mask, const esix_ip6_addr *next_hop);
+esix_nd6_route *esix_nd6_get_route_for_addr(const esix_ip6_addr *addr);
 
 #endif

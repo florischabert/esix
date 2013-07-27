@@ -28,7 +28,7 @@
 
 #include "icmp6.h"
 #include "tools.h"
-#include "intf.h"
+#include "nd6.h"
 
 /**
  * Handles icmp packets.
@@ -102,7 +102,7 @@ void esix_icmp6_send(const esix_ip6_addr *_src_addr, const esix_ip6_addr *dst_ad
 	//check the source address. If it's multicast, replace it.
 	//If we can't replace it (no adress available, which should never happen),
 	//abort and destroy the packet.
-	if(esix_intf_check_source_addr(&src_addr, dst_addr) < 0)
+	if(esix_nd6_check_source_addr(&src_addr, dst_addr) < 0)
 	{
 		free(hdr);
 		return;
@@ -168,9 +168,9 @@ void esix_icmp6_send_unreachable(const esix_ip6_hdr *ip_hdr, uint8_t type)
  * Crafts and sends a router sollicitation
  * on the interface specified by index. 
  */
-void esix_icmp6_send_router_sol(uint8_t intf_index)
+void esix_icmp6_send_router_sol(uint8_t nd6_index)
 {
-	esix_intf_addr *intf_addr;
+	esix_nd6_addr *nd6_addr;
 	esix_ip6_addr dest = {{
 		0xff020000,
 		0x00000000,
@@ -189,11 +189,11 @@ void esix_icmp6_send_router_sol(uint8_t intf_index)
 
 	opt->type = S_LLA;
 	opt->len8 = 1; //1 * 8 bytes
-	opt->lla = esix_intf_lla();
+	opt->lla = esix_nd6_lla();
 
-	intf_addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_link_local);
-	if (intf_addr) {
-		esix_icmp6_send(&intf_addr->addr, &dest, 255, RTR_SOL, 0, ra_sol, len);
+	nd6_addr = esix_nd6_get_addr_for_type(esix_ip6_addr_type_link_local);
+	if (nd6_addr) {
+		esix_icmp6_send(&nd6_addr->addr, &dest, 255, RTR_SOL, 0, ra_sol, len);
 	}
 }
 
@@ -202,8 +202,8 @@ void esix_icmp6_send_router_sol(uint8_t intf_index)
  */
 void esix_icmp6_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, const esix_ip6_hdr *hdr)
 {
-	esix_intf_addr *intf_addr;
-	esix_intf_neighbor *neighbor;
+	esix_nd6_addr *nd6_addr;
+	esix_nd6_neighbor *neighbor;
 
 	//sanity checks
 	//- ICMP length (derived from the IP length) is 24 or more octets (24 = 8 ICMP bytes + 16 NS bytes)
@@ -216,23 +216,23 @@ void esix_icmp6_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len,
 		return;
 
 	//check that the sollicitation is actually for us
-	intf_addr = esix_intf_get_addr(&nb_sol->target_addr, esix_ip6_addr_type_any, 0xff);
-	if (intf_addr) {
+	nd6_addr = esix_nd6_get_addr(&nb_sol->target_addr, esix_ip6_addr_type_any, 0xff);
+	if (nd6_addr) {
 		return;
 	}
 
-	neighbor = esix_intf_get_neighbor(&hdr->src_addr);
+	neighbor = esix_nd6_get_neighbor(&hdr->src_addr);
 	if (!neighbor) {
 		// the neighbor isn't in the cache, add it
-		esix_intf_add_neighbor(&hdr->src_addr, &((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 
+		esix_nd6_add_neighbor(&hdr->src_addr, &((struct icmp6_opt_lla *) (nb_sol + 1))->lla, 
 			esix_gettime() + NEW_NEIGHBOR_TIMEOUT);
 		//try again, to set some flags.
 		//note that even if it wasn't added (e.g. due to a full table),
 		//we still need to send an advertisement.
-		neighbor = esix_intf_get_neighbor(&hdr->src_addr);
+		neighbor = esix_nd6_get_neighbor(&hdr->src_addr);
 		if (neighbor) {
 			neighbor->is_sollicited	= 0;
-			neighbor->status	= esix_intf_nd_status_stale;
+			neighbor->status	= esix_nd6_nd_status_stale;
 		}
 	}
 		
@@ -245,7 +245,7 @@ void esix_icmp6_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len,
  */
 void esix_icmp6_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len, const esix_ip6_hdr *ip_hdr)
 {
-	esix_intf_neighbor *neighbor;
+	esix_nd6_neighbor *neighbor;
 	//sanity checks
 	//- ICMP length (derived from the IP length) is 24 or more octets (24 = 8 ICMP bytes + 16 NS bytes)
 	//- hop limit should be 255
@@ -256,14 +256,14 @@ void esix_icmp6_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len,
 		(nb_adv->target_addr.raw[0] & hton32(0xff000000)) == hton32(0xff000000))
 		return;
 
-	neighbor = esix_intf_get_neighbor(&nb_adv->target_addr);
+	neighbor = esix_nd6_get_neighbor(&nb_adv->target_addr);
 
 	if (neighbor) {
-		esix_intf_add_neighbor(&nb_adv->target_addr, 
+		esix_nd6_add_neighbor(&nb_adv->target_addr, 
 			&((struct icmp6_opt_lla *) (nb_adv + 1))->lla, 
 			esix_gettime() + NEIGHBOR_TIMEOUT);
 		//now find it again to set some flags
-		neighbor = esix_intf_get_neighbor(&nb_adv->target_addr);
+		neighbor = esix_nd6_get_neighbor(&nb_adv->target_addr);
 		if (!neighbor)
 			return;
 	}
@@ -276,7 +276,7 @@ void esix_icmp6_process_neighbor_adv(struct icmp6_neighbor_adv *nb_adv, int len,
 	}
 
 	neighbor->is_sollicited = 0;
-	neighbor->status = esix_intf_nd_status_reachable;
+	neighbor->status = esix_nd6_nd_status_reachable;
 	neighbor->expiration_date = esix_gettime() + NEIGHBOR_TIMEOUT;
 }
 
@@ -312,7 +312,7 @@ void esix_icmp6_send_neighbor_adv(const esix_ip6_addr *src_addr, const esix_ip6_
 
 	opt->type = 2; // Target Link-Layer Address
 	opt->len8 = 1; // length: 1x8 bytes
-	opt->lla = esix_intf_lla();
+	opt->lla = esix_nd6_lla();
 
 	esix_icmp6_send(src_addr, dst_addr, 255, NBR_ADV, 0, nb_adv, len);
 }
@@ -322,7 +322,7 @@ void esix_icmp6_send_neighbor_adv(const esix_ip6_addr *src_addr, const esix_ip6_
  */
 void esix_icmp6_send_neighbor_sol(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr)
 {
-	esix_intf_neighbor *neighbor;
+	esix_nd6_neighbor *neighbor;
 	//don't add a l2 address if we don't have one yet (which can only happen
 	//when performing first DAD)
 	uint16_t len;
@@ -352,14 +352,15 @@ void esix_icmp6_send_neighbor_sol(const esix_ip6_addr *src_addr, const esix_ip6_
 	// }
 
 	//do we know it already? then send an unicast sollicitation
-	neighbor = esix_intf_get_neighbor(dst_addr);
+	neighbor = esix_nd6_get_neighbor(dst_addr);
 	if (neighbor) {
 		neighbor->is_sollicited = 1;
-		neighbor->status = esix_intf_nd_status_stale;
+		neighbor->status = esix_nd6_nd_status_stale;
 		esix_icmp6_send(src_addr, dst_addr, 255, NBR_SOL, 0, nb_sol, len);
 	}
-	else 
+	else {
 		esix_icmp6_send(src_addr, &mcast_dst, 255, NBR_SOL, 0, nb_sol, len);
+	}
 }
 
 /**
@@ -442,7 +443,7 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	//global address && onlink route
 	if (got_prefix_info)
 	{
-		esix_eth_addr lla = esix_intf_lla();
+		esix_eth_addr lla = esix_nd6_lla();
 	
 		// TODO check htons here
 		//builds a new global scope address
@@ -480,14 +481,14 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 		if(pfx_info->valid_lifetime == 0x0)
 		{
 			//remove the prefix-associated address and route
-			esix_intf_remove_addr(&addr, 0x40, esix_ip6_addr_type_global);
+			esix_nd6_remove_addr(&addr, 0x40, esix_ip6_addr_type_global);
 			addr.raw[2] = 0;
 			addr.raw[3] = 0;
-			esix_intf_remove_route(&addr, &mask, &raw[1]);
+			esix_nd6_remove_route(&addr, &mask, &raw[1]);
 		}
 		else
 		{
-			esix_intf_add_addr(&addr,
+			esix_nd6_add_addr(&addr,
 					0x40,				// /64
 					esix_gettime() + ntoh32(pfx_info->valid_lifetime), //expiration date
 					esix_ip6_addr_type_global);
@@ -495,7 +496,7 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 			addr.raw[3] = 0;
 
 			//onlink route (local route for our own subnet)
-			esix_intf_add_route(&addr, &mask, &raw[1],
+			esix_nd6_add_route(&addr, &mask, &raw[1],
 					esix_gettime() + ntoh32(pfx_info->valid_lifetime), //exp. date
 					rtr_adv->cur_hlim,	//TTL
 					mtu);
@@ -515,10 +516,10 @@ void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length,
 	mask.raw[3] = 0;
 	
 	if(ntoh16(rtr_adv->rtr_lifetime) == 0x0)
-		esix_intf_remove_route(&addr, &mask, &ip_hdr->src_addr);
+		esix_nd6_remove_route(&addr, &mask, &ip_hdr->src_addr);
 	else
 	
-		esix_intf_add_route(&addr, 	//default dest
+		esix_nd6_add_route(&addr, 	//default dest
 					&mask,			//default mask
 					&ip_hdr->src_addr,		//next hop
 					esix_gettime() + ntoh16(rtr_adv->rtr_lifetime), //exp. date
@@ -593,7 +594,7 @@ void esix_icmp6_process_mld_query(struct icmp6_mld1_hdr *mld, int len, const esi
 {
 #if 0
         int i=0;
-	esix_intf_addr *intf_addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_link_local); 
+	esix_nd6_addr *nd6_addr = esix_nd6_get_addr_for_type(esix_ip6_addr_type_link_local); 
         //make sure we got enough data to process our packet
 	//and a valid link local address to send our reply
         if(len < sizeof(struct icmp6_mld1_hdr) || a < 0)
@@ -607,16 +608,16 @@ void esix_icmp6_process_mld_query(struct icmp6_mld1_hdr *mld, int len, const esi
                         if(addrs[i] != NULL &&
                                 (addrs[i]->addr.raw[0] & hton32(0xff000000)) == hton32(0xff000000))
                         {
-                                esix_icmp6_send_mld(&intf_addr->addr, MLD_RPT);
+                                esix_icmp6_send_mld(&nd6_addr->addr, MLD_RPT);
                         }
                         i++;
                 }
         }
         //specific query
         else if((len ==  sizeof(struct icmp6_mld1_hdr) +  sizeof(esix_ip6_hdr))
-                && ((i = esix_intf_get_address_index((esix_ip6_addr*) (mld+1), esix_ip6_addr_type_multicast, 0xff)) > 0))
+                && ((i = esix_nd6_get_address_index((esix_ip6_addr*) (mld+1), esix_ip6_addr_type_multicast, 0xff)) > 0))
         {
-                esix_icmp6_send_mld(&intf_addr->addr, MLD_RPT);
+                esix_icmp6_send_mld(&nd6_addr->addr, MLD_RPT);
         }
 #endif
 }
@@ -633,10 +634,10 @@ void esix_icmp6_send_mld(const esix_ip6_addr *mcast_addr, int mld_type)
         //TODO: implement timers
         struct icmp6_mld1_hdr *hdr = NULL;
         esix_ip6_addr *target = (esix_ip6_addr*) (hdr+1);
-	esix_intf_addr *intf_addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_link_local); 
+	esix_nd6_addr *nd6_addr = esix_nd6_get_addr_for_type(esix_ip6_addr_type_link_local); 
 
 
-	if (!intf_addr)
+	if (!nd6_addr)
 		return;
 
         if((hdr = malloc(sizeof(struct icmp6_mld1_hdr) + sizeof(esix_ip6_addr))) == NULL)
@@ -647,7 +648,7 @@ void esix_icmp6_send_mld(const esix_ip6_addr *mcast_addr, int mld_type)
 
         if(mld_type == MLD_RPT)
         {
-                esix_icmp6_send(&intf_addr->addr, mcast_addr, 1, MLD_RPT, 0, hdr,
+                esix_icmp6_send(&nd6_addr->addr, mcast_addr, 1, MLD_RPT, 0, hdr,
                         sizeof(struct icmp6_mld1_hdr) + sizeof(esix_ip6_addr));
         }
         else //must be a 'done'
@@ -658,7 +659,7 @@ void esix_icmp6_send_mld(const esix_ip6_addr *mcast_addr, int mld_type)
                 all_nodes.raw[2] = 0x00000000;
                 all_nodes.raw[3] = 0x00000001;
 
-                esix_icmp6_send(&intf_addr->addr, &all_nodes, 1, MLD_DNE, 0, hdr,
+                esix_icmp6_send(&nd6_addr->addr, &all_nodes, 1, MLD_DNE, 0, hdr,
                         sizeof(struct icmp6_mld1_hdr) + sizeof(esix_ip6_addr));
         }
 }

@@ -1,7 +1,7 @@
 #include "test.h"
 
 #include <esix.h>
-#include "../src/intf.h"
+#include "../src/nd6.h"
 #include "../src/eth.h"
 #include "../src/ip6.h"
 
@@ -36,11 +36,11 @@ static test_ret test_send(void)
 	int i;
 	
 	esix_internal_init();
-	esix_intf_init(lla);
-	eth_addr = esix_intf_lla();
+	esix_nd6_init(lla);
+	eth_addr = esix_nd6_lla();
 
-	esix_intf_add_neighbor(&dst_addr, &eth_addr, 0);
-	esix_intf_add_route(&dst_addr, &mask, &dst_addr, 0, 0, 0);
+	esix_nd6_add_neighbor(&dst_addr, &eth_addr, 0);
+	esix_nd6_add_route(&dst_addr, &mask, &dst_addr, 0, 0, 0);
 
 	esix_ip6_send(&src_addr, &dst_addr, 0, esix_ip6_next_icmp, payload, sizeof(payload));
 

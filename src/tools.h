@@ -38,11 +38,23 @@
 #define NULL ((void *)0)
 #endif
 
+#ifdef ESIX_DEBUG
+#include <stdio.h>
+#define ESIX_LOG(...) \
+	do { \
+		fprintf(stderr, "%s:%d: ", __FUNCTION__, __LINE__); \
+		fprintf(stderr, __VA_ARGS__); \
+		fprintf(stderr, "\n"); \
+	} while (0)
+#else
+#define ESIX_LOG(...) do { } while (0)
+#endif
+
 static inline void esix_lock(volatile int *lock)
 {
 	while (__sync_lock_test_and_set(lock, 1)) {
-		while (*lock)
-			;
+		while (*lock) {
+		}
 	}
 }
 

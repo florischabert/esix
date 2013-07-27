@@ -28,7 +28,7 @@
 
 #include "esix.h"
 #include "eth.h"
-#include "intf.h"
+#include "nd6.h"
 #include "tools.h"
 
 static esix_eth_upper_handler eth_upper_handlers[] = {
@@ -81,7 +81,7 @@ void esix_eth_process(const void *payload, int len)
 {
 	const esix_eth_hdr *hdr = payload;
 	esix_eth_addr dst_addr;
-	esix_eth_addr lla = esix_intf_lla();
+	esix_eth_addr lla = esix_nd6_lla();
 
 	dst_addr = eth_addr_ntoh(&hdr->dst_addr);
 
@@ -96,7 +96,7 @@ void esix_eth_send(const esix_eth_addr *dst_addr, const esix_eth_type type, cons
 {
 	esix_buffer *buffer;
 	esix_eth_hdr *hdr;
-	esix_eth_addr lla = esix_intf_lla();
+	esix_eth_addr lla = esix_nd6_lla();
 
 	hdr = malloc(sizeof(esix_eth_hdr) + len);
 	if (!hdr) {

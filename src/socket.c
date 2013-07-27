@@ -1,7 +1,7 @@
 #include "tcp6.h"
 #include "tools.h"
 #include "icmp6.h"
-#include "intf.h"
+#include "nd6.h"
 #include "socket.h"
 #include <socket.h>
 #include <esix.h>
@@ -93,16 +93,16 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 
 int sendto(int sock, const void *buf, int len, uint8_t flags, const struct sockaddr_in6 *to, int to_len)
 {
-	esix_intf_addr *addr;
+	esix_nd6_addr *addr;
 	//only to be used with UDP
 	if(esix_sockets[sock].proto != SOCK_DGRAM)
 		return -1;
 
 	// check the source address
 	if (esix_memcmp(&esix_sockets[sock].laddr, &in6addr_any, 16) == 0) {
-		addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_global);
+		addr = esix_nd6_get_addr_for_type(esix_ip6_addr_type_global);
 		if (!addr) {
-			addr = esix_intf_get_addr_for_type(esix_ip6_addr_type_link_local);
+			addr = esix_nd6_get_addr_for_type(esix_ip6_addr_type_link_local);
 		}
 		if (!addr) {
 			return -1;
@@ -127,7 +127,7 @@ int connect(int sock, const struct sockaddr_in6 *daddr, int len)
 			return -1;
 		}
 
- 		if (!esix_intf_pick_src_addr((esix_ip6_addr*) daddr)) {
+ 		if (!esix_nd6_pick_src_addr((esix_ip6_addr*) daddr)) {
 			return -1;
 		}
 
@@ -432,7 +432,7 @@ int bind(const int socknum, const struct sockaddr_in6 *sockaddr, const int len)
 	}
 	else //check that we own the address
 	{
-		if (esix_intf_get_addr((esix_ip6_addr *)&sockaddr->sin6_addr, esix_ip6_addr_type_any, 0xff)) {
+		if (esix_nd6_get_addr((esix_ip6_addr *)&sockaddr->sin6_addr, esix_ip6_addr_type_any, 0xff)) {
 			esix_sockets[socknum].lport = sockaddr->sin6_port;
 			return 0;
 		} 

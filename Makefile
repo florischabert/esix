@@ -24,16 +24,23 @@ LIB=libesix.a
 SRC=$(wildcard src/*.c)
 TESTS=$(wildcard tests/*.c)
 PCAP=$(wildcard pcap/*.c)
-CFLAGS += -Iinclude -MD -MP -Wall -g
+CFLAGS += -Iinclude -O2 -Wall -g -DESIX_DEBUG
+
+%.o: %.c
+	@echo CC $@
+	@$(CC) $(CFLAGS) -MD -MF $(@:.o=.deps) -o $@ -c $<
 
 $(LIB): $(SRC:.c=.o)
-	$(AR) rcs $@ $^
-
-esixd: $(PCAP:.c=.o) $(LIB)
-	$(CC) -o $@ $^ -lpcap
+	@echo AR $@
+	@$(AR) rcs $@ $^
 
 test: $(TESTS:.c=.o) $(LIB)
-	$(CC) -o $@ $^
+	@echo LD $@
+	@$(CC) -o $@ $^
+
+esixd: $(PCAP:.c=.o) $(LIB)
+	@echo LD $@
+	@$(CC) -o $@ $^ -lpcap
 
 freertos: $(LIB)
 	@$(MAKE) -C freertos
@@ -41,6 +48,6 @@ freertos: $(LIB)
 -include $(SRC:%.c=%.d) $(TESTS:%.c=%.d) $(PCAP:%.c=%.d)
 
 clean:
-	@$(RM) $(LIB) $(SRC:.c=.o) $(SRC:.c=.d) test $(TESTS:.c=.o) $(TESTS:.c=.d) esixd $(PCAP:.c=.o) $(PCAP:.c=.d)
+	@$(RM) $(LIB) $(SRC:.c=.o) $(SRC:.c=.deps) test $(TESTS:.c=.o) $(TESTS:.c=.deps) esixd $(PCAP:.c=.o) $(PCAP:.c=.deps)
 
 .PHONY: clean freertos

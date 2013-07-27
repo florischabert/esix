@@ -86,22 +86,28 @@ struct esix_sem_t {
 	int should_run;
 };
 
-int esix_sem_init(esix_sem_t *sem)
+esix_sem_t *esix_sem_create()
 {
+	esix_sem_t *sem;
+
 	sem = malloc(sizeof *sem);
 
 	pthread_cond_init(&sem->cond, NULL);
 	pthread_mutex_init(&sem->mutex, NULL);
 	sem->should_run = 0;
 
-	return 0;
+	return sem;
 }
 
-void esix_sem_wait(esix_sem_t *sem, uint64_t abstime)
+void esix_sem_wait(esix_sem_t *sem, uint64_t delay_ns)
 {
 	struct timespec ts;
-	ts.tv_sec = abstime / 1000000000;
-	ts.tv_nsec = abstime % 1000000000;
+	uint64_t abstime_ns;
+	
+	abstime_ns = esix_gettime() + delay_ns;
+
+	ts.tv_sec = abstime_ns / 1000000000;
+	ts.tv_nsec = abstime_ns % 1000000000;
 
 	pthread_mutex_lock(&sem->mutex);
 	if (!sem->should_run) {
@@ -136,6 +142,7 @@ int main(int argc, char *argv[])
 	char errbuf[PCAP_ERRBUF_SIZE];
 	int err;
 	esix_lla lla = MAC_ADDR;
+	pthread_t workloop;
 
 	if (geteuid() != 0) {
 		fprintf(stderr, "You need to be root to open the default device.\n");
@@ -164,16 +171,22 @@ int main(int argc, char *argv[])
 		goto pcap_close;
 	}
 
-	err = pcap_loop(pcap_handle, -1, process_packet, NULL);
-	if (err == -1) {
-		pcap_perror(pcap_handle, "Error: ");
+	pthread_create(&workloop, NULL, (void *(*)(void *))esix_workloop, NULL);
+	if (err) {
+		fprintf(stderr, "Error: Couldn't create workloop\n");
 		goto esix_destroy;
 	}
 
-	esix_workloop();
-	
+	err = pcap_loop(pcap_handle, -1, process_packet, NULL);
+	if (err == -1) {
+		pcap_perror(pcap_handle, "Error: ");
+		goto cancel_workloop;
+	}
+
 	ret = EXIT_SUCCESS;
 
+cancel_workloop:
+	pthread_cancel(workloop);
 esix_destroy:
 	esix_destroy();
 pcap_close:

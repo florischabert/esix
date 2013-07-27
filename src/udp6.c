@@ -29,7 +29,7 @@
 #include "tools.h"
 #include "udp6.h"
 #include "icmp6.h"
-#include "intf.h"
+#include "nd6.h"
 #include "socket.h"
 #include <socket.h>
 

@@ -1,4 +1,4 @@
-#include "../esix/intf.h"
+#include "../esix/nd6.h"
 #include "../esix/include/socket.h"
 #include "mdns.h"
 
@@ -28,11 +28,11 @@ void mdns_server_task(void *param)
 	mcast.addr2 = 0;
 	mcast.addr3 = 0;
 	mcast.addr4 = hton32(0xfb);
-	esix_intf_add_address(&mcast, 0x80, 0, MULTICAST); 
+	esix_nd6_add_address(&mcast, 0x80, 0, MULTICAST); 
 
 	//grab an address
-	if((i=esix_intf_get_type_address(GLOBAL)) < 0)
-		i=esix_intf_get_type_address(LINK_LOCAL);
+	if((i=esix_nd6_get_type_address(GLOBAL)) < 0)
+		i=esix_nd6_get_type_address(LINK_LOCAL);
 
 
 	if((soc = socket(AF_INET6, SOCK_DGRAM, 0)) <0)

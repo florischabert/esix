@@ -47,9 +47,9 @@ typedef struct esix_sem_t esix_sem_t;
 
 void esix_send(void *data, int len);
 uint64_t esix_gettime(void);
-int esix_sem_init(esix_sem_t *sem);
+esix_sem_t *esix_sem_create(void);
 void esix_sem_destroy(esix_sem_t *sem);
-void esix_sem_wait(esix_sem_t *sem, uint64_t abstime);
+void esix_sem_wait(esix_sem_t *sem, uint64_t delay_ns);
 void esix_sem_signal(esix_sem_t *sem);
 
 /**

@@ -79,6 +79,11 @@ static test_ret test_list(void)
 	return test_passed;
 }
 
+static test_ret test_lock(void)
+{
+	return test_passed;
+}
+
 static test_ret test_hton(void)
 {
 	return test_passed;
@@ -90,6 +95,7 @@ test_ret test_tools(void)
 		test_foreach,
 		test_list,
 		test_hton,
+		test_lock,
 		NULL
 	};
 

@@ -32,7 +32,7 @@
 #include "tools.h"
 #include "config.h"
 #include "ip6.h"
-#include "intf.h"
+#include "nd6.h"
 #include "tcp6.h"
 #include "udp6.h"
 #include <esix.h>
@@ -219,7 +219,7 @@ void esix_icmp6_process(const void *payload, int length, const esix_ip6_hdr *ip_
 void esix_icmp6_send(const esix_ip6_addr *saddr, const esix_ip6_addr *daddr, uint8_t hlimit, uint8_t type, uint8_t code, void *data, uint16_t len);
 
 void esix_icmp6_send_ttl_expired(const esix_ip6_hdr *hdr);
-void esix_icmp6_send_router_sol(uint8_t intf_index);
+void esix_icmp6_send_router_sol(uint8_t nd6_index);
 void esix_icmp6_send_neighbor_adv(const esix_ip6_addr *, const esix_ip6_addr *, int);
 void esix_icmp6_process_neighbor_sol(struct icmp6_neighbor_sol *nb_sol, int len, const esix_ip6_hdr *hdr);
 void esix_icmp6_process_router_adv(struct icmp6_router_adv *rtr_adv, int length, const esix_ip6_hdr *ip_hdr);
