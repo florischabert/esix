@@ -235,7 +235,7 @@ uint16_t esix_ip6_upper_checksum(const esix_ip6_addr *src_addr, const esix_ip6_a
 	int i = 0;
 
 	// IPv6 pseudo-header sum : src_addr, dst_addr, type and payload length
-	for (i = 0; i < sizeof(esix_ip6_addr); i += 2) {
+	for (i = 0; i < sizeof(esix_ip6_addr)/2; i++) {
 		sum += *((uint16_t *)&src_addr_n + i);
 		sum += *((uint16_t *)&dst_addr_n + i);
 	}

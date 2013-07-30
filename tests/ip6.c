@@ -70,7 +70,7 @@ static test_ret test_checksum(void)
 	esix_ip6_addr src = {{ 1, 2, 3, 4 }};
 	esix_ip6_addr dst = {{ 5, 6, 7, 8 }};
 	char data[] = "abcdefabcdefabcdefabcdefabcdefabcdefabcdef";
-	uint16_t expected_sum = 24280;
+	uint16_t expected_sum = 15064;
 	uint16_t sum;
 
 	sum = esix_ip6_upper_checksum(&src, &dst, esix_ip6_next_icmp, data, sizeof(data));
