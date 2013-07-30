@@ -2,7 +2,7 @@
 #include <esix.h>
 
 extern test_ret test_tools();
-extern test_ret test_intf();
+extern test_ret test_nd6();
 extern test_ret test_eth();
 extern test_ret test_ip6();
 extern test_ret test_icmp6();
@@ -19,10 +19,10 @@ typedef struct {
 static test_t tests[] = {
 	{ "misc", test_misc },
 	{ "tools", test_tools },
-	{ "interface", test_intf },
 	{ "ethernet", test_eth },
-	{ "ipv6", test_ip6 },
+	{ "nd6", test_nd6 },
 	{ "icmpv6", test_icmp6 },
+	{ "ipv6", test_ip6 },
 	{ "udpv6", test_udp6 },
 	{ "tcpv6", test_tcp6 },
 	{ "socket", test_socket },

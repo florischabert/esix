@@ -109,7 +109,6 @@ void esix_icmp6_send(const esix_ip6_addr *_src_addr, const esix_ip6_addr *dst_ad
 	}
 	
 	hdr->chksum = esix_ip6_upper_checksum(&src_addr, dst_addr, esix_ip6_next_icmp, hdr, len + sizeof(struct icmp6_hdr));
-	
 	esix_ip6_send(&src_addr, dst_addr, hlimit, esix_ip6_next_icmp, hdr, len + sizeof(struct icmp6_hdr));
 
 	free(hdr);
@@ -177,7 +176,6 @@ void esix_icmp6_send_router_sol(uint8_t nd6_index)
 		0x00000000,
 		0x00000002
 	}};
-	
 	uint16_t len = sizeof(struct icmp6_router_sol) + sizeof(struct icmp6_opt_lla);
 	struct icmp6_router_sol *ra_sol = malloc(len);
 
@@ -186,10 +184,11 @@ void esix_icmp6_send_router_sol(uint8_t nd6_index)
 		return;
 
 	struct icmp6_opt_lla *opt = (struct icmp6_opt_lla *) (ra_sol + 1);
+	esix_eth_addr lla = esix_nd6_lla();
 
 	opt->type = S_LLA;
 	opt->len8 = 1; //1 * 8 bytes
-	opt->lla = esix_nd6_lla();
+	opt->lla = eth_addr_ntoh(&lla);
 
 	nd6_addr = esix_nd6_get_addr_for_type(esix_ip6_addr_type_link_local);
 	if (nd6_addr) {

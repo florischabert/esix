@@ -73,6 +73,8 @@ typedef struct {
 	void (*process)(const void *payload, int len);
 } esix_eth_upper_handler;
 
+esix_eth_addr eth_addr_ntoh(const esix_eth_addr *addr);
+
 /**
  * Process an incoming ethernet frame.
  * Do sanity checks and pass its payload to the corresponding upper layer.

@@ -54,7 +54,7 @@ int esix_eth_addr_match(const esix_eth_addr *addr1, const esix_eth_addr *addr2)
 	return does_match;
 }
 
-static esix_eth_addr eth_addr_ntoh(const esix_eth_addr *addr)
+esix_eth_addr eth_addr_ntoh(const esix_eth_addr *addr)
 {
 	esix_eth_addr haddr;
 	int i;

@@ -33,6 +33,7 @@ static test_ret test_send(void)
 	esix_lla lla = { 0, 0, 0, 0, 0, 0 };
 	esix_eth_addr eth_addr;
 	esix_ip6_addr mask = {{ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff }};
+	 esix_ip6_addr addr_null = {{ 0, 0, 0, 0 }};
 	int i;
 	
 	esix_internal_init();
@@ -40,10 +41,11 @@ static test_ret test_send(void)
 	eth_addr = esix_nd6_lla();
 
 	esix_nd6_add_neighbor(&dst_addr, &eth_addr, 0);
-	esix_nd6_add_route(&dst_addr, &mask, &dst_addr, 0, 0, 0);
+	esix_nd6_add_route(&dst_addr, &mask, &addr_null, 0, 0, 0);
 
 	esix_ip6_send(&src_addr, &dst_addr, 0, esix_ip6_next_icmp, payload, sizeof(payload));
 
+	esix_outqueue_pop(); // autoconf neighbor sol
 	buffer = esix_outqueue_pop();
 	require(buffer);
 	require(buffer->data);
@@ -68,7 +70,7 @@ static test_ret test_checksum(void)
 	esix_ip6_addr src = {{ 1, 2, 3, 4 }};
 	esix_ip6_addr dst = {{ 5, 6, 7, 8 }};
 	char data[] = "abcdefabcdefabcdefabcdefabcdefabcdefabcdef";
-	uint16_t expected_sum = 24274;
+	uint16_t expected_sum = 24280;
 	uint16_t sum;
 
 	sum = esix_ip6_upper_checksum(&src, &dst, esix_ip6_next_icmp, data, sizeof(data));

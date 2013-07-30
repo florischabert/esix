@@ -39,7 +39,7 @@ static esix_ip6_upper_handler ip6_upper_handlers[] = {
 	{ esix_ip6_next_tcp, esix_tcp_process }
 };
 
-static const esix_ip6_addr ip6_addr_null = {{0, 0, 0, 0 }};
+static const esix_ip6_addr ip6_addr_null = {{ 0, 0, 0, 0 }};
 static const esix_ip6_addr ip6_addr_unmasked = {{ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff }};
 
 static int ip6_addr_is_multicast(const esix_ip6_addr *addr)
@@ -225,19 +225,19 @@ esix_err esix_ip6_work(void)
 	return esix_err_none;
 }
 
+
 uint16_t esix_ip6_upper_checksum(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, const esix_ip6_next next, const void *payload, int len)
 {
 	uint32_t sum = 0;
 	uint16_t const *data;
-	uint16_t *src_addr16 = (uint16_t *)src_addr->raw;
-	uint16_t *dst_addr16 = (uint16_t *)dst_addr->raw;
+	esix_ip6_addr src_addr_n = ip6_addr_ntoh(src_addr);
+	esix_ip6_addr dst_addr_n = ip6_addr_ntoh(dst_addr);
+	int i = 0;
 
 	// IPv6 pseudo-header sum : src_addr, dst_addr, type and payload length
-	for (data = src_addr16; data < src_addr16+1; data++) {
-		sum += *data;
-	}
-	for (data = dst_addr16; data < dst_addr16+1; data++) {
-		sum += *data;
+	for (i = 0; i < sizeof(esix_ip6_addr); i += 2) {
+		sum += *((uint16_t *)&src_addr_n + i);
+		sum += *((uint16_t *)&dst_addr_n + i);
 	}
 	sum += hton16(len);
 	sum += hton16(next);
