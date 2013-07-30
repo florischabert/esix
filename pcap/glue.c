@@ -144,15 +144,25 @@ int main(int argc, char *argv[])
 	esix_lla lla = MAC_ADDR;
 	pthread_t workloop;
 
+	if (argc > 2) {
+		fprintf(stderr, "Usage: %s [intf]\n", argv[0]);
+		goto out;
+	}
+
 	if (geteuid() != 0) {
 		fprintf(stderr, "You need to be root to open the default device.\n");
 		goto out;
 	}
 
-	dev = pcap_lookupdev(errbuf);
-	if (!dev) {
-		fprintf(stderr, "Error: Couldn't find the default device: %s\n", errbuf);
-		goto out;
+	if (argc == 2) {
+		dev = argv[1];
+	}
+	else {
+		dev = pcap_lookupdev(errbuf);
+		if (!dev) {
+			fprintf(stderr, "Error: Couldn't find the default device: %s\n", errbuf);
+			goto out;
+		}
 	}
 
 	pcap_handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
