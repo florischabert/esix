@@ -49,7 +49,7 @@ static esix_ip6_addr nd6_create_link_local_addr(esix_eth_addr eth_addr)
 	esix_ip6_addr ip_addr = {{
 		0xfe800000,
 		0x00000000,
-		((ip_addr.raw[0] << 16) & 0xff0000)
+		((eth_addr.raw[0] << 16) & 0xff0000)
 			| (eth_addr.raw[1] & 0xff00)
 			| 0x020000ff,
 		0xfe000000
