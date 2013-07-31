@@ -140,7 +140,7 @@ esix_err esix_enqueue(void *payload, int len)
 
 	memcpy(buffer->data, payload, len);
 
-	esix_inqueue_push(payload);
+	esix_inqueue_push(buffer);
 
 	esix_sem_signal(sem);
 

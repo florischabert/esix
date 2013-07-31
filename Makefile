@@ -24,7 +24,7 @@ LIB=libesix.a
 SRC=$(wildcard src/*.c)
 TESTS=$(wildcard tests/*.c)
 PCAP=$(wildcard pcap/*.c)
-CFLAGS += -Iinclude -O2 -Wall -g -DESIX_DEBUG
+CFLAGS += -Iinclude -Wall -g -DESIX_DEBUG
 
 %.o: %.c
 	@echo CC $@
