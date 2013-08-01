@@ -26,37 +26,26 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ESIX_API_H
-#define _ESIX_API_H
+#ifndef _ESIX_GLUE_H
+#define _ESIX_GLUE_H
 
-#include <stdint.h>
+typedef struct esix_mutex_t esix_mutex_t;
+typedef struct esix_sem_t esix_sem_t;
 
-/**
- * Error type
- */
-typedef enum {
-	esix_err_none = 0, // went okay
-	esix_err_badparam, // bad parameter
-	esix_err_oom,      // out of memory
-	esix_err_failed,   // function failed
-} esix_err;
+esix_mutex_t *esix_mutex_create(void);
+void esix_mutex_destroy(esix_mutex_t *mutex);
+void esix_mutex_lock(esix_mutex_t *mutex);
+void esix_mutex_unlock(esix_mutex_t *mutex);
 
-typedef uint8_t esix_lla[6];
+esix_sem_t *esix_sem_create(void);
+void esix_sem_destroy(esix_sem_t *sem);
+void esix_sem_wait(esix_sem_t *sem, uint64_t delay_ns);
+void esix_sem_signal(esix_sem_t *sem);
 
-void esix_send(void *data, int len);
+uint64_t esix_gettime(void);
 
-/**
- * Sets up the esix stack.
- *
- * @param lla           MAC address of the node, string with each byte in hex separated by ':'.
- * @param send_callback A callback sending data of len bytes to the ethernet controller
- */
-esix_err esix_init(esix_lla lla);
+void *esix_malloc(size_t len);
+void esix_free(void *ptr);
 
-esix_err esix_workloop(void);
-
-esix_err esix_enqueue(void *payload, int len);
-
-void esix_destroy(void);
 
 #endif

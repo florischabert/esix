@@ -42,12 +42,9 @@ test_ret run_tests(test_f tests[])
 	return ret;
 }
 
-void esix_send(void *data, int len) {}
-uint64_t esix_gettime(void) { return 0; }
-esix_sem_t *esix_sem_create(void) { return NULL; }
-void esix_sem_destroy(esix_sem_t *sem) {}
-void esix_sem_wait(esix_sem_t *sem, uint64_t delay_ns) {}
-void esix_sem_signal(esix_sem_t *sem) {}
+void esix_send(void *data, int len) {
+	
+}
 
 int main(int argc, char const *argv[])
 {

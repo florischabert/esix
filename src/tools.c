@@ -136,7 +136,12 @@ typedef struct {
 void esix_queue_init(esix_queue *queue)
 {
 	esix_list_init(&queue->list);
-	esix_unlock(&queue->lock);
+	queue->mutex = esix_mutex_create();
+}
+
+void esix_queue_destroy(esix_queue *queue)
+{
+	esix_mutex_destroy(queue->mutex);
 }
 
 esix_err esix_queue_push(void *buffer, esix_queue *queue)
@@ -152,9 +157,9 @@ esix_err esix_queue_push(void *buffer, esix_queue *queue)
 	
 	link->buffer = buffer;
 
-	esix_lock(&queue->lock);
+	esix_mutex_lock(queue->mutex);
 	esix_list_add(&link->list, &queue->list);
-	esix_unlock(&queue->lock);
+	esix_mutex_unlock(queue->mutex);
 
 out:
 	return err;
@@ -173,9 +178,9 @@ void *esix_queue_pop(esix_queue *queue)
 
 	buffer = link->buffer;
 
-	esix_lock(&queue->lock);
+	esix_mutex_lock(queue->mutex);
 	esix_list_del(&link->list);
-	esix_unlock(&queue->lock);
+	esix_mutex_unlock(queue->mutex);
 
 	free(link);
 

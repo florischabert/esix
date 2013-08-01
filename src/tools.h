@@ -30,6 +30,7 @@
 #define _TOOLS_H
 
 #include "config.h"
+#include "../glue/glue.h"
 #include <esix.h>
 
 #include <stdint.h>
@@ -49,19 +50,6 @@
 #else
 #define ESIX_LOG(...) do { } while (0)
 #endif
-
-static inline void esix_lock(volatile int *lock)
-{
-	while (__sync_lock_test_and_set(lock, 1)) {
-		while (*lock) {
-		}
-	}
-}
-
-static inline void esix_unlock(volatile int *lock)
-{
-	__sync_lock_release(lock);
-}
 
 #define esix_foreach(item_ptr, array) \
 	for (item_ptr = &array[0]; item_ptr < array + sizeof(array)/sizeof(array[0]); item_ptr++)
@@ -130,10 +118,11 @@ void esix_buffer_free(esix_buffer *buffer);
 
 typedef struct {
 	esix_list list;
-	int lock;
+	esix_mutex_t *mutex;
 } esix_queue;
 
 void esix_queue_init(esix_queue *queue);
+void esix_queue_destroy(esix_queue *queue);
 esix_err esix_queue_push(void *buffer, esix_queue *queue);
 void *esix_queue_pop(esix_queue *queue);
 

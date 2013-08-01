@@ -30,7 +30,7 @@ CFLAGS += -Iinclude -Wall -g -DESIX_DEBUG
 	@echo CC $@
 	@$(CC) $(CFLAGS) -MD -MF $(@:.o=.deps) -o $@ -c $<
 
-$(LIB): $(SRC:.c=.o)
+$(LIB): $(SRC:.c=.o) glue/unix.o
 	@echo AR $@
 	@$(AR) rcs $@ $^
 
@@ -45,7 +45,7 @@ esixd: $(PCAP:.c=.o) $(LIB)
 freertos: $(LIB)
 	@$(MAKE) -C freertos
 
--include $(SRC:%.c=%.d) $(TESTS:%.c=%.d) $(PCAP:%.c=%.d)
+-include $(SRC:%.c=%.deps) $(TESTS:%.c=%.deps) $(PCAP:%.c=%.deps)
 
 clean:
 	@$(RM) $(LIB) $(SRC:.c=.o) $(SRC:.c=.deps) test $(TESTS:.c=.o) $(TESTS:.c=.deps) esixd $(PCAP:.c=.o) $(PCAP:.c=.deps)
