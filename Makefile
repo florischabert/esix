@@ -21,7 +21,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 LIB=libesix.a
-SRC=$(wildcard src/*.c)
+SRC=$(wildcard src/*.c) $(wildcard src/glue/*.c)
 TESTS=$(wildcard tests/*.c)
 PCAP=$(wildcard pcap/*.c)
 CFLAGS += -Iinclude -Wall -g -DESIX_DEBUG
@@ -30,7 +30,7 @@ CFLAGS += -Iinclude -Wall -g -DESIX_DEBUG
 	@echo CC $@
 	@$(CC) $(CFLAGS) -MD -MF $(@:.o=.deps) -o $@ -c $<
 
-$(LIB): $(SRC:.c=.o) glue/unix.o
+$(LIB): $(SRC:.c=.o)
 	@echo AR $@
 	@$(AR) rcs $@ $^
 

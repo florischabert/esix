@@ -98,7 +98,7 @@ void esix_eth_send(const esix_eth_addr *dst_addr, const esix_eth_type type, cons
 	esix_eth_hdr *hdr;
 	esix_eth_addr lla = esix_nd6_lla();
 
-	hdr = malloc(sizeof(esix_eth_hdr) + len);
+	hdr = esix_malloc(sizeof(esix_eth_hdr) + len);
 	if (!hdr) {
 		return;
 	}
@@ -108,7 +108,7 @@ void esix_eth_send(const esix_eth_addr *dst_addr, const esix_eth_type type, cons
 	
 	hdr->type = hton16(type);
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = esix_malloc(sizeof(*buffer));
 	if (!buffer) {
 		return;
 	}

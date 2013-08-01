@@ -67,7 +67,7 @@ void esix_udp_process(const void *payload, int len, const esix_ip6_hdr *ip_hdr)
 
 void esix_udp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr, uint16_t s_port, uint16_t d_port, const void *data, uint16_t len)
 {
-	struct udp_hdr *hdr = malloc(sizeof(struct udp_hdr) + len);
+	struct udp_hdr *hdr = esix_malloc(sizeof(struct udp_hdr) + len);
 	if(hdr == NULL)
 		return;
 
@@ -81,5 +81,5 @@ void esix_udp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 	
 	esix_ip6_send(src_addr, dst_addr, DEFAULT_TTL, esix_ip6_next_udp, hdr, len + sizeof(struct udp_hdr));
 
-	free(hdr);
+	esix_free(hdr);
 }

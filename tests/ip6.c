@@ -45,7 +45,6 @@ static test_ret test_send(void)
 
 	esix_ip6_send(&src_addr, &dst_addr, 0, esix_ip6_next_icmp, payload, sizeof(payload));
 
-	esix_outqueue_pop(); // autoconf neighbor sol
 	buffer = esix_outqueue_pop();
 	require(buffer);
 	require(buffer->data);

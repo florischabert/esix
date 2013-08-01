@@ -90,7 +90,7 @@ esix_err esix_nd6_add_default_routes(int nd6_mtu)
 	esix_nd6_route *route;
 
 	// link local route (fe80::/64)
-	route = malloc(sizeof(*route));
+	route = esix_malloc(sizeof(*route));
 	if (!route) {
 		err = esix_err_oom;
 		goto out;
@@ -106,7 +106,7 @@ esix_err esix_nd6_add_default_routes(int nd6_mtu)
 	esix_list_add(&route->link, &nd6_routes);
 
 	// multicast route (ff00:: /8)
-	route = malloc(sizeof(*route));
+	route = esix_malloc(sizeof(*route));
 	if (!route) {
 		err = esix_err_oom;
 		goto out;
@@ -156,7 +156,7 @@ esix_err esix_nd6_add_neighbor(const esix_ip6_addr *ip_addr, const esix_eth_addr
 
 	neighbor = esix_nd6_get_neighbor(ip_addr);
 	if (!neighbor) {
-		neighbor = malloc(sizeof(*neighbor));
+		neighbor = esix_malloc(sizeof(*neighbor));
 		if (!neighbor) {
 			err = esix_err_oom;
 			goto out;
@@ -192,7 +192,7 @@ void esix_nd6_remove_neighbor(const esix_ip6_addr *addr)
 	neighbor = esix_nd6_get_neighbor(addr);
 	if (neighbor) {
 		esix_list_del(&neighbor->link);
-		free(neighbor);
+		esix_free(neighbor);
 	}
 }
 
@@ -272,7 +272,7 @@ esix_err esix_nd6_add_addr(const esix_ip6_addr *addr, uint8_t masklen, uint32_t 
 		goto out;
 	}
 
-	nd6_addr = malloc(sizeof(*nd6_addr));
+	nd6_addr = esix_malloc(sizeof(*nd6_addr));
 	if (!nd6_addr) {
 		err = esix_err_oom;
 		goto out;
@@ -346,7 +346,7 @@ void esix_nd6_remove_addr(const esix_ip6_addr *addr, esix_ip6_addr_type type, ui
 		//if(type == MULTICAST)
 		//	esix_icmp_send_mld(&row->addr, MLD_DNE);
 		esix_list_del(&nd6_addr->link);
-		free(nd6_addr);
+		esix_free(nd6_addr);
 	}
 }
 
@@ -357,7 +357,7 @@ esix_err esix_nd6_add_route(const esix_ip6_addr *dst_addr, const esix_ip6_addr *
 
 	route = esix_nd6_get_route(dst_addr, mask, next_addr);
 	if (!route) {
-		route = malloc(sizeof(*route));
+		route = esix_malloc(sizeof(*route));
 		if (!route) {
 			err = esix_err_oom;
 			goto out;
@@ -383,7 +383,7 @@ void esix_nd6_remove_route(const esix_ip6_addr *dst_addr, const esix_ip6_addr *m
 	route = esix_nd6_get_route(dst_addr, mask, next_hop);
 	if (route) {
 		esix_list_del(&route->link);
-		free(route);
+		esix_free(route);
 	}
 }
 

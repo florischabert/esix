@@ -63,7 +63,7 @@ esix_mutex_t *esix_mutex_create()
 {
 	esix_mutex_t *mutex;
 
-	mutex = malloc(sizeof *mutex);
+	mutex = esix_malloc(sizeof *mutex);
 	pthread_mutex_init(&mutex->mutex, NULL);
 
 	return mutex;
@@ -82,7 +82,7 @@ void esix_mutex_unlock(esix_mutex_t *mutex)
 void esix_mutex_destroy(esix_mutex_t *mutex)
 {
 	pthread_mutex_destroy(&mutex->mutex);
-	free(mutex);
+	esix_free(mutex);
 }
 
 struct esix_sem_t {
@@ -95,7 +95,7 @@ esix_sem_t *esix_sem_create()
 {
 	esix_sem_t *sem;
 
-	sem = malloc(sizeof *sem);
+	sem = esix_malloc(sizeof *sem);
 
 	pthread_cond_init(&sem->cond, NULL);
 	pthread_mutex_init(&sem->mutex, NULL);
@@ -137,5 +137,5 @@ void esix_sem_destroy(esix_sem_t *sem)
 	pthread_cond_destroy(&sem->cond);
 	pthread_mutex_destroy(&sem->mutex);
 
-	free(sem);
+	esix_free(sem);
 }

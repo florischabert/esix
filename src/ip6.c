@@ -163,7 +163,7 @@ void esix_ip6_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 	const esix_ip6_addr *next_hop = NULL;
 	esix_nd6_neighbor *neighbor;
 	
-	hdr = malloc(sizeof(esix_ip6_hdr) + len);
+	hdr = esix_malloc(sizeof(esix_ip6_hdr) + len);
 	if (!hdr) {
 		goto out;
 	}
@@ -178,7 +178,7 @@ void esix_ip6_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 
 	route = esix_nd6_get_route_for_addr(dst_addr);
 	if (!route) {
-		free(hdr);
+		esix_free(hdr);
 		goto out;
 	}
 
@@ -205,7 +205,7 @@ void esix_ip6_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 			esix_eth_send(&neighbor->lla, esix_eth_type_ip6, hdr, len + sizeof(esix_ip6_hdr));
 		}
 		else {
-			free(hdr);
+			esix_free(hdr);
 			goto out;
 		}
 	}
@@ -214,7 +214,7 @@ void esix_ip6_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 		if (addr) {
 			esix_icmp6_send_neighbor_sol(&addr->addr, next_hop);
 		}
-		free(hdr);
+		esix_free(hdr);
 	}
 out:
 	return;

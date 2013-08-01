@@ -30,7 +30,7 @@
 #define _TOOLS_H
 
 #include "config.h"
-#include "../glue/glue.h"
+#include "glue/glue.h"
 #include <esix.h>
 
 #include <stdint.h>

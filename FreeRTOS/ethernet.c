@@ -244,7 +244,7 @@ void ether_send_task(void *param)
 		for(i = 0; (i < len4) && (i < MAX_FRAME_SIZE-5); i++) 
 				ETH0->MACDATA = *(eth_f.data + i);
 				
-		free(eth_f.data);
+		esix_free(eth_f.data);
 			
 		ETH0->MACTR |= 1; // now, start the transmission
 		while(ETH0->MACTR & 0x1); // waiting for the transmission to be complete	

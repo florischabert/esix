@@ -39,14 +39,14 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 	switch(esix_sockets[sock].proto)
 	{
 		case SOCK_DGRAM:
-			if((buf = malloc(len+sizeof(struct sockaddr_in6))) == NULL ) 
+			if((buf = esix_malloc(len+sizeof(struct sockaddr_in6))) == NULL ) 
 				return -1;
 
 			esix_memcpy(buf, sockaddr, sizeof(struct sockaddr_in6));
 			esix_memcpy(buf+sizeof(struct sockaddr_in6), data, len);
 		break;
 		case SOCK_STREAM:
-			if((buf = malloc(len)) == NULL ) 
+			if((buf = esix_malloc(len)) == NULL ) 
 				return -1;
 
 			esix_memcpy(buf, data, len);
@@ -56,9 +56,9 @@ int esix_queue_data(int sock, const void *data, int len, struct sockaddr_in6 *so
 		break;
 	}
 
-	if((sqe = malloc(sizeof(struct sock_queue))) == NULL) 
+	if((sqe = esix_malloc(sizeof(struct sock_queue))) == NULL) 
 	{
-		free(buf);
+		esix_free(buf);
 		return -1;
 	}
 
@@ -247,8 +247,8 @@ int recvfrom(int sock, void *buf, int max_len, int flags, struct sockaddr_in6 *s
 		*sockaddr_len = sizeof(struct sockaddr_in6);
 
 	//free data buffer and socket queue element
-	free(sqe->data);
-	free(sqe);
+	esix_free(sqe->data);
+	esix_free(sqe);
 
 	return len;
 }
@@ -261,7 +261,7 @@ int accept(int sock, struct sockaddr_in6 *saddr, int *sockaddr_len)
 		return -1;
 
 	session_sock = sqe->socknum;
-	free(sqe);
+	esix_free(sqe);
 
 	if(saddr != NULL)
 	{
@@ -287,7 +287,7 @@ int esix_socket_create_child(const esix_ip6_addr *saddr, const esix_ip6_addr *da
 	if((session_sock = socket(AF_INET6, proto, 0)) < 0)
 		return -1;
 
-	if((sqe = malloc(sizeof(struct sock_queue))) == NULL)
+	if((sqe = esix_malloc(sizeof(struct sock_queue))) == NULL)
 	{
 		esix_sockets[session_sock].state = CLOSED;
 		return -1;
@@ -498,9 +498,9 @@ void esix_socket_free_queue(int socknum)
 		esix_sockets[socknum].queue = sqe->next_e;
 		//free its payload, if any
 		if(sqe->qe_type == RECV_PKT || sqe->qe_type == SENT_PKT)
-			free(sqe->data);
+			esix_free(sqe->data);
 		//finally free it.
-		free(sqe);
+		esix_free(sqe);
 	}
 }
 
@@ -587,8 +587,8 @@ int esix_socket_expire_e(int s, uint32_t ackn)
 					sqe 	= sqe->next_e;
 
 				//free the element and its data
-				free(tmp->data);
-				free(tmp);
+				esix_free(tmp->data);
+				esix_free(tmp);
 	
 				i++;
 			}

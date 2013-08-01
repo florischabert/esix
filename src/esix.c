@@ -44,6 +44,8 @@ void esix_internal_init(void)
 {
 	esix_queue_init(&inqueue);
 	esix_queue_init(&outqueue);
+
+	sem = esix_sem_create();
 }
 
 /**
@@ -54,8 +56,6 @@ esix_err esix_init(esix_lla lla)
 	esix_err err = esix_err_none;
 
 	esix_internal_init();
-
-	sem = esix_sem_create();
 
 	esix_nd6_init(lla);
 

@@ -214,7 +214,7 @@ void esix_tcp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 	if(esix_nd6_check_source_addr(&saddr, dst_addr) < 0)
 		return;	
 
-	if((hdr = malloc(sizeof(struct tcp_hdr) + len)) == NULL)
+	if((hdr = esix_malloc(sizeof(struct tcp_hdr) + len)) == NULL)
 		return;
 	
 	hdr->d_port = d_port;
@@ -232,6 +232,6 @@ void esix_tcp_send(const esix_ip6_addr *src_addr, const esix_ip6_addr *dst_addr,
 
 	esix_ip6_send(&saddr, dst_addr, DEFAULT_TTL, esix_ip6_next_tcp, hdr, len + sizeof(struct tcp_hdr));
 
-	free(hdr);
+	esix_free(hdr);
 }
 

@@ -37,7 +37,7 @@
 
 int alloc_count=0;
 
-void *malloc(size_t size)
+void *esix_malloc(size_t size)
 {
 	int i;
 	u32_t *ptr;
@@ -52,7 +52,7 @@ void *malloc(size_t size)
 	return ptr;
 }
 
-void free(void *ptr)
+void esix_free(void *ptr)
 {
 	alloc_count--;
 	vPortFree(ptr);

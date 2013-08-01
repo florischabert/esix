@@ -105,12 +105,12 @@ esix_buffer *esix_buffer_alloc(int len)
 {
 	esix_buffer *buffer;
 
-	buffer = malloc(sizeof(*buffer));
+	buffer = esix_malloc(sizeof(*buffer));
 	if (!buffer) {
 		goto out;
 	}
 
-	buffer->data = malloc(len);
+	buffer->data = esix_malloc(len);
 	if (!buffer->data) {
 		goto out;
 	}
@@ -124,8 +124,8 @@ out:
 
 void esix_buffer_free(esix_buffer *buffer)
 {
-	free(buffer->data);
-	free(buffer);
+	esix_free(buffer->data);
+	esix_free(buffer);
 }
 
 typedef struct {
@@ -149,7 +149,7 @@ esix_err esix_queue_push(void *buffer, esix_queue *queue)
 	esix_err err = esix_err_none;
 	esix_buffer_link *link;
 
-	link = malloc(sizeof *link);
+	link = esix_malloc(sizeof *link);
 	if (!link) {
 		err = esix_err_oom;
 		goto out;
@@ -182,7 +182,7 @@ void *esix_queue_pop(esix_queue *queue)
 	esix_list_del(&link->list);
 	esix_mutex_unlock(queue->mutex);
 
-	free(link);
+	esix_free(link);
 
 out:
 	return buffer;
